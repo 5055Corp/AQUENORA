@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&amp;family=Manrope:wght@400;500;600;700&amp;family=Newsreader:opsz,wght@6..72,500&amp;family=Fredoka:wght@500&amp;family=IBM+Plex+Mono:wght@400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#e9e3d9;color:#1c1a17;font-family:'Manrope',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:oklch(0.5 0.15 40)}
+a:hover{color:oklch(0.42 0.15 40)}
+input{font-family:inherit}
+</style>
+</helmet>
+
+<div style="min-height:100vh;display:flex;justify-content:center;">
+<div style="width:100%;max-width:{{ frameMax }};min-height:100vh;background:#f6f3ee;position:relative;box-shadow:{{ frameShadow }};display:flex;flex-direction:column;">
+
+<sc-if value="{{ isOnboarding }}" hint-placeholder-val="{{ true }}">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 24px;border-bottom:1px solid #e4ddd2;">
+    <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:20px;letter-spacing:0.08em;">AQENORA</div>
+    <div style="font-size:13px;color:#6b645a;font-weight:600;">Step {{ stepNum }} of 5</div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:4px;padding:0 24px;margin-top:12px;">
+    <sc-for list="{{ stepBars }}" as="b" hint-placeholder-count="5">
+      <div style="height:4px;border-radius:2px;background:{{ b.bg }};"></div>
+    </sc-for>
+  </div>
+
+  <div style="flex:1;display:grid;grid-template-columns:{{ obCols }};gap:40px;padding:{{ obPad }};align-items:start;max-width:1100px;width:100%;box-sizing:border-box;margin:0 auto;">
+    <div style="display:flex;flex-direction:column;gap:20px;max-width:540px;">
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <h1 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:{{ h1Size }};line-height:1.05;letter-spacing:-0.02em;margin:0;text-wrap:balance;">{{ stepTitle }}</h1>
+        <p style="margin:0;font-size:16px;line-height:1.5;color:#5b554c;text-wrap:pretty;">{{ stepSub }}</p>
+      </div>
+
+      <sc-if value="{{ isStep0 }}" hint-placeholder-val="{{ true }}">
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;">
+          <sc-for list="{{ categories }}" as="c" hint-placeholder-count="6">
+            <button onClick="{{ c.onPick }}" style="text-align:left;padding:16px;min-height:64px;border-radius:14px;border:2px solid {{ c.border }};background:{{ c.bg }};font-family:inherit;font-size:15px;font-weight:600;color:#1c1a17;cursor:pointer;">{{ c.label }}</button>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isStep1 }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <input value="{{ shopName }}" onChange="{{ onShopName }}" placeholder="e.g. Adire House" style="font-size:20px;padding:16px 18px;border-radius:14px;border:2px solid #d9d1c4;background:#fff;outline:none;"></input>
+          <div style="font-size:14px;color:#5b554c;">Your web address: <strong style="color:#1c1a17;">{{ slug }}.aqenora.com</strong></div>
+          <sc-if value="{{ showHints }}" hint-placeholder-val="{{ true }}">
+            <button onClick="{{ helpUrl.toggle }}" style="align-self:flex-start;background:none;border:none;padding:0;font-family:inherit;font-size:14px;font-weight:600;color:oklch(0.5 0.15 40);cursor:pointer;">{{ helpUrl.label }}</button>
+            <sc-if value="{{ helpUrl.open }}" hint-placeholder-val="{{ false }}">
+              <div style="background:#efe8dc;border-radius:12px;padding:14px 16px;font-size:14px;line-height:1.55;">This is the link customers type or tap to visit your shop. You can send it on WhatsApp or put it in your Instagram bio. You can switch to your own address (like adirehouse.com) later on the Pro plan.</div>
+            </sc-if>
+          </sc-if>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isStep2 }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <sc-for list="{{ countries }}" as="c" hint-placeholder-count="6">
+            <button onClick="{{ c.onPick }}" style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 16px;min-height:52px;border-radius:12px;border:2px solid {{ c.border }};background:{{ c.bg }};font-family:inherit;font-size:15px;font-weight:600;color:#1c1a17;cursor:pointer;text-align:left;">
+              <span>{{ c.name }}</span><span style="font-weight:500;color:#6b645a;font-size:14px;">{{ c.curName }}</span>
+            </button>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isStep3 }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div style="height:160px;border-radius:14px;border:2px dashed #cfc6b7;background:repeating-linear-gradient(135deg,#ebe4d8 0 10px,#f2ece2 10px 20px);display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#6b645a;">tap to add product photo</div>
+          <label style="display:flex;flex-direction:column;gap:6px;font-size:14px;font-weight:600;">What is it called?
+            <input value="{{ productName }}" onChange="{{ onProductName }}" placeholder="e.g. Indigo adire kimono" style="font-size:17px;padding:14px 16px;border-radius:12px;border:2px solid #d9d1c4;background:#fff;outline:none;font-weight:500;"></input>
+          </label>
+          <label style="display:flex;flex-direction:column;gap:6px;font-size:14px;font-weight:600;">Price
+            <div style="display:flex;align-items:center;border-radius:12px;border:2px solid #d9d1c4;background:#fff;overflow:hidden;">
+              <span style="padding:0 6px 0 16px;font-size:17px;color:#6b645a;">{{ sym }}</span>
+              <input value="{{ productPrice }}" onChange="{{ onProductPrice }}" inputmode="numeric" style="flex:1;font-size:17px;padding:14px 16px 14px 4px;border:none;outline:none;font-weight:500;min-width:0;"></input>
+            </div>
+          </label>
+          <div style="font-size:14px;color:#5b554c;">You can add more products, sizes and colours later.</div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isStep4 }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div style="background:#fff;border-radius:16px;border:2px solid {{ payBorder }};padding:18px;display:flex;flex-direction:column;gap:12px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+              <div style="display:flex;flex-direction:column;gap:2px;">
+                <div style="font-weight:700;font-size:16px;">Paystack</div>
+                <div style="font-size:13.5px;color:#5b554c;">Cards, bank transfer and USSD</div>
+              </div>
+              <button onClick="{{ connectPaystack }}" style="padding:12px 18px;min-height:44px;border-radius:999px;border:none;background:{{ payBtnBg }};color:{{ payBtnColor }};font-family:inherit;font-weight:700;font-size:14px;cursor:pointer;white-space:nowrap;">{{ payBtnLabel }}</button>
+            </div>
+            <div style="font-size:13.5px;color:#5b554c;line-height:1.5;">{{ feeLine }}</div>
+          </div>
+          <button onClick="{{ toggleIntl }}" style="display:flex;justify-content:space-between;align-items:center;gap:12px;background:#fff;border-radius:16px;border:2px solid #e4ddd2;padding:18px;font-family:inherit;text-align:left;cursor:pointer;color:#1c1a17;">
+            <div style="display:flex;flex-direction:column;gap:2px;">
+              <div style="font-weight:700;font-size:16px;">Sell to customers abroad</div>
+              <div style="font-size:13.5px;color:#5b554c;">Let buyers in the UK, US and Europe pay in dollars or euros</div>
+            </div>
+            <div style="width:48px;height:28px;border-radius:14px;background:{{ intlTrack }};position:relative;flex-shrink:0;">
+              <div style="position:absolute;top:3px;left:{{ intlKnob }};width:22px;height:22px;border-radius:11px;background:#fff;"></div>
+            </div>
+          </button>
+          <sc-if value="{{ showHints }}" hint-placeholder-val="{{ true }}">
+            <button onClick="{{ helpPay.toggle }}" style="align-self:flex-start;background:none;border:none;padding:0;font-family:inherit;font-size:14px;font-weight:600;color:oklch(0.5 0.15 40);cursor:pointer;">{{ helpPay.label }}</button>
+            <sc-if value="{{ helpPay.open }}" hint-placeholder-val="{{ false }}">
+              <div style="background:#efe8dc;border-radius:12px;padding:14px 16px;font-size:14px;line-height:1.55;">Paystack moves money from your customer's card or bank into your bank account, usually the next working day. Setup is free; Paystack keeps a small fee from each sale. AQENORA never holds your money.</div>
+            </sc-if>
+          </sc-if>
+        </div>
+      </sc-if>
+
+      <div style="display:flex;gap:10px;margin-top:8px;">
+        <sc-if value="{{ canBack }}" hint-placeholder-val="{{ false }}">
+          <button onClick="{{ back }}" style="padding:16px 22px;min-height:52px;border-radius:999px;border:2px solid #d9d1c4;background:transparent;font-family:inherit;font-weight:700;font-size:15px;cursor:pointer;color:#1c1a17;">Back</button>
+        </sc-if>
+        <button onClick="{{ next }}" style="flex:1;padding:16px 22px;min-height:52px;border-radius:999px;border:none;background:#1c1a17;color:#fff;font-family:inherit;font-weight:700;font-size:15px;cursor:pointer;opacity:{{ nextOpacity }};">{{ nextLabel }}</button>
+      </div>
+      <button onClick="{{ skipToDash }}" style="align-self:center;background:none;border:none;font-family:inherit;font-size:13px;color:#7a7368;cursor:pointer;text-decoration:underline;">Skip setup for now</button>
+    </div>
+
+    <sc-if value="{{ showSidePreview }}" hint-placeholder-val="{{ true }}">
+      <div style="position:sticky;top:24px;display:flex;flex-direction:column;gap:10px;">
+        <div style="font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#7a7368;">Live preview</div>
+        <div style="background:#fffaf3;border-radius:20px;border:1px solid #e4ddd2;overflow:hidden;box-shadow:0 12px 32px rgba(40,30,20,0.08);">
+          <div style="padding:10px 14px;background:#f1ebe1;font-size:12px;color:#6b645a;font-family:'IBM Plex Mono',monospace;">{{ slug }}.aqenora.com</div>
+          <div style="padding:18px;display:flex;flex-direction:column;gap:14px;">
+            <div style="font-family:'Newsreader',serif;font-size:26px;font-weight:500;">{{ shopNameShown }}</div>
+            <div style="font-size:12px;color:#6b645a;font-weight:600;">{{ category }}</div>
+            <div style="height:170px;border-radius:12px;background:repeating-linear-gradient(135deg,#ebe4d8 0 10px,#f2ece2 10px 20px);display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#6b645a;">product photo</div>
+            <div style="display:flex;justify-content:space-between;gap:12px;font-size:15px;font-weight:600;">
+              <span>{{ productNameShown }}</span><span>{{ priceShown }}</span>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <sc-for list="{{ previewBadges }}" as="p" hint-placeholder-count="2">
+                <span style="font-size:11.5px;font-weight:700;padding:5px 10px;border-radius:999px;background:#efe8dc;color:#4a443c;">{{ p.label }}</span>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+  </div>
+</sc-if>
+
+<sc-if value="{{ isApp }}" hint-placeholder-val="{{ false }}">
+  <div style="flex:1;display:flex;min-height:100vh;">
+    <sc-if value="{{ showSidebar }}" hint-placeholder-val="{{ true }}">
+      <aside style="width:232px;flex-shrink:0;border-right:1px solid #e4ddd2;padding:22px 14px;display:flex;flex-direction:column;gap:22px;position:sticky;top:0;height:100vh;box-sizing:border-box;">
+        <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:18px;letter-spacing:0.08em;padding:0 10px;">AQENORA</div>
+        <div style="padding:12px;background:#fff;border-radius:12px;border:1px solid #e4ddd2;display:flex;flex-direction:column;gap:2px;">
+          <div style="font-weight:700;font-size:14px;">{{ shopNameShown }}</div>
+          <div style="font-size:12px;color:#6b645a;">{{ slug }}.aqenora.com</div>
+        </div>
+        <nav style="display:flex;flex-direction:column;gap:2px;">
+          <sc-for list="{{ navItems }}" as="n" hint-placeholder-count="4">
+            <button onClick="{{ n.onPick }}" style="display:flex;justify-content:space-between;align-items:center;padding:11px 12px;border-radius:10px;border:none;background:{{ n.bg }};font-family:inherit;font-size:14.5px;font-weight:{{ n.weight }};color:#1c1a17;cursor:pointer;text-align:left;">
+              <span>{{ n.label }}</span>
+              <sc-if value="{{ n.hasBadge }}" hint-placeholder-val="{{ false }}"><span style="font-size:11px;font-weight:700;background:oklch(0.58 0.15 40);color:#fff;border-radius:999px;padding:2px 7px;">{{ n.badge }}</span></sc-if>
+            </button>
+          </sc-for>
+        </nav>
+        <div style="margin-top:auto;padding:14px;border-radius:12px;background:#efe8dc;font-size:13px;line-height:1.5;display:flex;flex-direction:column;gap:6px;">
+          <strong>Need a hand?</strong>
+          <span>Chat with a real person on WhatsApp. We reply in English, French or Pidgin.</span>
+        </div>
+      </aside>
+    </sc-if>
+
+    <main style="flex:1;min-width:0;display:flex;flex-direction:column;">
+      <sc-if value="{{ isMobile }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 18px;border-bottom:1px solid #e4ddd2;">
+          <div style="display:flex;flex-direction:column;">
+            <div style="font-weight:700;font-size:16px;">{{ shopNameShown }}</div>
+            <div style="font-size:12px;color:#6b645a;">{{ slug }}.aqenora.com</div>
+          </div>
+          <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:13px;letter-spacing:0.08em;color:#7a7368;">AQENORA</div>
+        </div>
+      </sc-if>
+
+      <div style="flex:1;padding:{{ mainPad }};display:flex;flex-direction:column;gap:20px;max-width:{{ mainMax }};width:100%;box-sizing:border-box;">
+
+        <sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            <h1 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:{{ h1Size }};letter-spacing:-0.02em;margin:0;line-height:1.05;">Welcome back, {{ shopNameShown }}</h1>
+            <p style="margin:0;color:#5b554c;font-size:15px;">Here's what to do next. {{ remainingText }}</p>
+          </div>
+
+          <div style="background:#fff;border-radius:18px;border:1px solid #e4ddd2;padding:20px;display:flex;flex-direction:column;gap:14px;">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;">
+              <div style="font-weight:700;font-size:17px;">Get to your first sale</div>
+              <div style="font-size:13px;color:#6b645a;font-weight:600;">{{ doneCount }} of {{ totalCount }} done</div>
+            </div>
+            <div style="height:6px;border-radius:3px;background:#efe8dc;overflow:hidden;"><div style="height:100%;width:{{ progressPct }};background:oklch(0.58 0.15 150);border-radius:3px;"></div></div>
+            <div style="display:flex;flex-direction:column;">
+              <sc-for list="{{ checklist }}" as="c" hint-placeholder-count="6">
+                <div style="display:flex;flex-direction:column;gap:8px;padding:12px 0;border-top:1px solid #f0ebe3;">
+                  <div style="display:flex;align-items:center;gap:12px;">
+                    <div style="width:24px;height:24px;border-radius:12px;flex-shrink:0;background:{{ c.dotBg }};border:2px solid {{ c.dotBorder }};color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;box-sizing:border-box;">{{ c.mark }}</div>
+                    <div style="flex:1;display:flex;flex-direction:column;gap:2px;min-width:0;">
+                      <span style="font-size:15px;font-weight:600;color:{{ c.color }};">{{ c.label }}</span>
+                      <sc-if value="{{ c.hasHelp }}" hint-placeholder-val="{{ false }}">
+                        <button onClick="{{ c.onHelp }}" style="align-self:flex-start;background:none;border:none;padding:0;font-family:inherit;font-size:13px;font-weight:600;color:oklch(0.5 0.15 40);cursor:pointer;">{{ c.helpLabel }}</button>
+                      </sc-if>
+                    </div>
+                    <sc-if value="{{ c.hasAction }}" hint-placeholder-val="{{ false }}">
+                      <button onClick="{{ c.onAction }}" style="padding:10px 16px;min-height:44px;border-radius:999px;border:none;background:#1c1a17;color:#fff;font-family:inherit;font-weight:700;font-size:13.5px;cursor:pointer;white-space:nowrap;">{{ c.actionLabel }}</button>
+                    </sc-if>
+                  </div>
+                  <sc-if value="{{ c.helpOpen }}" hint-placeholder-val="{{ false }}">
+                    <div style="margin-left:36px;background:#efe8dc;border-radius:12px;padding:12px 14px;font-size:13.5px;line-height:1.55;">{{ c.helpText }}</div>
+                  </sc-if>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;">
+            <sc-for list="{{ stats }}" as="s" hint-placeholder-count="3">
+              <div style="background:#fff;border-radius:16px;border:1px solid #e4ddd2;padding:16px;display:flex;flex-direction:column;gap:6px;">
+                <div style="font-size:12.5px;color:#6b645a;font-weight:600;">{{ s.label }}</div>
+                <div style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:{{ statSize }};letter-spacing:-0.01em;">{{ s.value }}</div>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="background:#1c1a17;color:#f6f3ee;border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:12px;">
+            <div style="font-weight:700;font-size:16px;">Your store link</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:14px;background:#2c2924;border-radius:10px;padding:12px 14px;word-break:break-all;">https://{{ slug }}.aqenora.com</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button onClick="{{ shareWA }}" style="padding:11px 16px;min-height:44px;border-radius:999px;border:none;background:oklch(0.58 0.15 150);color:#fff;font-family:inherit;font-weight:700;font-size:13.5px;cursor:pointer;">Share on WhatsApp</button>
+              <button onClick="{{ copyLink }}" style="padding:11px 16px;min-height:44px;border-radius:999px;border:1px solid #57524a;background:transparent;color:#f6f3ee;font-family:inherit;font-weight:700;font-size:13.5px;cursor:pointer;">Copy link</button>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isOrders }}" hint-placeholder-val="{{ false }}">
+          <h1 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:{{ h1Size }};letter-spacing:-0.02em;margin:0;">Orders</h1>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <sc-for list="{{ orderFilters }}" as="f" hint-placeholder-count="4">
+              <button onClick="{{ f.onPick }}" style="padding:9px 14px;min-height:40px;border-radius:999px;border:1px solid {{ f.border }};background:{{ f.bg }};color:{{ f.color }};font-family:inherit;font-weight:600;font-size:13.5px;cursor:pointer;">{{ f.label }}</button>
+            </sc-for>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <sc-for list="{{ ordersShown }}" as="o" hint-placeholder-count="4">
+              <div style="background:#fff;border-radius:16px;border:1px solid #e4ddd2;padding:16px;display:flex;flex-direction:column;gap:12px;">
+                <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;">
+                  <div style="display:flex;flex-direction:column;gap:3px;min-width:0;">
+                    <div style="font-weight:700;font-size:15px;">{{ o.name }} <span style="font-weight:500;color:#7a7368;font-size:13px;">· #{{ o.id }}</span></div>
+                    <div style="font-size:13.5px;color:#5b554c;">{{ o.item }} · {{ o.place }}</div>
+                  </div>
+                  <div style="font-weight:700;font-size:15px;white-space:nowrap;">{{ o.amount }}</div>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+                  <span style="font-size:12.5px;font-weight:700;padding:6px 10px;border-radius:999px;background:{{ o.pillBg }};color:{{ o.pillColor }};">{{ o.statusLabel }}</span>
+                  <sc-if value="{{ o.hasAction }}" hint-placeholder-val="{{ false }}">
+                    <button onClick="{{ o.onAction }}" style="padding:10px 16px;min-height:44px;border-radius:999px;border:none;background:#1c1a17;color:#fff;font-family:inherit;font-weight:700;font-size:13.5px;cursor:pointer;">{{ o.actionLabel }}</button>
+                  </sc-if>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isProducts }}" hint-placeholder-val="{{ false }}">
+          <h1 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:{{ h1Size }};letter-spacing:-0.02em;margin:0;">Products</h1>
+          <div style="background:#fff;border-radius:16px;border:1px solid #e4ddd2;padding:16px;display:flex;flex-direction:column;gap:10px;">
+            <div style="font-weight:700;font-size:15px;">Add a product</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <input value="{{ newName }}" onChange="{{ onNewName }}" placeholder="Product name" style="flex:2 1 180px;font-size:15px;padding:12px 14px;border-radius:10px;border:2px solid #d9d1c4;outline:none;min-width:0;"></input>
+              <input value="{{ newPrice }}" onChange="{{ onNewPrice }}" placeholder="{{ pricePlaceholder }}" inputmode="numeric" style="flex:1 1 100px;font-size:15px;padding:12px 14px;border-radius:10px;border:2px solid #d9d1c4;outline:none;min-width:0;"></input>
+              <button onClick="{{ addProduct }}" style="padding:12px 18px;min-height:44px;border-radius:999px;border:none;background:#1c1a17;color:#fff;font-family:inherit;font-weight:700;font-size:14px;cursor:pointer;">Add</button>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <sc-for list="{{ productRows }}" as="p" hint-placeholder-count="3">
+              <div style="background:#fff;border-radius:16px;border:1px solid #e4ddd2;padding:12px;display:flex;align-items:center;gap:14px;">
+                <div style="width:56px;height:56px;border-radius:10px;flex-shrink:0;background:repeating-linear-gradient(135deg,#ebe4d8 0 6px,#f2ece2 6px 12px);"></div>
+                <div style="flex:1;display:flex;flex-direction:column;gap:2px;min-width:0;">
+                  <div style="font-weight:700;font-size:15px;">{{ p.name }}</div>
+                  <div style="font-size:13px;color:{{ p.stockColor }};font-weight:600;">{{ p.stockLabel }}</div>
+                </div>
+                <div style="font-weight:700;font-size:15px;white-space:nowrap;">{{ p.price }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isDesign }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+            <h1 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:{{ h1Size }};letter-spacing:-0.02em;margin:0;">Your store's look</h1>
+            <button onClick="{{ publish }}" style="padding:12px 20px;min-height:44px;border-radius:999px;border:none;background:oklch(0.58 0.15 40);color:#fff;font-family:inherit;font-weight:700;font-size:14px;cursor:pointer;">Publish changes</button>
+          </div>
+          <div style="display:flex;flex-direction:{{ editorDir }};gap:20px;align-items:stretch;">
+            <div style="flex:0 0 {{ controlsBasis }};display:flex;flex-direction:column;gap:18px;">
+              <div style="display:flex;flex-direction:column;gap:8px;">
+                <div style="font-size:13px;font-weight:700;">1. Pick a style</div>
+                <sc-for list="{{ themes }}" as="t" hint-placeholder-count="3">
+                  <button onClick="{{ t.onPick }}" style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;border:2px solid {{ t.border }};background:#fff;font-family:inherit;cursor:pointer;text-align:left;color:#1c1a17;">
+                    <div style="width:40px;height:40px;border-radius:8px;background:{{ t.bg }};border:1px solid #d9d1c4;display:flex;align-items:center;justify-content:center;font-weight:700;color:{{ t.ink }};font-size:15px;">Aa</div>
+                    <div style="display:flex;flex-direction:column;"><span style="font-weight:700;font-size:14.5px;">{{ t.label }}</span><span style="font-size:12.5px;color:#6b645a;">{{ t.desc }}</span></div>
+                  </button>
+                </sc-for>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px;">
+                <div style="font-size:13px;font-weight:700;">2. Main colour</div>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                  <sc-for list="{{ accents }}" as="a" hint-placeholder-count="4">
+                    <button onClick="{{ a.onPick }}" title="{{ a.name }}" style="width:44px;height:44px;border-radius:22px;background:{{ a.color }};border:3px solid {{ a.ring }};cursor:pointer;box-shadow:inset 0 0 0 2px #fff;"></button>
+                  </sc-for>
+                </div>
+                <div style="font-size:12.5px;color:#6b645a;">{{ accentName }}: used for buttons and your announcement bar</div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px;">
+                <div style="font-size:13px;font-weight:700;">3. Lettering</div>
+                <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;">
+                  <sc-for list="{{ fonts }}" as="f" hint-placeholder-count="3">
+                    <button onClick="{{ f.onPick }}" style="padding:12px 6px;border-radius:12px;border:2px solid {{ f.border }};background:#fff;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;color:#1c1a17;">
+                      <span style="font-family:{{ f.family }};font-size:20px;">Aa</span><span style="font-family:'Manrope',sans-serif;font-size:12px;font-weight:600;">{{ f.label }}</span>
+                    </button>
+                  </sc-for>
+                </div>
+              </div>
+              <label style="display:flex;flex-direction:column;gap:8px;font-size:13px;font-weight:700;">4. Announcement bar
+                <input value="{{ announce }}" onChange="{{ onAnnounce }}" placeholder="e.g. Free delivery this week" style="font-size:15px;padding:12px 14px;border-radius:10px;border:2px solid #d9d1c4;outline:none;font-weight:500;"></input>
+              </label>
+            </div>
+
+            <div style="flex:1;min-width:0;background:#e9e3d9;border-radius:18px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:12px;">
+              <div style="display:flex;gap:4px;background:#ddd5c8;border-radius:999px;padding:4px;">
+                <sc-for list="{{ pvToggles }}" as="d" hint-placeholder-count="2">
+                  <button onClick="{{ d.onPick }}" style="padding:7px 14px;border-radius:999px;border:none;background:{{ d.bg }};font-family:inherit;font-weight:700;font-size:12.5px;cursor:pointer;color:#1c1a17;">{{ d.label }}</button>
+                </sc-for>
+              </div>
+              <div style="width:100%;max-width:{{ pvMax }};background:{{ thBg }};color:{{ thInk }};border-radius:16px;overflow:hidden;box-shadow:0 10px 30px rgba(40,30,20,0.15);">
+                <sc-if value="{{ hasAnnounce }}" hint-placeholder-val="{{ true }}">
+                  <div style="background:{{ accentColor }};color:#fff;text-align:center;font-size:12px;font-weight:700;padding:8px 12px;">{{ announce }}</div>
+                </sc-if>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;">
+                  <div style="font-family:{{ fontFamily }};font-size:22px;">{{ shopNameShown }}</div>
+                  <div style="font-size:12px;font-weight:700;opacity:0.7;">Bag (0)</div>
+                </div>
+                <div style="margin:0 16px;height:150px;border-radius:12px;background:repeating-linear-gradient(135deg,{{ thStripeA }} 0 10px,{{ thStripeB }} 10px 20px);display:flex;align-items:flex-end;padding:14px;box-sizing:border-box;">
+                  <div style="font-family:{{ fontFamily }};font-size:24px;line-height:1.1;max-width:260px;">New season, made in {{ countryName }}</div>
+                </div>
+                <div style="display:grid;grid-template-columns:{{ pvCols }};gap:12px;padding:16px;">
+                  <sc-for list="{{ pvProducts }}" as="p" hint-placeholder-count="4">
+                    <div style="background:{{ thCard }};border-radius:12px;padding:8px;display:flex;flex-direction:column;gap:6px;">
+                      <div style="aspect-ratio:1;border-radius:8px;background:repeating-linear-gradient(135deg,{{ thStripeA }} 0 8px,{{ thStripeB }} 8px 16px);"></div>
+                      <div style="font-size:12.5px;font-weight:600;line-height:1.3;">{{ p.name }}</div>
+                      <div style="font-size:12.5px;opacity:0.75;">{{ p.price }}</div>
+                      <div style="background:{{ accentColor }};color:#fff;border-radius:999px;text-align:center;font-size:11.5px;font-weight:700;padding:7px;">Add to bag</div>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+
+      <sc-if value="{{ isMobile }}" hint-placeholder-val="{{ false }}">
+        <nav style="position:sticky;bottom:0;display:grid;grid-template-columns:repeat(4,1fr);background:#fff;border-top:1px solid #e4ddd2;padding:6px 6px 10px;">
+          <sc-for list="{{ navItems }}" as="n" hint-placeholder-count="4">
+            <button onClick="{{ n.onPick }}" style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 4px;min-height:52px;border:none;background:transparent;font-family:inherit;font-size:12px;font-weight:{{ n.weight }};color:{{ n.mColor }};cursor:pointer;">
+              <span style="width:22px;height:4px;border-radius:2px;background:{{ n.mBar }};"></span>
+              <span>{{ n.short }}</span>
+            </button>
+          </sc-for>
+        </nav>
+      </sc-if>
+    </main>
+  </div>
+</sc-if>
+
+<sc-if value="{{ hasToast }}" hint-placeholder-val="{{ false }}">
+  <div style="position:fixed;left:50%;bottom:88px;transform:translateX(-50%);background:#1c1a17;color:#fff;padding:12px 18px;border-radius:999px;font-size:14px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,0.2);z-index:10;max-width:90vw;text-align:center;">{{ toast }}</div>
+</sc-if>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;startScreen&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;onboarding&quot;,&quot;dashboard&quot;,&quot;theme editor&quot;],&quot;default&quot;:&quot;onboarding&quot;,&quot;tsType&quot;:&quot;'onboarding'|'dashboard'|'theme editor'&quot;},&quot;device&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;auto&quot;,&quot;mobile&quot;,&quot;desktop&quot;],&quot;default&quot;:&quot;auto&quot;,&quot;tsType&quot;:&quot;'auto'|'mobile'|'desktop'&quot;},&quot;showHelpHints&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+const COUNTRIES = [
+  { id: 'NG', name: 'Nigeria', sym: '₦', curName: 'Naira', rate: 1550, local: 'cards, bank transfer and USSD: 1.5% + ₦100 per sale (max ₦2,000).' },
+  { id: 'GH', name: 'Ghana', sym: 'GH₵', curName: 'Cedis', rate: 15, local: 'cards, mobile money and bank transfer: 1.95% per sale.' },
+  { id: 'ZA', name: 'South Africa', sym: 'R', curName: 'Rand', rate: 18, local: 'cards: 2.9% + R1 per sale, EFT: 2% (plus VAT).' },
+  { id: 'CI', name: "Côte d'Ivoire", sym: 'CFA ', curName: 'CFA francs', rate: 600, local: 'local rates shown when you connect.' },
+  { id: 'SN', name: 'Senegal', sym: 'CFA ', curName: 'CFA francs', rate: 600, local: 'local rates shown when you connect.' },
+  { id: 'DI', name: 'Abroad (diaspora seller)', sym: '$', curName: 'US dollars', rate: 1, local: 'rates depend on where your business is registered.' },
+];
+const CATEGORIES = ['Fashion & clothing', 'Beauty & hair', 'Art & crafts', 'Food & drinks', 'Home & decor', 'Digital products'];
+const STEPS = [
+  ['What do you sell?', "Pick the closest one. We'll set up your store to suit it."],
+  ["What's your shop called?", 'You can change this any time.'],
+  ['Where is your business based?', 'Your customers will see prices in your local money.'],
+  ['Add your first product', 'Just one is enough to open your store.'],
+  ['How do you want to get paid?', 'Connect Paystack and money goes straight to your bank account.'],
+];
+const THEMES = {
+  harmattan: { label: 'Harmattan', desc: 'Warm and calm', bg: '#f7f1e8', ink: '#2a211a', card: '#fffaf3', sa: '#ebe2d4', sb: '#f3ecdf' },
+  lagos: { label: 'Lagos Night', desc: 'Dark and bold', bg: '#16130f', ink: '#f6efe4', card: '#221e19', sa: '#2a251f', sb: '#332d26' },
+  savanna: { label: 'Savanna', desc: 'Fresh and light', bg: '#eef0e6', ink: '#1f2a1c', card: '#ffffff', sa: '#dfe3d3', sb: '#e8ebde' },
+};
+const ACCENTS = [
+  { name: 'Terracotta', color: 'oklch(0.6 0.15 40)' },
+  { name: 'Leaf', color: 'oklch(0.6 0.15 150)' },
+  { name: 'Indigo', color: 'oklch(0.6 0.15 265)' },
+  { name: 'Hibiscus', color: 'oklch(0.6 0.15 345)' },
+];
+const FONTS = { classic: { label: 'Classic', family: "'Newsreader', serif" }, modern: { label: 'Modern', family: "'Manrope', sans-serif" }, friendly: { label: 'Friendly', family: "'Fredoka', sans-serif" } };
+const ORDERS = [
+  { id: '1042', name: 'Adaeze Okafor', place: 'Lagos', item: 'Indigo adire kimono', usd: 18, status: 'new' },
+  { id: '1041', name: 'Kwame Mensah', place: 'London, UK', item: 'Adire tote bag', usd: 24, intl: true, status: 'new' },
+  { id: '1040', name: 'Ifeoma Bello', place: 'Abuja', item: 'Silk head wrap ×2', usd: 12, status: 'shipped' },
+  { id: '1039', name: 'Amara Diallo', place: 'Paris, France', item: 'Indigo adire kimono', usd: 36, intl: true, status: 'delivered' },
+];
+const STATUS = {
+  new: { label: 'Paid, ready to pack', bg: 'oklch(0.93 0.05 40)', color: 'oklch(0.42 0.13 40)', action: 'Mark as shipped', next: 'shipped' },
+  shipped: { label: 'On the way', bg: 'oklch(0.93 0.05 265)', color: 'oklch(0.42 0.13 265)', action: 'Mark as delivered', next: 'delivered' },
+  delivered: { label: 'Delivered', bg: 'oklch(0.93 0.05 150)', color: 'oklch(0.4 0.12 150)' },
+};
+
+class Component extends DCLogic {
+  state = {
+    screen: null, tab: null, step: 0, category: 'Fashion & clothing', shopName: 'Adire House', country: 'NG',
+    productName: 'Indigo adire kimono', productPrice: '28000', paystack: false, intl: true, help: {},
+    theme: 'harmattan', accent: 0, font: 'classic', announce: 'Free delivery in Lagos this week', pv: 'phone',
+    width: 1200, shared: false, designed: false, toast: '', products: null, orders: ORDERS, filter: 'all', newName: '', newPrice: '',
+  };
+  componentDidMount() {
+    this.onResize = () => this.setState({ width: window.innerWidth });
+    this.onResize();
+    window.addEventListener('resize', this.onResize);
+  }
+  componentWillUnmount() { window.removeEventListener('resize', this.onResize); clearTimeout(this.tt); }
+  flash(msg) { clearTimeout(this.tt); this.setState({ toast: msg }); this.tt = setTimeout(() => this.setState({ toast: '' }), 2600); }
+  toggleHelp(k) { this.setState(s => ({ help: { ...s.help, [k]: !s.help[k] } })); }
+
+  renderVals() {
+    const s = this.state, p = this.props;
+    const start = p.startScreen || 'onboarding';
+    const screen = s.screen ?? (start === 'onboarding' ? 'onboarding' : 'app');
+    const tab = s.tab ?? (start === 'theme editor' ? 'design' : 'home');
+    const device = p.device || 'auto';
+    const isMobile = device === 'mobile' || (device === 'auto' && s.width < 760);
+    const framed = device === 'mobile' && s.width >= 500;
+    const showHints = p.showHelpHints ?? true;
+    const c = COUNTRIES.find(x => x.id === s.country) || COUNTRIES[0];
+    const fmt = n => c.sym + Math.round(Number(n) || 0).toLocaleString();
+    const fromUsd = u => { const v = u * c.rate; return v > 1000 ? Math.round(v / 500) * 500 : Math.round(v); };
+    const slug = (s.shopName || 'yourshop').toLowerCase().replace(/[^a-z0-9]+/g, '') || 'yourshop';
+    const shopNameShown = s.shopName.trim() || 'Your shop';
+    const products = s.products ?? [
+      { name: s.productName || 'Your first product', price: Number(s.productPrice) || 0, stock: 6 },
+      { name: 'Adire tote bag', price: fromUsd(16), stock: 14 },
+      { name: 'Silk head wrap', price: fromUsd(6), stock: 0 },
+      { name: 'Indigo throw pillow', price: fromUsd(11), stock: 3 },
+    ];
+    const helpObj = k => ({ open: !!s.help[k], label: s.help[k] ? 'Hide explanation' : 'What does this mean?', toggle: () => this.toggleHelp(k) });
+    const canContinue = !((s.step === 1 && !s.shopName.trim()) || (s.step === 3 && !s.productName.trim()));
+    const goApp = () => this.setState({ screen: 'app', tab: 'home' });
+
+    const checklist = [
+      { k: 'store', label: 'Create your store', done: true },
+      { k: 'product', label: 'Add your first product', done: products.length > 0 },
+      { k: 'pay', label: 'Connect Paystack so you can get paid', done: s.paystack, action: 'Connect', help: "Paystack moves money from your customer's card or bank into your bank account. Setup is free. It keeps a small fee from each sale." },
+      { k: 'design', label: 'Choose how your store looks', done: s.designed, action: 'Choose' },
+      { k: 'share', label: 'Share your store link on WhatsApp or Instagram', done: s.shared, action: 'Share', help: 'Most first sales come from people who already know you. Post your link on your WhatsApp status and Instagram bio.' },
+      { k: 'order', label: 'Get your first order', done: s.orders.length > 0 },
+    ];
+    const doItem = k => {
+      if (k === 'pay') { this.setState({ paystack: true }); this.flash('Paystack connected. You can now get paid'); }
+      if (k === 'design') this.setState({ tab: 'design' });
+      if (k === 'share') { this.setState({ shared: true }); this.flash('Link copied. Paste it in your WhatsApp status'); }
+    };
+    const doneCount = checklist.filter(x => x.done).length;
+    const salesUsd = s.orders.reduce((a, o) => a + o.usd, 0);
+    const newCount = s.orders.filter(o => o.status === 'new').length;
+    const th = THEMES[s.theme];
+    const accent = ACCENTS[s.accent];
+    const nav = [['home', 'Home', 'Home'], ['orders', 'Orders', 'Orders'], ['products', 'Products', 'Products'], ['design', 'Store design', 'Design']];
+    const advance = id => this.setState(st => ({ orders: st.orders.map(o => o.id === id ? { ...o, status: STATUS[o.status].next } : o) }));
+
+    return {
+      frameMax: framed ? '420px' : '100%',
+      frameShadow: framed ? '0 0 0 1px #d9d1c4, 0 20px 60px rgba(40,30,20,0.15)' : 'none',
+      isOnboarding: screen === 'onboarding', isApp: screen === 'app', isMobile, showSidebar: !isMobile, showHints,
+      h1Size: isMobile ? '30px' : '40px',
+      obCols: isMobile ? 'minmax(0,1fr)' : 'minmax(0,1fr) 360px',
+      obPad: isMobile ? '24px 20px 32px' : '48px 40px',
+      showSidePreview: !isMobile,
+      mainPad: isMobile ? '20px 16px 28px' : '36px 40px',
+      mainMax: tab === 'design' ? '1200px' : '860px',
+      statSize: isMobile ? '19px' : '26px',
+
+      stepNum: s.step + 1,
+      stepBars: STEPS.map((_, i) => ({ bg: i <= s.step ? 'oklch(0.58 0.15 40)' : '#e4ddd2' })),
+      stepTitle: STEPS[s.step][0], stepSub: STEPS[s.step][1],
+      isStep0: s.step === 0, isStep1: s.step === 1, isStep2: s.step === 2, isStep3: s.step === 3, isStep4: s.step === 4,
+      categories: CATEGORIES.map(l => ({ label: l, border: l === s.category ? '#1c1a17' : '#e4ddd2', bg: l === s.category ? '#fff' : '#fbf9f5', onPick: () => this.setState({ category: l }) })),
+      countries: COUNTRIES.map(x => ({ name: x.name, curName: x.curName, border: x.id === s.country ? '#1c1a17' : '#e4ddd2', bg: x.id === s.country ? '#fff' : '#fbf9f5', onPick: () => this.setState({ country: x.id }) })),
+      shopName: s.shopName, onShopName: e => this.setState({ shopName: e.target.value }),
+      productName: s.productName, onProductName: e => this.setState({ productName: e.target.value }),
+      productPrice: s.productPrice, onProductPrice: e => this.setState({ productPrice: e.target.value.replace(/[^0-9]/g, '') }),
+      slug, sym: c.sym, shopNameShown, category: s.category, countryName: c.id === 'DI' ? 'Africa' : c.name,
+      productNameShown: s.productName || 'Your first product', priceShown: fmt(s.productPrice),
+      previewBadges: [s.paystack && { label: 'Pay with card or transfer' }, s.intl && { label: 'Ships worldwide' }, { label: 'Prices in ' + c.curName }].filter(Boolean),
+      helpUrl: helpObj('url'), helpPay: helpObj('pay'),
+      payBorder: s.paystack ? 'oklch(0.58 0.15 150)' : '#e4ddd2',
+      payBtnBg: s.paystack ? 'oklch(0.93 0.05 150)' : '#1c1a17', payBtnColor: s.paystack ? 'oklch(0.4 0.12 150)' : '#fff',
+      payBtnLabel: s.paystack ? '✓ Connected' : 'Connect',
+      connectPaystack: () => this.setState({ paystack: true }),
+      feeLine: 'Fees in ' + c.name + ': ' + c.local + (s.intl ? ' Cards from abroad cost a little more (around 3–4%).' : ''),
+      toggleIntl: () => this.setState({ intl: !s.intl }),
+      intlTrack: s.intl ? 'oklch(0.58 0.15 150)' : '#cfc6b7', intlKnob: s.intl ? '23px' : '3px',
+      canBack: s.step > 0, back: () => this.setState({ step: s.step - 1 }),
+      nextOpacity: canContinue ? 1 : 0.4,
+      nextLabel: s.step === 4 ? 'Open my store dashboard' : 'Continue',
+      next: () => { if (!canContinue) return; if (s.step < 4) this.setState({ step: s.step + 1 }); else { goApp(); this.flash('Your store is live at ' + slug + '.aqenora.com'); } },
+      skipToDash: goApp,
+
+      navItems: nav.map(([k, l, sh]) => ({
+        label: l, short: sh, bg: tab === k ? '#ebe4d8' : 'transparent', weight: tab === k ? 700 : 500,
+        mColor: tab === k ? '#1c1a17' : '#7a7368', mBar: tab === k ? 'oklch(0.58 0.15 40)' : 'transparent',
+        hasBadge: k === 'orders' && newCount > 0, badge: newCount,
+        onPick: () => this.setState({ tab: k, ...(k === 'design' ? { designed: true } : {}) }),
+      })),
+      isHome: tab === 'home', isOrders: tab === 'orders', isProducts: tab === 'products', isDesign: tab === 'design',
+
+      doneCount, totalCount: checklist.length, progressPct: Math.round(doneCount / checklist.length * 100) + '%',
+      remainingText: doneCount === checklist.length ? "You're all set." : (checklist.length - doneCount) + ' steps left.',
+      checklist: checklist.map(x => ({
+        label: x.label, mark: x.done ? '✓' : '',
+        dotBg: x.done ? 'oklch(0.58 0.15 150)' : 'transparent', dotBorder: x.done ? 'oklch(0.58 0.15 150)' : '#cfc6b7',
+        color: x.done ? '#8a8378' : '#1c1a17',
+        hasAction: !x.done && !!x.action, actionLabel: x.action, onAction: () => doItem(x.k),
+        hasHelp: showHints && !x.done && !!x.help, helpLabel: s.help['c' + x.k] ? 'Hide explanation' : 'Why this matters',
+        onHelp: () => this.toggleHelp('c' + x.k), helpOpen: showHints && !x.done && !!x.help && !!s.help['c' + x.k], helpText: x.help,
+      })),
+      stats: [
+        { label: 'Sales this week', value: fmt(fromUsd(salesUsd)) },
+        { label: 'Orders', value: String(s.orders.length) },
+        { label: 'Store visits', value: '312' },
+      ],
+      shareWA: () => { this.setState({ shared: true }); this.flash('Opening WhatsApp with your link…'); },
+      copyLink: () => { this.setState({ shared: true }); this.flash('Link copied'); },
+
+      orderFilters: [['all', 'All'], ['new', 'To pack'], ['shipped', 'On the way'], ['delivered', 'Delivered']].map(([k, l]) => ({
+        label: l, bg: s.filter === k ? '#1c1a17' : '#fff', color: s.filter === k ? '#fff' : '#1c1a17', border: s.filter === k ? '#1c1a17' : '#d9d1c4',
+        onPick: () => this.setState({ filter: k }),
+      })),
+      ordersShown: s.orders.filter(o => s.filter === 'all' || o.status === s.filter).map(o => {
+        const st = STATUS[o.status];
+        return { ...o, place: o.place + (o.intl ? ' · abroad' : ''), amount: o.intl ? '$' + o.usd : fmt(fromUsd(o.usd)), statusLabel: st.label, pillBg: st.bg, pillColor: st.color, hasAction: !!st.next, actionLabel: st.action, onAction: () => advance(o.id) };
+      }),
+
+      productRows: products.map(x => ({ name: x.name, price: fmt(x.price), stockLabel: x.stock === 0 ? 'Sold out' : x.stock + ' in stock', stockColor: x.stock === 0 ? 'oklch(0.5 0.15 30)' : '#6b645a' })),
+      newName: s.newName, newPrice: s.newPrice, pricePlaceholder: 'Price (' + c.sym.trim() + ')',
+      onNewName: e => this.setState({ newName: e.target.value }), onNewPrice: e => this.setState({ newPrice: e.target.value.replace(/[^0-9]/g, '') }),
+      addProduct: () => { if (!s.newName.trim()) return; this.setState({ products: [{ name: s.newName.trim(), price: Number(s.newPrice) || 0, stock: 1 }, ...products], newName: '', newPrice: '' }); this.flash('Product added to your store'); },
+
+      editorDir: isMobile ? 'column-reverse' : 'row', controlsBasis: isMobile ? 'auto' : '300px',
+      themes: Object.entries(THEMES).map(([k, t]) => ({ ...t, border: s.theme === k ? '#1c1a17' : '#e4ddd2', onPick: () => this.setState({ theme: k, designed: true }) })),
+      accents: ACCENTS.map((a, i) => ({ ...a, ring: s.accent === i ? '#1c1a17' : 'transparent', onPick: () => this.setState({ accent: i, designed: true }) })),
+      accentName: accent.name, accentColor: accent.color,
+      fonts: Object.entries(FONTS).map(([k, f]) => ({ ...f, border: s.font === k ? '#1c1a17' : '#e4ddd2', onPick: () => this.setState({ font: k, designed: true }) })),
+      fontFamily: FONTS[s.font].family,
+      announce: s.announce, hasAnnounce: !!s.announce.trim(), onAnnounce: e => this.setState({ announce: e.target.value }),
+      pvToggles: [['phone', 'Phone'], ['desktop', 'Computer']].map(([k, l]) => ({ label: l, bg: s.pv === k ? '#fff' : 'transparent', onPick: () => this.setState({ pv: k }) })),
+      pvMax: s.pv === 'phone' ? '340px' : '100%', pvCols: s.pv === 'phone' ? 'repeat(2,minmax(0,1fr))' : 'repeat(4,minmax(0,1fr))',
+      thBg: th.bg, thInk: th.ink, thCard: th.card, thStripeA: th.sa, thStripeB: th.sb,
+      pvProducts: products.slice(0, 4).map(x => ({ name: x.name, price: fmt(x.price) })),
+      publish: () => { this.setState({ designed: true }); this.flash('Published. Your store has its new look'); },
+
+      hasToast: !!s.toast, toast: s.toast,
+    };
+  }
+}
+</script>
+</body>
+</html>
