@@ -1,188 +1,90 @@
-<p align="center">
-  <a href="https://www.medusajs.com">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://user-images.githubusercontent.com/59018053/229103275-b5e482bb-4601-46e6-8142-244f531cebdb.svg">
-    <source media="(prefers-color-scheme: light)" srcset="https://user-images.githubusercontent.com/59018053/229103726-e5b529a3-9b3f-4970-8a1f-c6af37f087bf.svg">
-    <img alt="Medusa logo" src="https://user-images.githubusercontent.com/59018053/229103726-e5b529a3-9b3f-4970-8a1f-c6af37f087bf.svg">
-    </picture>
-  </a>
-</p>
-<h1 align="center">
-  Medusa DTC Starter
-</h1>
+# AQENORA backend
 
-<h4 align="center">
-  <a href="https://docs.medusajs.com">Documentation</a> |
-  <a href="https://www.medusajs.com">Website</a>
-</h4>
+The server behind the AQENORA seller app. It stores sellers, their shops and their products in a database, and handles seller login. It's built on [Medusa](https://docs.medusajs.com) 2.22, a free, open-source e-commerce engine. Medusa's ready-made admin dashboard is at `/app`.
 
-<p align="center">
-  Building blocks for digital commerce
-</p>
-<p align="center">
-  <a href="https://github.com/medusajs/medusa/blob/develop/LICENSE">
-    <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="Medusa is released under the MIT license." />
-  </a>
-  <a href="https://circleci.com/gh/medusajs/medusa">
-    <img src="https://circleci.com/gh/medusajs/medusa.svg?style=shield" alt="Current CircleCI build status." />
-  </a>
-  <a href="https://github.com/medusajs/medusa/blob/develop/CONTRIBUTING.md">
-    <img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat" alt="PRs welcome!" />
-  </a>
-    <a href="https://www.producthunt.com/posts/medusa"><img src="https://img.shields.io/badge/Product%20Hunt-%231%20Product%20of%20the%20Day-%23DA552E" alt="Product Hunt"></a>
-  <a href="https://discord.gg/xpCwq3Kfn8">
-    <img src="https://img.shields.io/badge/chat-on%20discord-7289DA.svg" alt="Discord Chat" />
-  </a>
-  <a href="https://twitter.com/intent/follow?screen_name=medusajs">
-    <img src="https://img.shields.io/twitter/follow/medusajs.svg?label=Follow%20@medusajs" alt="Follow @medusajs" />
-  </a>
-</p>
+This folder is a Medusa "DTC starter" workspace. The Medusa app itself is in `apps/backend/`. The Next.js storefront was not installed. AQENORA's storefront comes in a later step.
 
-# Medusa DTC Starter
+## What's in it so far
 
-A production-ready monorepo starter for direct-to-consumer ecommerce stores powered by Medusa and Next.js. Includes a fully featured storefront with product browsing, cart, checkout, customer accounts, and order management.
+| Part | Where | What it does |
+| --- | --- | --- |
+| Seller module | `apps/backend/src/modules/seller/` | A seller's shop: name, web address (`handle`), category, country and currency, sells abroad, Paystack account (empty for now), store design, onboarding progress |
+| Seller to product link | `apps/backend/src/links/seller-product.ts` | Each product belongs to one seller |
+| Seller login | `medusa-config.ts` | Sellers are their own type of user, separate from admins and shoppers. They sign in with email and password |
+| Workflows | `apps/backend/src/workflows/` | Create a seller, update a seller, add a product. Each step undoes itself if a later step fails |
+| Seller API | `apps/backend/src/api/sellers/` | The routes the seller app will call (below) |
+| Public store API | `apps/backend/src/api/store/sellers/[handle]/` | Shop details and products for a storefront page |
+| Tests | `apps/backend/integration-tests/http/sellers.spec.ts` | 8 tests covering sign-up, duplicate addresses, login required, design updates, validation, products per seller, the country lock and the public store |
+| Demo data | `apps/backend/src/scripts/seed-aqenora-demo.ts` | Creates "Adire House" (Nigeria) with 4 products |
 
-## Features
+Currency follows the seller's country: NG to `ngn`, GH to `ghs`, ZA to `zar`, CI/SN to `xof`, abroad (DI) to `usd`. Once a seller has products, their country can't change, because the prices are in that currency.
 
-- All of [Medusa's commerce features](https://docs.medusajs.com/resources/commerce-modules)
-- Multi-region support with automatic country detection
-- Product catalog with variant selection
-- Cart with promotion codes
-- Multi-step checkout with shipping and payment
-- Customer accounts with order history and address management
-- Order transfer between accounts
+## API
 
-## Getting Started
+All `/sellers/me...` routes need a seller login token: `Authorization: Bearer <token>`.
 
-### Deploy with Medusa Cloud
+| Method and path | Body | Returns |
+| --- | --- | --- |
+| `POST /auth/seller/emailpass/register` | `{ email, password }` | `{ token }` for a new login (Medusa built-in) |
+| `POST /auth/seller/emailpass` | `{ email, password }` | `{ token }` to log in (Medusa built-in) |
+| `POST /sellers` | `{ name, handle?, category?, country_code?, sells_abroad? }` | `{ seller }`. Creates the shop for a just-registered login; send the register token. Log in again afterwards to get a token that carries the seller id |
+| `GET /sellers/me` | | `{ seller }` |
+| `POST /sellers/me` | any of `name, handle, category, country_code, sells_abroad, theme, accent, font, announcement, onboarding_completed` | `{ seller }` |
+| `GET /sellers/me/products` | | `{ products, count }`, newest first |
+| `POST /sellers/me/products` | `{ title, price, stock?, description? }`, with price in whole units of the seller's currency | `{ product }` |
+| `GET /store/sellers/:handle` | header `x-publishable-api-key` | `{ store, products }`, with no private fields |
 
-The fastest way to get started is deploying with [Medusa Cloud](https://cloud.medusajs.com):
+Errors: 401 means not logged in. 400 means a bad value (for example an unknown theme) or a change that isn't allowed. 422 means the web address is already taken.
 
-1. [Create a Medusa Cloud account](https://cloud.medusajs.com)
-2. Deploy this starter directly from your dashboard
+## Run it on your computer
 
-### Local Installation
-
-> **Prerequisites:**
->
-> - [Node.js](https://nodejs.org/) v22.22+
-> - [PostgreSQL](https://www.postgresql.org/) v15+
-> - [pnpm](https://pnpm.io/) v10+
-
-1. Clone the repository and install dependencies:
+You need [Node.js](https://nodejs.org/) 22.22 or newer and [PostgreSQL](https://www.postgresql.org/) 15 or newer. On a Mac, [Postgres.app](https://postgresapp.com) is the easiest way to get it. Redis is optional for development.
 
 ```bash
-git clone https://github.com/medusajs/dtc-starter.git
-cd dtc-starter
-pnpm install
+cd backend
+npm install
+
+cd apps/backend
+cp .env.template .env
+# In .env, set DATABASE_URL, e.g. postgres://postgres:postgres@localhost:5432/aqenora
+# and make up long random values for JWT_SECRET and COOKIE_SECRET.
+createdb aqenora                     # create the empty database
+
+npx medusa db:migrate                # create the tables
+npx medusa exec ./src/scripts/seed-aqenora-demo.ts   # optional demo store
+npx medusa user -e you@example.com -p choose-a-password   # optional: admin dashboard login
+npm run dev                          # server at http://localhost:9000, admin at /app
 ```
 
-2. Set up environment variables for the backend:
+Demo seller login: `demo@aqenora.com` / `aqenora-demo`. Change or delete it before going live.
 
-```bash
-cp apps/backend/.env.template apps/backend/.env
-```
-
-3. Set the database URL in `apps/backend/.env`:
-
-```bash
-# Replace with actual database URL, make sure the database exists.
-DATABASE_URL=postgres://postgres:@localhost:5432/medusa-dtc-starter
-```
-
-4. Run migrations (this also seeds initial store data):
+**Run the tests** (needs Postgres running; they use their own throwaway database):
 
 ```bash
 cd apps/backend
-pnpm medusa db:migrate
+DB_USERNAME=postgres DB_PASSWORD=postgres npm run test:integration:http
 ```
 
-5. Add admin user:
+The tests and the seed script log "Search index product has no active version yet". That's expected: Medusa builds its product search index when the server starts, and they don't start it. It stops once `npm run dev` has run once.
 
-```bash
-cd apps/backend
-pnpm medusa user -e admin@test.com -p supersecret
-```
+## Settings (`apps/backend/.env`)
 
-6. Start Medusa backend:
+| Variable | What it's for |
+| --- | --- |
+| `DATABASE_URL` | Your Postgres database |
+| `JWT_SECRET`, `COOKIE_SECRET` | Long random strings that sign logins. Required in production, and never commit them |
+| `SELLER_CORS` | Web addresses allowed to call `/sellers` (the seller app): local dev and `https://5055corp.github.io` |
+| `AUTH_CORS` | Web addresses allowed to call `/auth` (login). Includes the same ones |
+| `STORE_CORS`, `ADMIN_CORS` | Medusa defaults for storefront and admin |
+| `REDIS_URL` | Optional locally; recommended in production |
 
-```bash
-cd apps/backend
-pnpm dev
-```
+## Not built yet
 
-7. Open the admin dashboard at `localhost:9000/app` and log in. Retrieve your publishable API key at Settings > Publishable API key.
+1. **Connect the seller app to this API.** It still uses demo data saved in the browser.
+2. **Paystack.** Connect a seller's Paystack account (subaccount) and split each payment between seller and platform.
+3. **Orders.** Buyer checkout, and orders showing up in the seller's dashboard.
+4. **Storefront.** The public `<handle>.aqenora.com` page buyers see.
+5. **Stock.** Currently a number on each product (`metadata.stock`). It moves to Medusa's inventory system when orders arrive.
+6. **Hosting.** For example Railway or Render for this server plus a managed Postgres database.
 
-8. Set up environment variables for the storefront:
-
-```bash
-cp apps/storefront/.env.template apps/storefront/.env.local
-```
-
-9. Update `apps/storefront/.env.local` with your Medusa publishable API key:
-
-```bash
-NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY=pk_6c3...
-```
-
-10. Start the storefront:
-
-```bash
-cd apps/storefront
-pnpm dev
-```
-
-The storefront runs on `http://localhost:8000`.
-
-You can also start both the backend and storefront from the root:
-
-```bash
-pnpm dev
-```
-
-## Project Structure
-
-```text
-apps/
-├── backend/      # Medusa application: API routes, workflows, modules, admin extensions
-└── storefront/   # Next.js storefront (optional)
-```
-
-## Building with AI Agents
-
-This repo is set up for AI coding agents such as Claude Code, Cursor, and Codex:
-
-- [`AGENTS.md`](./AGENTS.md) holds the project's commands, conventions, and off-limits paths. `CLAUDE.md` points to it.
-- Installed `@medusajs/*` packages ship their own `AGENTS.md` in `node_modules`, documenting the API of the exact version you have installed.
-- Install the [Medusa agent skills](https://docs.medusajs.com/learn/introduction/build-with-llms-ai/agentic-skills) and [MCP server](https://docs.medusajs.com/learn/introduction/build-with-llms-ai/mcp-server) for documentation-backed answers:
-
-```bash
-claude mcp add --transport http medusa https://docs.medusajs.com/mcp
-```
-
-- If you deploy on [Medusa Cloud](https://cloud.medusajs.com), add the Medusa Cloud MCP server so your agent can inspect deployments, build and runtime logs, environment variables, and your store's data. It authenticates with your Medusa Cloud account:
-
-```bash
-claude mcp add --transport http medusa-cloud https://cloud.medusajs.com/mcp
-```
-
-## Configuration
-
-The storefront is configured via environment variables in `apps/storefront/.env.local`:
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY` | Publishable API key from your Medusa backend | — |
-| `NEXT_PUBLIC_MEDUSA_BACKEND_URL` | URL of your Medusa backend | `http://localhost:9000` |
-| `NEXT_PUBLIC_DEFAULT_REGION` | Default region country code | `dk` |
-| `NEXT_PUBLIC_BASE_URL` | Base URL of the storefront | `https://localhost:8000` |
-| `NEXT_PUBLIC_STRIPE_KEY` | Stripe publishable key (optional) | — |
-| `NEXT_PUBLIC_ADYEN_CLIENT_KEY` | Adyen client key (optional), when the Adyen payment provider is registered in the backend | — |
-| `NEXT_PUBLIC_ADYEN_ENVIRONMENT` | Adyen environment, `test` or `live` (optional) | `test` |
-
-## Resources
-
-- [Medusa Documentation](https://docs.medusajs.com)
-- [Medusa Cloud](https://cloud.medusajs.com)
-- [Build with AI agents](https://docs.medusajs.com/learn/introduction/build-with-llms-ai)
-- [Medusa docs for LLMs (`llms.txt`)](https://docs.medusajs.com/llms.txt)
+For coding agents: see [`AGENTS.md`](./AGENTS.md) for commands, conventions and off-limits paths.
