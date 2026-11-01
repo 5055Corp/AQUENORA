@@ -24,16 +24,26 @@ npm run build    # type-check + production build into dist/
 
 Example: `/?screen=theme-editor&device=mobile`. With `device=mobile` on a wide window, the app is shown in a 420px phone frame.
 
+## Demo mode: saved progress and Start over
+
+The demo store is saved in the browser (`localStorage`), so a refresh keeps the shop name, products, orders and look. To clear it between seller interviews, tap **Start over** at the bottom of Home, or open the link with `?reset=1`. A `?screen=` parameter still picks the opening screen. If storage is blocked (for example in private browsing), the app works but doesn't save.
+
+## Live demo link
+
+`.github/workflows/pages.yml` builds the app and publishes it to GitHub Pages on every push to `main`:
+**https://5055corp.github.io/AQUENORA/**. One-time setup: in the repository, go to Settings → Pages → Build and deployment and set Source to **GitHub Actions**.
+
 ## Code layout
 
 - `src/data.ts`: countries, fees, themes, demo orders and copy
 - `src/store.tsx`: app state, currency formatting, toast, responsive flags (React context)
 - `src/settings.ts`: URL parameters
+- `src/persist.ts`: saving and restoring the demo store (with validation of what's read back)
 - `src/components/`: `Onboarding`, `Dashboard` (shell), `Home`, `Orders`, `Products`, `ThemeEditor`, `Help`
 
 ## Not wired up yet (prototype stand-ins)
 
-- All data is in-memory demo data. Nothing is saved, and there is no backend or auth.
+- All data is demo data, saved only in this browser. There is no backend or auth.
 - "Connect" for Paystack only flips a flag. The real OAuth/subaccount flow still needs to be built.
 - Product photo areas are placeholders.
 - "Copy link" uses the clipboard API. "Share on WhatsApp" opens `wa.me` with the store link.
