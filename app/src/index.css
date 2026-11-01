@@ -350,3 +350,24 @@ button { font-family: inherit; color: var(--ink); cursor: pointer; }
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
   overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
 }
+
+/* ---------- live mode: login, loading, errors, empty lists ---------- */
+.auth { width: 100%; }
+.form-error {
+  background: oklch(0.95 0.04 30); color: oklch(0.42 0.14 30);
+  border-radius: 12px; padding: 12px 14px; font-size: 14px; font-weight: 600; line-height: 1.45;
+}
+.field-error { font-size: 14px; font-weight: 600; color: oklch(0.45 0.15 30); }
+.loading {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  padding: 40px 20px; text-align: center; color: var(--muted-2); font-size: 16px;
+}
+.loading p { margin: 0; max-width: 360px; line-height: 1.5; }
+.loading .ob-actions { width: 100%; max-width: 320px; }
+.ob-logout { background: none; border: none; padding: 0; font-size: 13px; font-weight: 600; color: var(--muted-3); text-decoration: underline; }
+.ob-top-right { display: flex; align-items: center; gap: 14px; }
+.empty {
+  border: 2px dashed var(--line); border-radius: 16px; padding: 22px 18px;
+  text-align: center; color: var(--muted-2); font-size: 14px; line-height: 1.55;
+}
+button:disabled { cursor: default; }

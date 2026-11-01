@@ -4,15 +4,15 @@ import { useStore } from '../store';
 const ring = (on: boolean) => (on ? 'var(--ink)' : 'var(--line)');
 
 export function ThemeEditor() {
-  const { s, set, flash, isMobile, h1Size } = useStore();
+  const { s, set, publishDesign, isMobile, h1Size } = useStore();
   const accent = ACCENTS[s.accent];
 
   return (
     <>
       <div className="de-head">
         <h1 className="h1" style={{ fontSize: h1Size }}>Your store's look</h1>
-        <button type="button" className="publish" onClick={() => { set({ designed: true }); flash('Published. Your store has its new look'); }}>
-          Publish changes
+        <button type="button" className="publish" disabled={s.busy} onClick={() => publishDesign()}>
+          {s.busy ? 'Publishing…' : 'Publish changes'}
         </button>
       </div>
 

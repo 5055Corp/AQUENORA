@@ -7,25 +7,36 @@ const UNSELECTED = { borderColor: 'var(--line)', background: 'var(--tile)' };
 
 export function Onboarding() {
   const store = useStore();
-  const { s, set, isMobile, slug, flash, h1Size } = store;
+  const { s, set, isMobile, slug, flash, h1Size, live, finishOnboarding, logOut } = store;
   const step = s.step;
-  const canContinue = !((step === 1 && !s.shopName.trim()) || (step === 3 && !s.productName.trim()));
+  const canContinue = !s.busy && !((step === 1 && !s.shopName.trim()) || (step === 3 && !s.productName.trim()));
 
   const next = () => {
     if (!canContinue) return;
     if (step < 4) {
       set({ step: step + 1 });
+    } else if (live) {
+      finishOnboarding(false);
     } else {
       set({ screen: 'app', tab: 'home' });
       flash('Your store is live at ' + slug + '.aqenora.com');
     }
   };
 
+  const skip = () => {
+    if (s.busy) return;
+    if (live) finishOnboarding(true);
+    else set({ screen: 'app', tab: 'home' });
+  };
+
   return (
     <>
       <div className="ob-top">
         <div className="wordmark" style={{ fontSize: 20 }}>AQENORA</div>
-        <div className="ob-step">Step {step + 1} of 5</div>
+        <div className="ob-top-right">
+          <div className="ob-step">Step {step + 1} of 5</div>
+          {live && <button type="button" className="ob-logout" onClick={() => logOut()}>Log out</button>}
+        </div>
       </div>
       <div className="ob-bars" role="progressbar" aria-valuemin={1} aria-valuemax={5} aria-valuenow={step + 1}>
         {STEPS.map((_, i) => (
@@ -63,10 +74,10 @@ export function Onboarding() {
               aria-disabled={!canContinue}
               onClick={next}
             >
-              {step === 4 ? 'Open my store dashboard' : 'Continue'}
+              {step === 4 ? (s.busy ? 'Opening your store…' : 'Open my store dashboard') : 'Continue'}
             </button>
           </div>
-          <button type="button" className="ob-skip" onClick={() => set({ screen: 'app', tab: 'home' })}>
+          <button type="button" className="ob-skip" onClick={skip}>
             Skip setup for now
           </button>
         </div>
@@ -105,10 +116,12 @@ function StepName() {
         className="field ob-shopname"
         aria-label="Shop name"
         value={s.shopName}
-        onChange={e => set({ shopName: e.target.value })}
+        onChange={e => set({ shopName: e.target.value, nameError: '' })}
         placeholder="e.g. Adire House"
+        aria-invalid={!!s.nameError}
       />
       <div className="ob-note">Your web address: <strong>{slug}.aqenora.com</strong></div>
+      {s.nameError && <div className="field-error" role="alert">{s.nameError}</div>}
       <Help id="url" text={HELP.url} />
     </div>
   );

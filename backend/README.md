@@ -80,11 +80,12 @@ The tests and the seed script log "Search index product has no active version ye
 
 ## Not built yet
 
-1. **Connect the seller app to this API.** It still uses demo data saved in the browser.
-2. **Paystack.** Connect a seller's Paystack account (subaccount) and split each payment between seller and platform.
-3. **Orders.** Buyer checkout, and orders showing up in the seller's dashboard.
-4. **Storefront.** The public `<handle>.aqenora.com` page buyers see.
-5. **Stock.** Currently a number on each product (`metadata.stock`). It moves to Medusa's inventory system when orders arrive.
-6. **Hosting.** For example Railway or Render for this server plus a managed Postgres database.
+The seller app (`app/`) is connected: set `VITE_API_URL=http://localhost:9000` (see `app/README.md`).
+
+1. **Paystack.** Connect a seller's Paystack account (subaccount) and split each payment between seller and platform.
+2. **Orders.** Buyer checkout, and orders showing up in the seller's dashboard.
+3. **Storefront.** The public `<handle>.aqenora.com` page buyers see.
+4. **Stock.** Currently a number on each product (`metadata.stock`). It moves to Medusa's inventory system when orders arrive.
+5. **Hosting.** For example Railway or Render for this server plus a managed Postgres database.
 
 For coding agents: see [`AGENTS.md`](./AGENTS.md) for commands, conventions and off-limits paths.

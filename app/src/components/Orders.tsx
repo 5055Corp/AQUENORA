@@ -24,6 +24,13 @@ export function Orders() {
           );
         })}
       </div>
+      {shown.length === 0 && (
+        <div className="empty">
+          {s.orders.length === 0
+            ? 'No orders yet. When a customer pays, their order shows up here.'
+            : 'No orders here right now.'}
+        </div>
+      )}
       <div className="list">
         {shown.map(o => {
           const st = STATUS[o.status];
