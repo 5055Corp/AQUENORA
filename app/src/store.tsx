@@ -4,6 +4,7 @@ import {
   type CountryId, type FontId, type Order, type OrderFilter, type Product, type Tab, type ThemeId,
 } from './data';
 import type { Settings } from './settings';
+import * as persist from './persist';
 
 export interface State {
   screen: 'onboarding' | 'app';
@@ -70,8 +71,24 @@ function useWindowWidth() {
   return width;
 }
 
+/** Start state: fresh, or restored from the last visit. A ?screen= in the URL still picks the screen. */
+function startState(settings: Settings): State {
+  const fresh = initialState(settings);
+  if (settings.reset) {
+    persist.clear();
+    // Drop ?reset from the address bar so a later refresh doesn't wipe the store again.
+    const url = new URL(window.location.href);
+    url.searchParams.delete('reset');
+    window.history.replaceState(null, '', url);
+    return fresh;
+  }
+  const restored = persist.load(fresh);
+  return settings.screenFromUrl ? { ...restored, screen: fresh.screen, tab: fresh.tab } : restored;
+}
+
 function useStoreValue(settings: Settings) {
-  const [s, setS] = useState(() => initialState(settings));
+  const [s, setS] = useState(() => startState(settings));
+  useEffect(() => persist.save(s), [s]);
   const set = useCallback((patch: Partial<State> | ((s: State) => Partial<State>)) => {
     setS(prev => ({ ...prev, ...(typeof patch === 'function' ? patch(prev) : patch) }));
   }, []);
@@ -117,9 +134,16 @@ function useStoreValue(settings: Settings) {
     window.open(`https://wa.me/?text=${encodeURIComponent(`Visit my shop: ${storeUrl}`)}`, '_blank', 'noopener');
   };
 
+  /** Wipe the demo store and go back to step 1 of setup (used between seller interviews). */
+  const startOver = () => {
+    persist.clear();
+    setS(initialState({ ...settings, startScreen: 'onboarding' }));
+    window.scrollTo(0, 0);
+  };
+
   return {
     s, set, settings, toast, flash, isMobile, framed, country, fmt, fromUsd, slug, shopNameShown, storeUrl,
-    products, toggleHelp, advanceOrder, copyLink, shareWhatsApp,
+    products, toggleHelp, advanceOrder, copyLink, shareWhatsApp, startOver,
     showHints: settings.showHelpHints,
     h1Size: isMobile ? '30px' : '40px',
   };
