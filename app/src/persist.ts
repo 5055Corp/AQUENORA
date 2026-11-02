@@ -7,7 +7,7 @@ import type { State } from './store';
 const KEY = 'aqenora-demo-v1';
 
 /** Keys not worth keeping across visits. */
-const SKIP: (keyof State)[] = ['help'];
+const SKIP: (keyof State)[] = ['help', 'password', 'busy', 'authError', 'nameError', 'token'];
 
 export function save(s: State) {
   try {
@@ -24,6 +24,37 @@ export function clear() {
     localStorage.removeItem(KEY);
   } catch {
     /* storage unavailable */
+  }
+}
+
+// ---- Live mode: only the login token and a few things the backend doesn't store yet. ----
+
+const LIVE_KEY = 'aqenora-live-v1';
+
+export interface LiveSaved {
+  token: string;
+  /** Per-browser checklist progress the backend doesn't track yet. */
+  paystack: boolean;
+  shared: boolean;
+  designed: boolean;
+}
+
+export function saveLive(v: LiveSaved | null) {
+  try {
+    if (v) localStorage.setItem(LIVE_KEY, JSON.stringify(v));
+    else localStorage.removeItem(LIVE_KEY);
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+export function loadLive(): LiveSaved | null {
+  try {
+    const v = JSON.parse(localStorage.getItem(LIVE_KEY) ?? 'null');
+    if (!v || typeof v.token !== 'string' || !v.token) return null;
+    return { token: v.token, paystack: !!v.paystack, shared: !!v.shared, designed: !!v.designed };
+  } catch {
+    return null;
   }
 }
 
@@ -70,6 +101,7 @@ export function load(base: State): State {
   if (!Number.isInteger(out.accent) || !ACCENTS[out.accent]) out.accent = base.accent;
   if (!Number.isInteger(out.step) || out.step < 0 || out.step > 4) out.step = 0;
   if (out.screen !== 'onboarding' && out.screen !== 'app') out.screen = base.screen;
+  if (out.authMode !== 'signup' && out.authMode !== 'login') out.authMode = base.authMode;
   if (!['home', 'orders', 'products', 'design'].includes(out.tab)) out.tab = base.tab;
   if (!['all', 'new', 'shipped', 'delivered'].includes(out.filter)) out.filter = 'all';
   if (out.pv !== 'phone' && out.pv !== 'desktop') out.pv = base.pv;

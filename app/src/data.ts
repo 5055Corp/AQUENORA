@@ -118,6 +118,8 @@ export const NAV: { key: Tab; label: string; short: string }[] = [
 ];
 
 export interface Product {
+  /** Set for products saved in the backend. */
+  id?: string;
   name: string;
   price: number;
   stock: number;

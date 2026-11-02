@@ -2,13 +2,11 @@ import type { FormEvent } from 'react';
 import { useStore } from '../store';
 
 export function Products() {
-  const { s, set, flash, products, fmt, country, h1Size } = useStore();
+  const { s, set, addProduct, products, fmt, country, h1Size } = useStore();
 
   const add = (e?: FormEvent) => {
     e?.preventDefault();
-    if (!s.newName.trim()) return;
-    set({ products: [{ name: s.newName.trim(), price: Number(s.newPrice) || 0, stock: 1 }, ...products], newName: '', newPrice: '' });
-    flash('Product added to your store');
+    if (!s.busy) addProduct();
   };
 
   return (
@@ -34,12 +32,13 @@ export function Products() {
             value={s.newPrice}
             onChange={e => set({ newPrice: e.target.value.replace(/[^0-9]/g, '') })}
           />
-          <button type="submit" className="btn-dark">Add</button>
+          <button type="submit" className="btn-dark" disabled={s.busy}>{s.busy ? 'Adding…' : 'Add'}</button>
         </div>
       </form>
+      {products.length === 0 && <div className="empty">No products yet. Add your first one above.</div>}
       <div className="list">
         {products.map((p, i) => (
-          <div key={i + p.name} className="card prod">
+          <div key={p.id ?? i + p.name} className="card prod">
             <div className="prod-thumb" />
             <div className="prod-info">
               <div>{p.name}</div>

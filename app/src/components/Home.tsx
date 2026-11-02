@@ -4,7 +4,7 @@ import { useStore } from '../store';
 type Key = 'store' | 'product' | 'pay' | 'design' | 'share' | 'order';
 
 export function Home() {
-  const { s, set, flash, products, showHints, toggleHelp, fmt, fromUsd, shopNameShown, storeUrl, isMobile, h1Size, copyLink, shareWhatsApp, startOver } = useStore();
+  const { s, set, flash, products, showHints, toggleHelp, fmt, fromUsd, shopNameShown, storeUrl, isMobile, h1Size, copyLink, shareWhatsApp, startOver, live, logOut } = useStore();
 
   const checklist: { k: Key; label: string; done: boolean; action?: string; help?: string }[] = [
     { k: 'store', label: 'Create your store', done: true },
@@ -27,7 +27,8 @@ export function Home() {
   const stats = [
     { label: 'Sales this week', value: fmt(fromUsd(salesUsd)) },
     { label: 'Orders', value: String(s.orders.length) },
-    { label: 'Store visits', value: '312' },
+    // Visits aren't tracked yet, so live stores show a dash instead of the demo number.
+    { label: 'Store visits', value: live ? '—' : '312' },
   ];
 
   return (
@@ -104,13 +105,19 @@ export function Home() {
         </div>
       </section>
 
-      <button
-        type="button"
-        className="ob-skip"
-        onClick={() => { if (window.confirm('Clear this store and start setup again?')) startOver(); }}
-      >
-        Start over
-      </button>
+      {live ? (
+        <button type="button" className="ob-skip" onClick={() => logOut()}>
+          Log out{s.email ? ` (${s.email})` : ''}
+        </button>
+      ) : (
+        <button
+          type="button"
+          className="ob-skip"
+          onClick={() => { if (window.confirm('Clear this store and start setup again?')) startOver(); }}
+        >
+          Start over
+        </button>
+      )}
     </>
   );
 }
