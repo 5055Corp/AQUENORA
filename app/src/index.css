@@ -371,3 +371,8 @@ button { font-family: inherit; color: var(--ink); cursor: pointer; }
   text-align: center; color: var(--muted-2); font-size: 14px; line-height: 1.55;
 }
 button:disabled { cursor: default; }
+.share-view {
+  display: inline-flex; align-items: center; padding: 11px 16px; min-height: 44px; box-sizing: border-box;
+  border-radius: 999px; font-weight: 700; font-size: 13.5px; text-decoration: none;
+}
+.share-view:hover { color: var(--paper); }

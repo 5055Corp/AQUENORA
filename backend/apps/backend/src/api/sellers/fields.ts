@@ -43,8 +43,13 @@ type RawProduct = {
   variants?: { prices?: { amount: number | string; currency_code: string }[] }[]
 }
 
-/** Flattens a Medusa product into the simple shape the seller app and storefront use. */
-export function toSellerProduct(p: RawProduct) {
+/**
+ * Flattens a Medusa product (as returned by query.graph with PRODUCT_FIELDS) into the simple
+ * shape the seller app and storefront use. Typed loosely because query.graph's generated types
+ * differ by entry point (seller.products vs product).
+ */
+export function toSellerProduct(raw: unknown) {
+  const p = raw as RawProduct
   const price = p.variants?.[0]?.prices?.[0]
   const stock = Number(p.metadata?.stock ?? 0)
   return {

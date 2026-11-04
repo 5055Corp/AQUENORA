@@ -102,6 +102,10 @@ export function Home() {
           <button type="button" className="share-copy" onClick={() => { set({ shared: true }); copyLink(); flash('Link copied'); }}>
             Copy link
           </button>
+          {/* Until <shop>.aqenora.com addresses are live, the store page opens with ?shop= */}
+          <a className="share-copy share-view" href={`store.html?shop=${encodeURIComponent(slug)}`} target="_blank" rel="noopener">
+            View my store
+          </a>
         </div>
       </section>
 

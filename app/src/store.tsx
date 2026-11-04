@@ -1,105 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import {
-  COUNTRIES, ORDERS, STATUS,
-  type CountryId, type FontId, type Order, type OrderFilter, type Product, type Tab, type ThemeId,
-} from './data';
+import { COUNTRIES, STATUS, type Product } from './data';
 import type { Settings } from './settings';
 import * as persist from './persist';
-import { api, ApiError, LIVE, sellerIdFromToken, type Accent, type ApiSeller } from './api';
+import { api, ApiError, LIVE, sellerIdFromToken, type ApiSeller } from './api';
+import { ACCENT_KEYS, demoProducts, initialState, usdConverter, type State } from './state';
 
-export interface State {
-  /** 'auth' and 'loading' are only used when connected to the backend (live mode). */
-  screen: 'auth' | 'loading' | 'onboarding' | 'app';
-  tab: Tab;
-  step: number;
-  category: string;
-  shopName: string;
-  country: CountryId;
-  productName: string;
-  productPrice: string;
-  paystack: boolean;
-  intl: boolean;
-  help: Record<string, boolean>;
-  theme: ThemeId;
-  accent: number;
-  font: FontId;
-  announce: string;
-  pv: 'phone' | 'desktop';
-  shared: boolean;
-  designed: boolean;
-  /** Demo: null until the seller adds a product from the dashboard; until then the list is derived from onboarding. */
-  products: Product[] | null;
-  orders: Order[];
-  filter: OrderFilter;
-  newName: string;
-  newPrice: string;
-
-  // ---- live mode ----
-  authMode: 'signup' | 'login';
-  email: string;
-  password: string;
-  token: string;
-  /** The store's web address as saved on the server (may differ from the name-derived one). */
-  handle: string;
-  busy: boolean;
-  authError: string;
-  /** Shown under the shop name, e.g. when the web address is taken. */
-  nameError: string;
-  /** Set when the store couldn't be loaded (e.g. offline); the loading screen offers a retry. */
-  loadError: string;
-}
-
-const ACCENT_KEYS: Accent[] = ['terracotta', 'leaf', 'indigo', 'hibiscus'];
-
-function initialState(settings: Settings): State {
-  const base: State = {
-    screen: settings.startScreen === 'onboarding' ? 'onboarding' : 'app',
-    tab: settings.startScreen === 'theme-editor' ? 'design' : 'home',
-    step: 0,
-    category: 'Fashion & clothing',
-    shopName: 'Adire House',
-    country: 'NG',
-    productName: 'Indigo adire kimono',
-    productPrice: '28000',
-    paystack: false,
-    intl: true,
-    help: {},
-    theme: 'harmattan',
-    accent: 0,
-    font: 'classic',
-    announce: 'Free delivery in Lagos this week',
-    pv: 'phone',
-    shared: false,
-    designed: false,
-    products: null,
-    orders: ORDERS,
-    filter: 'all',
-    newName: '',
-    newPrice: '',
-    authMode: 'signup',
-    email: '',
-    password: '',
-    token: '',
-    handle: '',
-    busy: false,
-    authError: '',
-    nameError: '',
-    loadError: '',
-  };
-  if (!LIVE) return base;
-  // A real seller starts with empty fields and no demo orders or products.
-  return {
-    ...base,
-    screen: 'auth',
-    tab: 'home',
-    shopName: '',
-    productName: '',
-    productPrice: '',
-    announce: '',
-    products: [],
-    orders: [],
-  };
-}
+export type { State } from './state';
 
 function fromSeller(se: ApiSeller): Partial<State> {
   return {
@@ -178,20 +84,12 @@ function useStoreValue(settings: Settings) {
 
   const country = COUNTRIES.find(x => x.id === s.country) ?? COUNTRIES[0];
   const fmt = (n: number | string) => country.sym + Math.round(Number(n) || 0).toLocaleString();
-  const fromUsd = (u: number) => {
-    const v = u * country.rate;
-    return v > 1000 ? Math.round(v / 500) * 500 : Math.round(v);
-  };
+  const fromUsd = usdConverter(country.rate);
   const slug = (LIVE && s.handle) || (s.shopName || 'yourshop').toLowerCase().replace(/[^a-z0-9]+/g, '') || 'yourshop';
   const shopNameShown = s.shopName.trim() || 'Your shop';
   const storeUrl = `https://${slug}.aqenora.com`;
 
-  const products: Product[] = s.products ?? [
-    { name: s.productName || 'Your first product', price: Number(s.productPrice) || 0, stock: 6 },
-    { name: 'Adire tote bag', price: fromUsd(16), stock: 14 },
-    { name: 'Silk head wrap', price: fromUsd(6), stock: 0 },
-    { name: 'Indigo throw pillow', price: fromUsd(11), stock: 3 },
-  ];
+  const products: Product[] = demoProducts(s, fromUsd);
 
   const toggleHelp = (k: string) => set(st => ({ help: { ...st.help, [k]: !st.help[k] } }));
   const advanceOrder = (id: string) =>

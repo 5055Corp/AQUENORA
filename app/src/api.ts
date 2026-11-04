@@ -86,6 +86,29 @@ export function sellerIdFromToken(token: string): string {
   }
 }
 
+/** Medusa's publishable key: required by the public /store routes the store page uses. */
+const PUBLISHABLE_KEY: string = import.meta.env.VITE_MEDUSA_PUBLISHABLE_KEY ?? '';
+
+export interface PublicStore {
+  store: Pick<ApiSeller, 'id' | 'name' | 'handle' | 'category' | 'country_code' | 'currency_code' | 'sells_abroad' | 'theme' | 'accent' | 'font' | 'announcement'>;
+  products: ApiProduct[];
+}
+
+/** The public data for one store page. 404 means there is no store at that address. */
+export async function fetchPublicStore(handle: string): Promise<PublicStore> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/store/sellers/${encodeURIComponent(handle)}`, {
+      headers: { 'x-publishable-api-key': PUBLISHABLE_KEY },
+    });
+  } catch {
+    throw new ApiError(0, "Can't reach this store right now. Check your internet connection and try again.");
+  }
+  if (res.status === 404) throw new ApiError(404, 'not found');
+  if (!res.ok) throw new ApiError(res.status, 'This store could not be loaded. Please try again.');
+  return res.json();
+}
+
 export const api = {
   register: (email: string, password: string) =>
     request<{ token: string }>('/auth/seller/emailpass/register', { body: { email, password } }),
