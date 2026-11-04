@@ -2,7 +2,7 @@
 // Everything is wrapped in try/catch: private browsing or blocked storage just means nothing is saved.
 
 import { COUNTRIES, FONTS, STATUS, THEMES, ACCENTS, type Order, type Product } from './data';
-import type { State } from './store';
+import type { State } from './state';
 
 const KEY = 'aqenora-demo-v1';
 

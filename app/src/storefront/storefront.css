@@ -1,0 +1,71 @@
+/* Public store page. The store itself is drawn by StoreView with the .sf-* classes from index.css;
+   these rules stretch it to a full page and add the bag. */
+
+.sp { min-height: 100vh; display: flex; flex-direction: column; }
+
+.sf.sf-page {
+  max-width: 1100px; width: 100%; margin: 0 auto; flex: 1;
+  border-radius: 0; box-shadow: none; overflow: visible;
+}
+.sf-page .sf-head { padding: 18px 20px; }
+.sf-page .sf-head > div:first-child { font-size: 26px; }
+.sf-page .sf-hero { margin: 0 20px; height: 200px; padding: 20px; }
+.sf-page .sf-hero > div { font-size: 30px; max-width: 360px; }
+.sf-page .sf-grid { padding: 20px; gap: 14px; }
+.sf-page .sf-card-name, .sf-page .sf-card-price { font-size: 14px; }
+.sf-page .sf-add { border: none; font-family: inherit; font-size: 13px; padding: 10px; min-height: 40px; }
+@media (min-width: 900px) {
+  .sf-page .sf-hero { height: 260px; }
+  .sf-page .sf-hero > div { font-size: 38px; max-width: 460px; }
+}
+.sf-bag {
+  background: none; border: 1px solid currentColor; border-radius: 999px;
+  padding: 8px 14px; min-height: 40px; font-size: 13px; font-weight: 700; opacity: 0.85;
+}
+.sf-empty { margin: 20px 20px 0; font-size: 15px; opacity: 0.75; }
+
+.sp-foot {
+  max-width: 1100px; width: 100%; margin: 0 auto; box-sizing: border-box;
+  display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 18px 20px 28px;
+  font-size: 12.5px; font-weight: 600; opacity: 0.65;
+}
+
+/* bag drawer: slides in from the right on wide screens, a bottom sheet on phones */
+.sp-overlay { position: fixed; inset: 0; background: rgba(20, 15, 10, 0.45); z-index: 20; display: flex; justify-content: flex-end; }
+.sp-bag {
+  width: 100%; max-width: 400px; height: 100%; box-sizing: border-box; padding: 20px;
+  display: flex; flex-direction: column; gap: 14px; overflow-y: auto;
+  box-shadow: -10px 0 40px rgba(0, 0, 0, 0.2);
+}
+@media (max-width: 520px) {
+  .sp-overlay { align-items: flex-end; }
+  .sp-bag { max-width: none; height: auto; max-height: 85vh; border-radius: 18px 18px 0 0; }
+}
+.sp-bag-head { display: flex; justify-content: space-between; align-items: center; }
+.sp-bag-head h2 { margin: 0; font-family: var(--f-display); font-size: 22px; }
+.sp-close { background: none; border: none; font-size: 28px; line-height: 1; width: 44px; height: 44px; }
+.sp-bag-empty { margin: 0; opacity: 0.7; }
+.sp-lines { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+.sp-lines li { display: flex; flex-direction: column; gap: 8px; padding-bottom: 14px; border-bottom: 1px solid rgba(128, 128, 128, 0.2); }
+.sp-line-name { display: flex; justify-content: space-between; gap: 12px; font-size: 15px; font-weight: 600; }
+.sp-qty { align-self: flex-start; display: flex; align-items: center; border: 1px solid; border-radius: 999px; }
+.sp-qty button { background: none; border: none; width: 40px; height: 36px; font-size: 18px; font-weight: 700; }
+.sp-qty button:disabled { opacity: 0.3; }
+.sp-qty span { min-width: 24px; text-align: center; font-weight: 700; }
+.sp-total { display: flex; justify-content: space-between; font-size: 16px; font-weight: 700; margin-top: auto; padding-top: 6px; }
+.sp-checkout {
+  border: none; border-radius: 999px; color: #fff; font-weight: 700; font-size: 15px;
+  padding: 15px; min-height: 50px; opacity: 0.5;
+}
+.sp-soon { margin: 0; font-size: 13px; opacity: 0.75; line-height: 1.5; }
+
+/* loading / not found / error */
+.sp-msg {
+  min-height: 100vh; box-sizing: border-box; padding: 40px 20px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; text-align: center;
+  background: var(--paper);
+}
+.sp-msg .wordmark { font-size: 18px; }
+.sp-msg h1 { margin: 0; font-family: var(--f-display); font-size: 26px; max-width: 480px; }
+.sp-msg p { margin: 0; max-width: 420px; color: var(--muted-2); line-height: 1.5; }
+.sp-retry { padding: 14px 24px; min-height: 48px; font-size: 15px; }

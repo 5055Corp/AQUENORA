@@ -1,5 +1,6 @@
 import { ACCENTS, FONTS, THEMES, type FontId, type ThemeId } from '../data';
 import { useStore } from '../store';
+import { StoreView } from '../storefront/StoreView';
 
 const ring = (on: boolean) => (on ? 'var(--ink)' : 'var(--line)');
 
@@ -89,12 +90,8 @@ export function ThemeEditor() {
 }
 
 function StorePreview() {
-  const { s, set, products, fmt, country, shopNameShown } = useStore();
-  const th = THEMES[s.theme];
-  const accent = ACCENTS[s.accent].color;
-  const font = FONTS[s.font].family;
+  const { s, set, products, fmt, shopNameShown } = useStore();
   const phone = s.pv === 'phone';
-  const stripes = (n: number) => `repeating-linear-gradient(135deg,${th.sa} 0 ${n}px,${th.sb} ${n}px ${n * 2}px)`;
 
   return (
     <div className="stage">
@@ -112,26 +109,14 @@ function StorePreview() {
         ))}
       </div>
 
-      <div className="sf" style={{ maxWidth: phone ? 340 : '100%', background: th.bg, color: th.ink }} aria-label="Store preview">
-        {s.announce.trim() && <div className="sf-announce" style={{ background: accent }}>{s.announce}</div>}
-        <div className="sf-head">
-          <div style={{ fontFamily: font }}>{shopNameShown}</div>
-          <div>Bag (0)</div>
-        </div>
-        <div className="sf-hero" style={{ background: stripes(10) }}>
-          <div style={{ fontFamily: font }}>New season, made in {country.id === 'DI' ? 'Africa' : country.name}</div>
-        </div>
-        <div className="sf-grid" style={{ gridTemplateColumns: phone ? 'repeat(2,minmax(0,1fr))' : 'repeat(4,minmax(0,1fr))' }}>
-          {products.slice(0, 4).map((p, i) => (
-            <div key={i + p.name} className="sf-card" style={{ background: th.card }}>
-              <div className="sf-img" style={{ background: stripes(8) }} />
-              <div className="sf-card-name">{p.name}</div>
-              <div className="sf-card-price">{fmt(p.price)}</div>
-              <div className="sf-add" style={{ background: accent }}>Add to bag</div>
-            </div>
-          ))}
-        </div>
-      </div>
+      <StoreView
+        variant="preview"
+        maxWidth={phone ? 340 : '100%'}
+        columns={phone ? 'repeat(2,minmax(0,1fr))' : 'repeat(4,minmax(0,1fr))'}
+        look={{ name: shopNameShown, theme: s.theme, accent: s.accent, font: s.font, announce: s.announce, country: s.country }}
+        items={products.slice(0, 4).map((p, i) => ({ key: p.id ?? i + p.name, name: p.name, price: p.price, stock: p.stock }))}
+        fmt={fmt}
+      />
     </div>
   );
 }

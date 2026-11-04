@@ -51,7 +51,7 @@ cp .env.template .env
 createdb aqenora                     # create the empty database
 
 npx medusa db:migrate                # create the tables
-npx medusa exec ./src/scripts/seed-aqenora-demo.ts   # optional demo store
+npx medusa exec ./src/scripts/seed-aqenora-demo.ts   # optional demo store; also prints the publishable key for the store page
 npx medusa user -e you@example.com -p choose-a-password   # optional: admin dashboard login
 npm run dev                          # server at http://localhost:9000, admin at /app
 ```
@@ -75,17 +75,17 @@ The tests and the seed script log "Search index product has no active version ye
 | `JWT_SECRET`, `COOKIE_SECRET` | Long random strings that sign logins. Required in production, and never commit them |
 | `SELLER_CORS` | Web addresses allowed to call `/sellers` (the seller app): local dev and `https://5055corp.github.io` |
 | `AUTH_CORS` | Web addresses allowed to call `/auth` (login). Includes the same ones |
-| `STORE_CORS`, `ADMIN_CORS` | Medusa defaults for storefront and admin |
+| `STORE_CORS` | Web addresses allowed to call `/store` (the public store page): local dev and `https://5055corp.github.io` |
+| `ADMIN_CORS` | Medusa default for the admin dashboard |
 | `REDIS_URL` | Optional locally; recommended in production |
 
 ## Not built yet
 
-The seller app (`app/`) is connected: set `VITE_API_URL=http://localhost:9000` (see `app/README.md`).
+The seller app and the public store page (`app/`) are connected: set `VITE_API_URL` and `VITE_MEDUSA_PUBLISHABLE_KEY` (see `app/README.md`).
 
 1. **Paystack.** Connect a seller's Paystack account (subaccount) and split each payment between seller and platform.
 2. **Orders.** Buyer checkout, and orders showing up in the seller's dashboard.
-3. **Storefront.** The public `<handle>.aqenora.com` page buyers see.
-4. **Stock.** Currently a number on each product (`metadata.stock`). It moves to Medusa's inventory system when orders arrive.
-5. **Hosting.** For example Railway or Render for this server plus a managed Postgres database.
+3. **Stock.** Currently a number on each product (`metadata.stock`). It moves to Medusa's inventory system when orders arrive.
+4. **Hosting.** For example Railway or Render for this server plus a managed Postgres database, and pointing `*.aqenora.com` at the store page so each store gets its own address.
 
 For coding agents: see [`AGENTS.md`](./AGENTS.md) for commands, conventions and off-limits paths.
