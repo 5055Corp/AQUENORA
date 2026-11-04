@@ -14,6 +14,17 @@ npm run build    # type-check + production build into dist/
 - **Dashboard**: the "Get to your first sale" checklist, stats and a store-link card (Home); orders with filters and ship/deliver actions; products with an add form. Desktop gets a sidebar, phone gets a top bar and a bottom tab bar (switching at 760px).
 - **Theme editor** (Store design tab): pick a style, main colour, lettering and announcement bar, with a phone or computer preview.
 
+## Store page (what buyers see)
+
+`store.html` is the public store page: the seller's chosen look, their products, and a bag. It's drawn by the same component as the theme editor's preview (`src/storefront/StoreView.tsx`), so the preview always matches the real page.
+
+- **Which store:** `store.html?shop=<handle>`, e.g. `store.html?shop=adirehouse`. Once the domain and hosting are set up, `<handle>.aqenora.com` works too: the page reads the subdomain.
+- **Opening it:** the seller dashboard's "View my store" button opens the seller's own page.
+- **Products:** sold-out items show "Sold out". Buyers can't add more than the stock.
+- **Bag:** kept in the buyer's browser, one per store. Checkout is switched off with a "coming soon" note until Paystack is built.
+- **Demo mode:** shows the demo store from the seller app in the same browser, so during an interview the seller can see "their" store.
+- **Live mode:** loads the store from the backend. It needs `VITE_MEDUSA_PUBLISHABLE_KEY` (see `.env.example`). A wrong address shows a "no store here" page.
+
 ## Two modes: demo and live
 
 | Mode | When | What happens |
@@ -65,6 +76,8 @@ The demo store is saved in the browser (`localStorage`), so a refresh keeps the 
 - `src/api.ts`: the backend client (`VITE_API_URL`), with error messages written for sellers
 - `src/settings.ts`: URL parameters
 - `src/persist.ts`: saving and restoring the demo store (with validation of what's read back), and the live login token
+- `src/state.ts`: the app state shape and starting values (shared with the store page)
+- `src/storefront/`: the store page (`StorePage`, `StoreView`, `main.tsx` for `store.html`)
 - `src/components/`: `Auth` (login, sign-up, loading), `Onboarding`, `Dashboard` (shell), `Home`, `Orders`, `Products`, `ThemeEditor`, `Help`
 
 ## Not wired up yet (prototype stand-ins)

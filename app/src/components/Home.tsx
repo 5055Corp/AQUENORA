@@ -4,7 +4,7 @@ import { useStore } from '../store';
 type Key = 'store' | 'product' | 'pay' | 'design' | 'share' | 'order';
 
 export function Home() {
-  const { s, set, flash, products, showHints, toggleHelp, fmt, fromUsd, shopNameShown, storeUrl, isMobile, h1Size, copyLink, shareWhatsApp, startOver, live, logOut } = useStore();
+  const { s, set, flash, products, showHints, toggleHelp, fmt, fromUsd, shopNameShown, storeUrl, slug, isMobile, h1Size, copyLink, shareWhatsApp, startOver, live, logOut } = useStore();
 
   const checklist: { k: Key; label: string; done: boolean; action?: string; help?: string }[] = [
     { k: 'store', label: 'Create your store', done: true },
