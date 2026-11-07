@@ -1,5 +1,5 @@
 import { MedusaError } from "@medusajs/framework/utils"
-import { createWorkflow, transform, when, WorkflowResponse } from "@medusajs/framework/workflows-sdk"
+import { createStep, createWorkflow, StepResponse, transform, when, WorkflowResponse } from "@medusajs/framework/workflows-sdk"
 import { updateProductsWorkflow, updateProductVariantsWorkflow, useQueryGraphStep } from "@medusajs/medusa/core-flows"
 
 export type UpdateSellerProductInput = {
@@ -19,6 +19,35 @@ type OwnedProduct = {
   variants: { id: string }[]
 }
 
+type SellerProducts = { currency_code: string; products: (OwnedProduct | null)[] }
+
+/** Finds the product among the seller's own and works out the update (metadata is merged, not replaced). */
+const prepareSellerProductUpdateStep = createStep(
+  "prepare-seller-product-update",
+  async ({ input, seller }: { input: UpdateSellerProductInput; seller: SellerProducts }) => {
+    const product = seller.products.find((p) => p?.id === input.product_id)
+    if (!product) {
+      // Same answer whether the product doesn't exist or belongs to someone else.
+      throw new MedusaError(MedusaError.Types.NOT_FOUND, "Product not found.")
+    }
+    const metadata = { ...(product.metadata ?? {}) }
+    if (input.stock !== undefined) {
+      metadata.stock = input.stock
+    }
+    if (input.cost_price !== undefined) {
+      metadata.cost_price = input.cost_price
+    }
+    return new StepResponse({
+      product,
+      currency_code: seller.currency_code,
+      productUpdate: {
+        selector: { id: product.id },
+        update: { ...(input.title !== undefined ? { title: input.title } : {}), metadata },
+      },
+    })
+  }
+)
+
 /** Updates one of the seller's own products: name, price, cost price and stock. */
 export const updateSellerProductWorkflow = createWorkflow(
   "update-seller-product",
@@ -30,29 +59,7 @@ export const updateSellerProductWorkflow = createWorkflow(
       options: { throwIfKeyNotFound: true },
     }).config({ name: "get-seller-products" })
 
-    const ctx = transform({ input, sellers }, ({ input, sellers }) => {
-      const seller = sellers[0] as unknown as { currency_code: string; products: (OwnedProduct | null)[] }
-      const product = seller.products.find((p) => p?.id === input.product_id)
-      if (!product) {
-        // Same answer whether the product doesn't exist or belongs to someone else.
-        throw new MedusaError(MedusaError.Types.NOT_FOUND, "Product not found.")
-      }
-      const metadata = { ...(product.metadata ?? {}) }
-      if (input.stock !== undefined) {
-        metadata.stock = input.stock
-      }
-      if (input.cost_price !== undefined) {
-        metadata.cost_price = input.cost_price
-      }
-      return {
-        product,
-        currency_code: seller.currency_code,
-        productUpdate: {
-          selector: { id: product.id },
-          update: { ...(input.title !== undefined ? { title: input.title } : {}), metadata },
-        },
-      }
-    })
+    const ctx = prepareSellerProductUpdateStep({ input, seller: sellers[0] as unknown as SellerProducts })
 
     updateProductsWorkflow.runAsStep({ input: ctx.productUpdate })
 

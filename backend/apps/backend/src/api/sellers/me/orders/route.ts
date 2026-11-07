@@ -1,6 +1,6 @@
 import type { AuthenticatedMedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
-import { ORDER_FIELDS } from "../../../../lib/finance"
+import { ORDER_FIELDS, type SellerWithOrders } from "../../../../lib/finance"
 import { newestFirst, toSellerOrder } from "../../fields"
 
 /** GET /sellers/me/orders: the signed-in seller's orders, newest first. */
@@ -14,6 +14,7 @@ export async function GET(req: AuthenticatedMedusaRequest, res: MedusaResponse) 
     },
     { throwIfKeyNotFound: true }
   )
-  const orders = newestFirst((data[0].orders ?? []).filter(Boolean).map(toSellerOrder))
+  const seller = data[0] as unknown as SellerWithOrders
+  const orders = newestFirst((seller.orders ?? []).filter(Boolean).map(toSellerOrder))
   res.json({ orders, count: orders.length })
 }

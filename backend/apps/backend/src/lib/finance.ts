@@ -230,6 +230,30 @@ export function toFinanceOrder(raw: unknown): FinanceOrder {
   }
 }
 
+/** A seller row from query.graph with products and ORDER_FIELDS (the link adds `orders`). */
+export type SellerWithOrders = {
+  id: string
+  name: string
+  handle: string
+  email: string
+  country_code: "NG" | "GH" | "ZA" | "CI" | "SN" | "DI"
+  currency_code: string
+  products?: ({ id: string; metadata?: Record<string, unknown> | null } | null)[] | null
+  orders?: unknown[] | null
+}
+
+/** Current cost price of each product, for items sold before the seller entered one. */
+export function currentCostPrices(seller: SellerWithOrders): Map<string, number> {
+  const costs = new Map<string, number>()
+  for (const p of seller.products ?? []) {
+    const c = p?.metadata?.cost_price
+    if (p && c != null && c !== "" && Number.isFinite(Number(c))) {
+      costs.set(p.id, Number(c))
+    }
+  }
+  return costs
+}
+
 export const ORDER_FIELDS = [
   "orders.id",
   "orders.display_id",

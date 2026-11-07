@@ -1,6 +1,6 @@
 import type { AuthenticatedMedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
-import { ORDER_FIELDS, summarizeSeller, toFinanceOrder } from "../../../../lib/finance"
+import { currentCostPrices, ORDER_FIELDS, summarizeSeller, toFinanceOrder, type SellerWithOrders } from "../../../../lib/finance"
 import { parseFinanceQuery } from "../../../sellers/validators"
 
 /**
@@ -16,19 +16,12 @@ export async function GET(req: AuthenticatedMedusaRequest, res: MedusaResponse) 
     fields: ["id", "name", "handle", "email", "country_code", "currency_code", "created_at", "products.id", "products.metadata", ...ORDER_FIELDS],
   })
 
-  const sellers = data.map((s) => {
-    const costs = new Map<string, number>()
-    for (const p of s.products ?? []) {
-      const c = p?.metadata?.cost_price
-      if (p && c != null && c !== "" && Number.isFinite(Number(c))) {
-        costs.set(p.id, Number(c))
-      }
-    }
+  const sellers = (data as unknown as SellerWithOrders[]).map((s) => {
     const { totals } = summarizeSeller(
       (s.orders ?? []).filter(Boolean).map(toFinanceOrder),
-      s.country_code as "NG",
+      s.country_code,
       period,
-      costs
+      currentCostPrices(s)
     )
     return {
       id: s.id,
