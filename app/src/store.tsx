@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { COUNTRIES, STATUS, type Product } from './data';
 import type { Settings } from './settings';
 import * as persist from './persist';
-import { api, ApiError, LIVE, sellerIdFromToken, type ApiSeller } from './api';
+import { api, ApiError, LIVE, sellerIdFromToken, storeLink, type ApiSeller } from './api';
 import { ACCENT_KEYS, demoProducts, initialState, usdConverter, type State } from './state';
 
 export type { State } from './state';
@@ -87,7 +87,7 @@ function useStoreValue(settings: Settings) {
   const fromUsd = usdConverter(country.rate);
   const slug = (LIVE && s.handle) || (s.shopName || 'yourshop').toLowerCase().replace(/[^a-z0-9]+/g, '') || 'yourshop';
   const shopNameShown = s.shopName.trim() || 'Your shop';
-  const storeUrl = `https://${slug}.aqenora.com`;
+  const storeUrl = storeLink(slug);
 
   const products: Product[] = demoProducts(s, fromUsd);
 

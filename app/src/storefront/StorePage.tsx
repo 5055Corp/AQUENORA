@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ApiError, fetchPublicStore, LIVE } from '../api';
+import { ApiError, fetchPublicStore, LIVE, RESERVED_SUBDOMAINS, STORE_DOMAIN } from '../api';
 import { COUNTRIES } from '../data';
 import * as persist from '../persist';
 import { ACCENT_KEYS, demoProducts, initialState, usdConverter } from '../state';
@@ -19,14 +19,15 @@ type Load =
   | { kind: 'error'; message: string };
 
 /**
- * Which store to show: ?shop=<handle>, or the subdomain on <handle>.aqenora.com.
- * (Subdomains need the domain and hosting set up; until then links use ?shop=.)
+ * Which store to show: ?shop=<handle>, or the subdomain on <handle>.<VITE_STORE_DOMAIN>.
  */
 function shopHandle(loc: Location = window.location): string {
   const fromQuery = new URLSearchParams(loc.search).get('shop');
   if (fromQuery) return fromQuery.toLowerCase().replace(/[^a-z0-9-]/g, '');
-  const m = /^([a-z0-9-]+)\.aqenora\.com$/i.exec(loc.hostname);
-  return m && !['www', 'app'].includes(m[1].toLowerCase()) ? m[1].toLowerCase() : '';
+  const host = loc.hostname.toLowerCase();
+  if (!STORE_DOMAIN || !host.endsWith('.' + STORE_DOMAIN)) return '';
+  const sub = host.slice(0, -(STORE_DOMAIN.length + 1));
+  return /^[a-z0-9-]+$/.test(sub) && !RESERVED_SUBDOMAINS.includes(sub) ? sub : '';
 }
 
 /** Demo mode: the store from the demo seller app saved in this same browser. */
@@ -133,7 +134,7 @@ export function StorePage() {
       {load.kind === 'loading' && <p role="status">Opening the store…</p>}
       {load.kind === 'missing' && (
         <>
-          <h1>{load.handle ? `There's no store at ${load.handle}.aqenora.com` : 'Which store are you looking for?'}</h1>
+          <h1>{load.handle ? `There's no store at ${load.handle}.${STORE_DOMAIN || 'aqenora.com'}` : 'Which store are you looking for?'}</h1>
           <p>Check the link the seller sent you. Store links look like adirehouse.aqenora.com.</p>
         </>
       )}

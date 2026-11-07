@@ -6,6 +6,21 @@ import type { CountryId, FontId, ThemeId } from './data';
 export const API_URL: string = (import.meta.env.VITE_API_URL ?? '').replace(/\/+$/, '');
 export const LIVE = API_URL !== '';
 
+/**
+ * The domain shops live under, e.g. "aqenora.com" → adirehouse.aqenora.com. Leave unset until
+ * the domain points at the web server; store links then use store.html?shop=<handle> instead.
+ */
+export const STORE_DOMAIN: string = (import.meta.env.VITE_STORE_DOMAIN ?? '').toLowerCase().replace(/^\.+|\.+$/g, '');
+
+/** Subdomains that are never shops (keep in sync with RESERVED in server.mjs). */
+export const RESERVED_SUBDOMAINS = ['app', 'www', 'api', 'admin', 'mail', 'static', 'cdn'];
+
+/** A working link to a shop's store page. */
+export function storeLink(handle: string): string {
+  if (STORE_DOMAIN) return `https://${handle}.${STORE_DOMAIN}`;
+  return new URL(`store.html?shop=${encodeURIComponent(handle)}`, window.location.href).href;
+}
+
 export type Accent = 'terracotta' | 'leaf' | 'indigo' | 'hibiscus';
 
 export interface ApiSeller {
