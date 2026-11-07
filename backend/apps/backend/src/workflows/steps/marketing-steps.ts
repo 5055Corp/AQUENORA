@@ -7,6 +7,11 @@ import type MarketingModuleService from "../../modules/marketing/service"
 
 const newToken = () => randomBytes(24).toString("base64url")
 
+type ContactUndo = {
+  created?: string
+  previous?: { id: string; name: string | null; subscribed: boolean; consented_at: Date | null; unsubscribed_at: Date | null }
+}
+
 /**
  * Remembers a buyer for the shop's customer list. Only an explicit "yes" at checkout subscribes
  * them (again, if they had unsubscribed); an order without it never changes their choice.
@@ -27,7 +32,7 @@ export const upsertMarketingContactStep = createStep(
         consented_at: input.opt_in ? new Date() : null,
         unsubscribe_token: newToken(),
       })
-      return new StepResponse(created, { created: created.id })
+      return new StepResponse(created, { created: created.id } as ContactUndo)
     }
 
     const update: Record<string, unknown> = { id: existing.id }
@@ -38,18 +43,19 @@ export const upsertMarketingContactStep = createStep(
       Object.assign(update, { subscribed: true, consented_at: new Date(), unsubscribed_at: null })
     }
     const updated = await marketing.updateMarketingContacts(update as { id: string })
-    return new StepResponse(updated, {
+    const undo: ContactUndo = {
       previous: { id: existing.id, name: existing.name, subscribed: existing.subscribed, consented_at: existing.consented_at, unsubscribed_at: existing.unsubscribed_at },
-    })
+    }
+    return new StepResponse(updated, undo)
   },
   async (undo, { container }) => {
     if (!undo) {
       return
     }
     const marketing: MarketingModuleService = container.resolve(MARKETING_MODULE)
-    if ("created" in undo && undo.created) {
+    if (undo.created) {
       await marketing.deleteMarketingContacts(undo.created)
-    } else if ("previous" in undo && undo.previous) {
+    } else if (undo.previous) {
       await marketing.updateMarketingContacts(undo.previous)
     }
   }
@@ -90,7 +96,7 @@ export const prepareCampaignRecipientsStep = createStep(
 )
 
 export const createCampaignStep = createStep(
-  "create-marketing-campaign",
+  "create-campaign",
   async (input: { seller_id: string; subject: string; message: string; audience: Audience; recipient_count: number }, { container }) => {
     const marketing: MarketingModuleService = container.resolve(MARKETING_MODULE)
     const campaign = await marketing.createMarketingCampaigns({ ...input, sent_at: new Date() })
@@ -106,7 +112,7 @@ export const createCampaignStep = createStep(
 
 /** Stores how many emails went out and how many failed. */
 export const recordCampaignResultStep = createStep(
-  "record-marketing-campaign-result",
+  "record-campaign-result",
   async (input: { campaign_id: string; results: { status?: string }[] }, { container }) => {
     const marketing: MarketingModuleService = container.resolve(MARKETING_MODULE)
     const failed = input.results.filter((r) => r.status === "failure").length

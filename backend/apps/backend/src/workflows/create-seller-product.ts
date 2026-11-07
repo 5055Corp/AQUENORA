@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto"
 import { Modules } from "@medusajs/framework/utils"
 import { createWorkflow, transform, WorkflowResponse } from "@medusajs/framework/workflows-sdk"
 import {
@@ -6,6 +7,11 @@ import {
   useQueryGraphStep,
 } from "@medusajs/medusa/core-flows"
 import { SELLER_MODULE } from "../modules/seller"
+
+function productHandle(title: string): string {
+  const base = title.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "item"
+  return `${base}-${randomBytes(3).toString("hex")}`
+}
 
 export type CreateSellerProductInput = {
   seller_id: string
@@ -45,6 +51,9 @@ export const createSellerProductWorkflow = createWorkflow(
         products: [
           {
             title: input.title,
+            // Product web handles are unique across all of AQENORA, so two shops (or one shop
+            // twice) can sell something called "Wrap": add a short random ending.
+            handle: productHandle(input.title),
             description: input.description,
             status: "published" as const,
             options: [{ title: "Default", values: ["Default"] }],

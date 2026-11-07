@@ -15,7 +15,7 @@ export type SendCampaignInput = {
  * Emails a seller's past buyers who agreed to hear from the shop. Each email is personal
  * ({name}), links to the shop, and carries the buyer's own unsubscribe link.
  */
-export const sendCampaignWorkflow = createWorkflow("send-marketing-campaign", function (input: SendCampaignInput) {
+export const sendCampaignWorkflow = createWorkflow("send-campaign", function (input: SendCampaignInput) {
   const { data: sellers } = useQueryGraphStep({
     entity: "seller",
     fields: [
