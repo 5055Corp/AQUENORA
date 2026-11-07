@@ -72,3 +72,12 @@ export function parseFinanceQuery(query: unknown): FinanceQuery {
   return parsed.data
 }
 export type CreateSellerProductBody = z.infer<typeof CreateSellerProductSchema>
+
+export const SendCampaignSchema = z
+  .object({
+    subject: z.string().trim().min(1, "Add a subject").max(120),
+    message: z.string().trim().min(1, "Write a message").max(5000),
+    audience: z.enum(["all", "repeat", "lapsed"]),
+  })
+  .strict()
+export type SendCampaignBody = z.infer<typeof SendCampaignSchema>

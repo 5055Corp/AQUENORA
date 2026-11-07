@@ -38,6 +38,31 @@ const redisModules = REDIS_URL
     ]
   : []
 
+/**
+ * Email. With RESEND_API_KEY (production), emails go out through Resend from EMAIL_FROM.
+ * Without it (local development, tests), emails are only written to the server log.
+ * The "feed" channel is the admin dashboard's in-app notifications.
+ */
+const notificationModule = {
+  resolve: "@medusajs/medusa/notification",
+  options: {
+    providers: process.env.RESEND_API_KEY
+      ? [
+          { resolve: "@medusajs/medusa/notification-local", id: "local", options: { channels: ["feed"] } },
+          {
+            resolve: "./src/modules/resend",
+            id: "resend",
+            options: {
+              channels: ["email"],
+              api_key: process.env.RESEND_API_KEY,
+              from: process.env.EMAIL_FROM || "AQENORA <news@aqenora.com>",
+            },
+          },
+        ]
+      : [{ resolve: "@medusajs/medusa/notification-local", id: "local", options: { channels: ["feed", "email"] } }],
+  },
+}
+
 module.exports = defineConfig({
   projectConfig: {
     databaseUrl: process.env.DATABASE_URL,
@@ -70,5 +95,10 @@ module.exports = defineConfig({
     disable: process.env.DISABLE_MEDUSA_ADMIN === "true",
     backendUrl: process.env.MEDUSA_BACKEND_URL,
   },
-  modules: [{ resolve: "./src/modules/seller" }, ...redisModules],
+  modules: [
+    { resolve: "./src/modules/seller" },
+    { resolve: "./src/modules/marketing" },
+    notificationModule,
+    ...redisModules,
+  ],
 })

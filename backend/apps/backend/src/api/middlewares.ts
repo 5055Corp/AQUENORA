@@ -12,6 +12,7 @@ import cors from "cors"
 import {
   CreateSellerProductSchema,
   CreateSellerSchema,
+  SendCampaignSchema,
   UpdateSellerOrderSchema,
   UpdateSellerProductSchema,
   UpdateSellerSchema,
@@ -79,6 +80,11 @@ export default defineMiddlewares({
       methods: ["POST"],
       matcher: "/sellers/me/orders/:id",
       middlewares: [sellerAuth, validateAndTransformBody(UpdateSellerOrderSchema)],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/sellers/me/campaigns",
+      middlewares: [sellerAuth, validateAndTransformBody(SendCampaignSchema)],
     },
   ],
 })

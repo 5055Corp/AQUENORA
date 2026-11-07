@@ -2,6 +2,7 @@ import { MedusaError, Modules } from "@medusajs/framework/utils"
 import { createStep, createWorkflow, StepResponse, transform, WorkflowResponse } from "@medusajs/framework/workflows-sdk"
 import { createOrdersStep, createRemoteLinkStep, useQueryGraphStep } from "@medusajs/medusa/core-flows"
 import { SELLER_MODULE } from "../modules/seller"
+import { upsertMarketingContactStep } from "./steps/marketing-steps"
 
 export type CreateSellerOrderInput = {
   seller_id: string
@@ -102,6 +103,14 @@ export const createSellerOrderWorkflow = createWorkflow(
       { [SELLER_MODULE]: { seller_id: input.seller_id }, [Modules.ORDER]: { order_id: orders[0].id } },
     ])
     createRemoteLinkStep(links)
+
+    // Adds the buyer to the shop's customers; subscribes them only if they said yes at checkout.
+    upsertMarketingContactStep({
+      seller_id: input.seller_id,
+      email: input.email,
+      name: input.customer_name,
+      opt_in: input.marketing_opt_in,
+    })
 
     const order = transform({ orders }, ({ orders }) => orders[0])
     return new WorkflowResponse(order)
