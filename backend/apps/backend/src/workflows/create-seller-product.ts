@@ -15,6 +15,8 @@ export type CreateSellerProductInput = {
   description?: string
   /** How many the seller has. Kept in product metadata until real inventory is set up. */
   stock?: number
+  /** What one item costs the seller to make or buy (for profit). */
+  cost_price?: number
 }
 
 /**
@@ -55,7 +57,7 @@ export const createSellerProductWorkflow = createWorkflow(
               },
             ],
             sales_channels: salesChannelId ? [{ id: salesChannelId }] : [],
-            metadata: { stock },
+            metadata: input.cost_price != null ? { stock, cost_price: input.cost_price } : { stock },
           },
         ],
       }

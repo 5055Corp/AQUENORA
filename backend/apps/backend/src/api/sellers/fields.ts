@@ -31,6 +31,40 @@ export const PRODUCT_FIELDS = [
   "products.variants.prices.currency_code",
 ]
 
+/** Turns an order from query.graph (ORDER_FIELDS) into what the seller app shows. */
+export function toSellerOrder(raw: unknown) {
+  const o = raw as {
+    id: string
+    display_id: number
+    created_at: string | Date
+    status: string
+    email: string | null
+    currency_code: string
+    metadata: Record<string, unknown> | null
+    shipping_address?: { first_name?: string | null; last_name?: string | null } | null
+    items?: ({ title: string; quantity: unknown; unit_price: unknown } | null)[] | null
+  }
+  const items = (o.items ?? []).filter(Boolean).map((i) => ({
+    title: i!.title,
+    quantity: Number(i!.quantity) || 0,
+    unit_price: Number(i!.unit_price) || 0,
+  }))
+  const name = [o.shipping_address?.first_name, o.shipping_address?.last_name].filter(Boolean).join(" ")
+  return {
+    id: o.id,
+    display_id: o.display_id,
+    created_at: o.created_at,
+    customer_name: name || null,
+    email: o.email,
+    currency_code: o.currency_code,
+    // "new" (paid, ready to pack) -> "shipped" -> "delivered"; cancelled orders show as such.
+    status: o.status === "canceled" ? "canceled" : (o.metadata?.seller_status as string) ?? "new",
+    international: o.metadata?.international === true,
+    items,
+    total: items.reduce((a, i) => a + i.quantity * i.unit_price, 0),
+  }
+}
+
 type RawProduct = {
   id: string
   title: string
@@ -52,6 +86,8 @@ export function toSellerProduct(raw: unknown) {
   const p = raw as RawProduct
   const price = p.variants?.[0]?.prices?.[0]
   const stock = Number(p.metadata?.stock ?? 0)
+  const cost = p.metadata?.cost_price
+  const costPrice = cost == null || cost === "" ? null : Number(cost)
   return {
     id: p.id,
     title: p.title,
@@ -62,6 +98,7 @@ export function toSellerProduct(raw: unknown) {
     price: price ? Number(price.amount) : 0,
     currency_code: price?.currency_code ?? null,
     stock: Number.isFinite(stock) ? stock : 0,
+    cost_price: costPrice != null && Number.isFinite(costPrice) ? costPrice : null,
     created_at: p.created_at,
   }
 }
