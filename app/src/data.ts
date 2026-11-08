@@ -108,12 +108,14 @@ export const ORDER_FILTERS: [OrderFilter, string][] = [
   ['delivered', 'Delivered'],
 ];
 
-export type Tab = 'home' | 'orders' | 'products' | 'design';
+export type Tab = 'home' | 'orders' | 'products' | 'money' | 'customers' | 'design';
 
 export const NAV: { key: Tab; label: string; short: string }[] = [
   { key: 'home', label: 'Home', short: 'Home' },
   { key: 'orders', label: 'Orders', short: 'Orders' },
   { key: 'products', label: 'Products', short: 'Products' },
+  { key: 'money', label: 'Money', short: 'Money' },
+  { key: 'customers', label: 'Customers', short: 'Buyers' },
   { key: 'design', label: 'Store design', short: 'Design' },
 ];
 
@@ -123,6 +125,8 @@ export interface Product {
   name: string;
   price: number;
   stock: number;
+  /** What one item costs the seller. undefined = not set yet (demo samples get a made-up one). */
+  cost?: number | null;
 }
 
 export const HELP = {
