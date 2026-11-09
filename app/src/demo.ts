@@ -14,6 +14,7 @@ const BUYERS: { name: string; email: string; subscribed: boolean; intl?: boolean
   { name: 'Zainab Musa', email: 'zainab@example.com', subscribed: false },
   { name: 'Chioma Eze', email: 'chioma@example.com', subscribed: true },
   { name: 'Femi Johnson', email: 'femi@example.com', subscribed: true },
+  { name: 'Ngozi Uche', email: 'ngozi@example.com', subscribed: true },
 ];
 
 // [days ago, buyer index, product index, quantity]
@@ -21,7 +22,7 @@ const SALES: [number, number, number, number][] = [
   [0, 0, 0, 1], [0, 1, 1, 1], [1, 2, 2, 2], [2, 3, 0, 1], [3, 4, 3, 1], [4, 0, 1, 1],
   [6, 6, 0, 1], [8, 7, 3, 2], [9, 4, 1, 1], [12, 1, 0, 1], [15, 5, 1, 1], [18, 6, 3, 1],
   [21, 0, 0, 2], [26, 7, 1, 1], [33, 2, 0, 1], [38, 3, 3, 1], [41, 5, 0, 1], [44, 7, 1, 1],
-  [70, 4, 0, 1], [75, 5, 3, 1],
+  [70, 8, 0, 1], [75, 8, 3, 1], [90, 5, 1, 1],
 ];
 
 /** Demo products get a cost price of about 55% of the price, except ones the seller added themselves. */

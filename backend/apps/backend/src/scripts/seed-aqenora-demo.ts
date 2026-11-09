@@ -3,6 +3,7 @@ import { ContainerRegistrationKeys, MedusaError, Modules } from "@medusajs/frame
 import { SELLER_MODULE } from "../modules/seller"
 import type SellerModuleService from "../modules/seller/service"
 import { createSellerWorkflow } from "../workflows/create-seller"
+import { createSellerOrderWorkflow } from "../workflows/create-seller-order"
 import { createSellerProductWorkflow } from "../workflows/create-seller-product"
 
 /**
@@ -27,7 +28,8 @@ export default async function seedAqenoraDemo({ container }: ExecArgs) {
 
   const [existing] = await sellers.listSellers({ handle: "adirehouse" }, { take: 1 })
   if (existing) {
-    logger.info("Demo store adirehouse already exists, skipping.")
+    logger.info("Demo store adirehouse already exists.")
+    await addSampleOrders(container, existing.id)
     return
   }
 
@@ -47,16 +49,46 @@ export default async function seedAqenoraDemo({ container }: ExecArgs) {
 
   // Prices in whole naira (the store's currency), e.g. 28000 = NGN 28,000.
   const products = [
-    { title: "Indigo adire kimono", naira: 28000, stock: 6 },
-    { title: "Adire tote bag", naira: 25000, stock: 14 },
-    { title: "Silk head wrap", naira: 9500, stock: 0 },
-    { title: "Indigo throw pillow", naira: 17000, stock: 3 },
+    { title: "Indigo adire kimono", naira: 28000, cost_naira: 15500, stock: 6 },
+    { title: "Adire tote bag", naira: 25000, cost_naira: 12000, stock: 14 },
+    { title: "Silk head wrap", naira: 9500, cost_naira: null, stock: 0 },
+    { title: "Indigo throw pillow", naira: 17000, cost_naira: 9000, stock: 3 },
   ]
   for (const p of products) {
     await createSellerProductWorkflow(container).run({
-      input: { seller_id: seller.id, title: p.title, price: p.naira, stock: p.stock },
+      input: { seller_id: seller.id, title: p.title, price: p.naira, stock: p.stock, ...(p.cost_naira != null ? { cost_price: p.cost_naira } : {}) },
     })
   }
+  await addSampleOrders(container, seller.id)
 
   logger.info(`Demo store ready: ${seller.handle}.aqenora.com (login ${email} / ${password})`)
+}
+
+/**
+ * Sample orders (placed now) for the demo store, if it has none: repeat and one-off buyers, some
+ * who said yes to emails. Real orders will come from Paystack checkout.
+ */
+async function addSampleOrders(container: ExecArgs["container"], sellerId: string) {
+  const logger = container.resolve(ContainerRegistrationKeys.LOGGER)
+  const query = container.resolve(ContainerRegistrationKeys.QUERY)
+  const { data } = await query.graph({ entity: "seller", fields: ["id", "products.id", "orders.id"], filters: { id: sellerId } })
+  const seller = data[0] as unknown as { products?: ({ id: string } | null)[]; orders?: unknown[] | null }
+  const productIds = (seller.products ?? []).filter(Boolean).map((p) => p!.id)
+  if ((seller.orders ?? []).filter(Boolean).length > 0 || productIds.length < 2) {
+    logger.info("Demo store already has orders (or too few products); no sample orders added.")
+    return
+  }
+  const buyers = [
+    { email: "adaeze@example.com", customer_name: "Adaeze Okafor", marketing_opt_in: true },
+    { email: "kwame@example.com", customer_name: "Kwame Mensah", marketing_opt_in: true, international: true },
+    { email: "ifeoma@example.com", customer_name: "Ifeoma Bello", marketing_opt_in: false },
+    { email: "adaeze@example.com", customer_name: "Adaeze Okafor", marketing_opt_in: false },
+    { email: "tunde@example.com", customer_name: "Tunde Adeyemi", marketing_opt_in: true },
+  ]
+  for (const [i, b] of buyers.entries()) {
+    await createSellerOrderWorkflow(container).run({
+      input: { seller_id: sellerId, ...b, items: [{ product_id: productIds[i % productIds.length], quantity: 1 + (i % 2) }] },
+    })
+  }
+  logger.info(`Added ${buyers.length} sample orders to the demo store.`)
 }
