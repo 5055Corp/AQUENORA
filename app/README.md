@@ -12,11 +12,18 @@ npm run build    # type-check + production build into dist/
 
 - **Onboarding**: five steps (category, shop name, country/currency, first product, Paystack). On desktop a live store preview sits beside the steps.
 - **Dashboard**: the "Get to your first sale" checklist, stats and a store-link card (Home); orders with filters and ship/deliver actions; products with an add form. Desktop gets a sidebar, phone gets a top bar and a bottom tab bar (switching at 760px).
-- **Theme editor** (Store design tab): pick a style, main colour, lettering and announcement bar, with a phone or computer preview.
+- **Theme editor** (Store design tab): sellers fully customise their store, with a live phone or computer preview:
+  - **Starting styles:** 7 styles to start from.
+  - **Colours:** any colour (picker or swatches) for background, text, buttons, button text and product cards. If something becomes hard to read, a warning appears with a one-tap fix (WCAG contrast).
+  - **Fonts:** separate heading and body fonts, 10 Google Fonts, loaded only when used.
+  - **Layout:** shop name left or centred, big/slim/no banner with the seller's own headline and subtext, 2/3/4 products per row, show or hide stock left, round/soft/square corners, pill/rounded/square buttons.
+  - **Words and links:** announcement bar, About us, Instagram and WhatsApp links.
 
-## Money and Customers pages
+  The design is saved on the backend (`seller.design`) and drawn by `src/storefront/StoreView.tsx` for both the preview and the real store page. Stores that were set up before this keep their old look, converted automatically (`src/design.ts`).
 
-- **Money:**
+## Financials and Customers pages
+
+- **Financials:**
   - Sales, profit (with margin), product costs and fees for the last 7 days, 30 days or all time.
   - A sales vs profit line chart, with "Show as table" and a hover/tap readout.
   - "Where your sales went" and profit by product.

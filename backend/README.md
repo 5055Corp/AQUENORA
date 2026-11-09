@@ -29,7 +29,7 @@ All `/sellers/me...` routes need a seller login token: `Authorization: Bearer <t
 | `POST /auth/seller/emailpass` | `{ email, password }` | `{ token }` to log in (Medusa built-in) |
 | `POST /sellers` | `{ name, handle?, category?, country_code?, sells_abroad? }` | `{ seller }`. Creates the shop for a just-registered login; send the register token. Log in again afterwards to get a token that carries the seller id |
 | `GET /sellers/me` | | `{ seller }` |
-| `POST /sellers/me` | any of `name, handle, category, country_code, sells_abroad, theme, accent, font, announcement, onboarding_completed` | `{ seller }` |
+| `POST /sellers/me` | any of `name, handle, category, country_code, sells_abroad, theme, accent, font, announcement, onboarding_completed, design` (the full store design: see `src/modules/seller/design.ts`, strictly validated) | `{ seller }` |
 | `GET /sellers/me/products` | | `{ products, count }`, newest first |
 | `POST /sellers/me/products` | `{ title, price, stock?, cost_price?, description? }`, with price in whole units of the seller's currency | `{ product }` |
 | `POST /sellers/me/products/:id` | any of `title, price, stock, cost_price` (`null` clears the cost) | `{ product }` |

@@ -392,7 +392,7 @@ button:disabled { cursor: default; }
 }
 .share-view:hover { color: var(--paper); }
 
-/* ---------- Money page ---------- */
+/* ---------- Financials page ---------- */
 .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 @media (max-width: 760px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .kpi-sub { font-size: 12.5px; color: var(--muted); font-weight: 600; }

@@ -185,7 +185,7 @@ export function ThemeEditor() {
               <input className="field" maxLength={31} placeholder="e.g. adirehouse" value={d.social.instagram} onChange={e => setDesign(x => ({ ...x, social: { ...x.social, instagram: e.target.value.replace(/^@/, '').replace(/[^A-Za-z0-9._]/g, '') } }))} />
             </label>
             <label className="ctl-input">WhatsApp number, with country code
-              <input className="field" inputMode="tel" maxLength={15} placeholder="e.g. 2348012345678" value={d.social.whatsapp} onChange={e => setDesign(x => ({ ...x, social: { ...x.social, whatsapp: e.target.value.replace(/\D/g, '') } }))} />
+              <input className="field" inputMode="tel" maxLength={24} placeholder="e.g. +234 801 234 5678" value={d.social.whatsapp} onChange={e => setDesign(x => ({ ...x, social: { ...x.social, whatsapp: e.target.value.replace(/\D/g, '').slice(0, 15) } }))} />
             </label>
             <div className="ctl-note">Shown at the bottom of your store so customers can follow or message you.</div>
           </Section>
