@@ -15,7 +15,7 @@ This folder is a Medusa "DTC starter" workspace. The Medusa app itself is in `ap
 | Seller API | `apps/backend/src/api/sellers/` | The routes the seller app will call (below) |
 | Public store API | `apps/backend/src/api/store/sellers/[handle]/` | Shop details and products for a storefront page |
 | Tests | `apps/backend/integration-tests/http/sellers.spec.ts` | 8 tests covering sign-up, duplicate addresses, login required, design updates, validation, products per seller, the country lock and the public store |
-| Demo data | `apps/backend/src/scripts/seed-aqenora-demo.ts` | Creates "Adire House" (Nigeria) with 4 products |
+| Demo data | `apps/backend/src/scripts/seed-aqenora-demo.ts` | Creates "Adire House" (Nigeria) with 4 products, cost prices and 5 sample orders |
 
 Currency follows the seller's country: NG to `ngn`, GH to `ghs`, ZA to `zar`, CI/SN to `xof`, abroad (DI) to `usd`. Once a seller has products, their country can't change, because the prices are in that currency.
 
@@ -31,10 +31,34 @@ All `/sellers/me...` routes need a seller login token: `Authorization: Bearer <t
 | `GET /sellers/me` | | `{ seller }` |
 | `POST /sellers/me` | any of `name, handle, category, country_code, sells_abroad, theme, accent, font, announcement, onboarding_completed` | `{ seller }` |
 | `GET /sellers/me/products` | | `{ products, count }`, newest first |
-| `POST /sellers/me/products` | `{ title, price, stock?, description? }`, with price in whole units of the seller's currency | `{ product }` |
+| `POST /sellers/me/products` | `{ title, price, stock?, cost_price?, description? }`, with price in whole units of the seller's currency | `{ product }` |
+| `POST /sellers/me/products/:id` | any of `title, price, stock, cost_price` (`null` clears the cost) | `{ product }` |
+| `GET /sellers/me/orders` | | `{ orders }`, newest first, with customer, items, total and status (`new`, `shipped`, `delivered`, `canceled`) |
+| `POST /sellers/me/orders/:id` | `{ status: "shipped" \| "delivered" }`, one step at a time | `{ order }` |
+| `GET /sellers/me/finance?period=7d\|30d\|all` | | sales, product costs, Paystack fees, AQENORA fee, profit, a daily (or monthly) series and profit by product |
+| `GET /sellers/me/customers` | | past buyers with orders, total spent and email permission, plus group sizes |
+| `GET /sellers/me/campaigns` | | sent emails |
+| `POST /sellers/me/campaigns` | `{ audience: "all" \| "repeat" \| "lapsed", subject, message }`, where `{name}` becomes each buyer's first name | `{ campaign }`. At most `CAMPAIGNS_PER_DAY` (default 1) per shop per 24 hours |
+| `GET/POST /marketing/unsubscribe/:token` | public | the unsubscribe page (GET shows a button; POST unsubscribes, also used by Gmail's one-click button) |
+| `GET /admin/finance/sellers?period=` | admin login | every seller's numbers for the AQENORA team, totals per currency |
 | `GET /store/sellers/:handle` | header `x-publishable-api-key` | `{ store, products }`, with no private fields |
 
 Errors: 401 means not logged in. 400 means a bad value (for example an unknown theme) or a change that isn't allowed. 422 means the web address is already taken.
+
+## Profit and email campaigns
+
+**Profit.** Each order is linked to its seller, and each line keeps the price and the product's cost price at the moment of sale, so later changes don't rewrite past profit. Profit = sales − product costs − Paystack fee − AQENORA commission (`AQENORA_COMMISSION_PERCENT`, default 2). Paystack fees are **estimates** from Paystack's published rates per country (`src/lib/finance.ts`) until checkout records the real fee on each order (`metadata.payment_fee`). Cancelled orders don't count. Items sold before a product had a cost price use its current cost; if there is none, the seller sees a warning.
+
+**Owner page.** In the admin dashboard (`/app`), "Seller finances" lists every seller's sales, costs, fees, AQENORA's earnings and the seller's profit (`src/admin/routes/seller-finance`).
+
+**Email campaigns.**
+- **Who gets them:** only buyers who said yes at checkout. The checkout tick box arrives with Paystack checkout; until then, sample orders set it.
+- **Unsubscribing:** every email has its own unsubscribe link plus the List-Unsubscribe headers mail apps use for their built-in button. Unsubscribing is permanent until the buyer says yes again on a later order.
+- **The seller's text:** shown as plain text, never as HTML.
+- **Sending:** emails go out through Resend when `RESEND_API_KEY` is set, and are only written to the server log otherwise.
+- **Code:** `src/modules/marketing`, `src/workflows/send-campaign.ts`, `src/modules/resend`.
+
+**Orders so far** come from `createSellerOrderWorkflow` (used by the demo script and the tests). Paystack checkout will call the same workflow once a payment succeeds.
 
 ## Run it on your computer
 
@@ -58,7 +82,7 @@ npm run dev                          # server at http://localhost:9000, admin at
 
 Demo seller login: `demo@aqenora.com` / `aqenora-demo`. Change or delete it before going live.
 
-**Run the tests** (needs Postgres running; they use their own throwaway database):
+**Run the tests** (needs Postgres running; they use their own throwaway database). There are 18 integration tests, plus unit tests for the fee maths (`npm run test:unit`):
 
 ```bash
 cd apps/backend
@@ -78,6 +102,11 @@ The tests and the seed script log "Search index product has no active version ye
 | `STORE_CORS` | Web addresses allowed to call `/store` (the public store page): local dev and `https://5055corp.github.io` |
 | `ADMIN_CORS` | Medusa default for the admin dashboard |
 | `REDIS_URL` | Optional locally; recommended in production |
+| `RESEND_API_KEY`, `EMAIL_FROM` | Sending campaign emails (resend.com). Empty = emails only logged |
+| `CAMPAIGNS_PER_DAY` | Campaigns each shop may send per 24 hours (default 1) |
+| `STORE_DOMAIN`, `STORE_PAGE_URL` | The shop link in emails: `https://<shop>.<STORE_DOMAIN>` once the domain works, else `STORE_PAGE_URL?shop=<shop>` |
+| `MEDUSA_BACKEND_URL` | This server's public address (used in unsubscribe links) |
+| `AQENORA_COMMISSION_PERCENT` | AQENORA's fee on each sale (default 2) |
 
 ## Not built yet
 
