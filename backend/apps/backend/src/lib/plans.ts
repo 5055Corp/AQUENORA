@@ -54,3 +54,14 @@ export function planFor(seller: PlanSeller, settings: Settings, now = new Date()
 }
 
 export const PLAN_FIELDS = ["trial_ends_at", "pro_paid_until"]
+
+/** Looks up the billing settings and works out the seller's plan. */
+export async function resolvePlan(
+  scope: { resolve: (key: string) => unknown },
+  seller: PlanSeller,
+  now = new Date()
+): Promise<PlanInfo> {
+  const { BILLING_MODULE } = await import("../modules/billing")
+  const billing = scope.resolve(BILLING_MODULE) as { getSettings: () => Promise<Settings> }
+  return planFor(seller, await billing.getSettings(), now)
+}

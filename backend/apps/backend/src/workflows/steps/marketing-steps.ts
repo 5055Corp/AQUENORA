@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto"
 import { MedusaError } from "@medusajs/framework/utils"
 import { createStep, StepResponse } from "@medusajs/framework/workflows-sdk"
 import { audienceCounts, inAudience, pastCustomers, type Audience } from "../../lib/customers"
+import { resolvePlan, type PlanSeller } from "../../lib/plans"
 import { MARKETING_MODULE } from "../../modules/marketing"
 import type MarketingModuleService from "../../modules/marketing/service"
 
@@ -63,24 +64,22 @@ export const upsertMarketingContactStep = createStep(
 
 export type CampaignRecipient = { email: string; name: string | null; unsubscribe_token: string }
 
-/** Campaigns a seller may send per 24 hours (CAMPAIGNS_PER_DAY, default 1). Protects buyers and sending reputation. */
-function campaignsPerDay(): number {
-  const n = Number(process.env.CAMPAIGNS_PER_DAY ?? 1)
-  return Number.isInteger(n) && n > 0 ? n : 1
-}
-
-/** Picks the subscribed buyers in the audience and checks the daily limit. */
+/** Picks the subscribed buyers in the audience and checks the plan's sending limit (Free: weekly, Pro: daily). */
 export const prepareCampaignRecipientsStep = createStep(
   "prepare-campaign-recipients",
-  async (input: { seller_id: string; audience: Audience; orders: unknown[] }, { container }) => {
+  async (input: { seller_id: string; audience: Audience; orders: unknown[]; seller: PlanSeller }, { container }) => {
     const marketing: MarketingModuleService = container.resolve(MARKETING_MODULE)
+    const plan = await resolvePlan(container, input.seller)
+    const days = plan.features.campaign_interval_days
 
-    const since = new Date(Date.now() - 86400000)
-    const recent = await marketing.listMarketingCampaigns({ seller_id: input.seller_id, sent_at: { $gte: since } })
-    if (recent.length >= campaignsPerDay()) {
+    const since = new Date(Date.now() - days * 86400000)
+    const recent = await marketing.listMarketingCampaigns({ seller_id: input.seller_id, sent_at: { $gte: since } }, { take: 1 })
+    if (recent.length) {
       throw new MedusaError(
         MedusaError.Types.NOT_ALLOWED,
-        "You've already sent a campaign in the last 24 hours. Sending less often keeps customers happy, so try again tomorrow."
+        plan.plan === "pro"
+          ? "You've already sent a campaign in the last 24 hours. Sending less often keeps customers happy, so try again tomorrow."
+          : "On the Free plan you can send one campaign a week. Upgrade to Pro to send one every day."
       )
     }
 

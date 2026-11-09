@@ -6,11 +6,8 @@
 
 type Country = "NG" | "GH" | "ZA" | "CI" | "SN" | "DI"
 
-/** AQENORA's commission on each sale, in percent (AQENORA_COMMISSION_PERCENT, default 2). */
-export function platformCommissionRate(): number {
-  const pct = Number(process.env.AQENORA_COMMISSION_PERCENT ?? 2)
-  return Number.isFinite(pct) && pct >= 0 && pct <= 50 ? pct / 100 : 0.02
-}
+/** Fallback commission (fraction) for orders placed before plans existed. */
+export const LEGACY_COMMISSION_RATE = 0.02
 
 /**
  * Paystack's fee for one payment, in the seller's currency (whole units).
@@ -63,6 +60,8 @@ export type FinanceOrder = {
   international: boolean
   /** Real Paystack fee, once payments record it. */
   payment_fee?: number | null
+  /** AQENORA's commission (fraction) on the seller's plan when the order was placed. */
+  commission_rate?: number | null
   items: FinanceItem[]
 }
 
@@ -99,10 +98,11 @@ export function summarizeSeller(
   country: Country,
   period: Period,
   currentCosts: Map<string, number> = new Map(),
-  now = new Date()
+  now = new Date(),
+  /** The seller's commission now (fraction); shown on the page and used for orders without a recorded rate. */
+  commission = LEGACY_COMMISSION_RATE
 ) {
   const start = periodStart(period, now)
-  const commission = platformCommissionRate()
   const counted = orders.filter(
     (o) => o.status !== "canceled" && (!start || new Date(o.created_at) >= start)
   )
@@ -141,7 +141,7 @@ export function summarizeSeller(
     }
 
     const paymentFee = order.payment_fee ?? estimatePaymentFee(country, orderRevenue, order.international)
-    const platformFee = round(orderRevenue * commission)
+    const platformFee = round(orderRevenue * (order.commission_rate ?? LEGACY_COMMISSION_RATE))
     const orderProfit = orderRevenue - orderCost - paymentFee - platformFee
 
     totals.revenue += orderRevenue
@@ -220,6 +220,7 @@ export function toFinanceOrder(raw: unknown): FinanceOrder {
     status: o.status,
     international: o.metadata?.international === true,
     payment_fee: num(o.metadata?.payment_fee),
+    commission_rate: num(o.metadata?.commission_rate),
     items: (o.items ?? []).filter(Boolean).map((i) => ({
       product_id: i!.product_id ?? null,
       title: i!.title,
@@ -238,6 +239,8 @@ export type SellerWithOrders = {
   email: string
   country_code: "NG" | "GH" | "ZA" | "CI" | "SN" | "DI"
   currency_code: string
+  trial_ends_at?: string | Date | null
+  pro_paid_until?: string | Date | null
   products?: ({ id: string; metadata?: Record<string, unknown> | null } | null)[] | null
   orders?: unknown[] | null
 }
