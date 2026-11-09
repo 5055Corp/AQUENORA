@@ -21,6 +21,11 @@ export type UpdateSellerData = Partial<Omit<CreateSellerData, "email">> & {
   announcement?: string | null
   onboarding_completed?: boolean
   design?: Record<string, unknown> | null
+  // Set only by the plan and domain routes (never from the seller's own settings body).
+  trial_ends_at?: Date | null
+  pro_paid_until?: Date | null
+  custom_domain?: string | null
+  domain_verified_at?: Date | null
 }
 
 /** Fails with a clear message if another seller already uses this web address. */

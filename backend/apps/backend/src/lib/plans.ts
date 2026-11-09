@@ -6,6 +6,7 @@
 //          pro_commission_percent of each sale (default 1%). About USD 25 a month in local currency.
 //   Trial: Pro features for trial_days (default 14), but the badge stays until the seller pays.
 
+import { BILLING_MODULE } from "../modules/billing"
 import type { Settings } from "../modules/billing/service"
 
 export type PlanSeller = {
@@ -61,7 +62,6 @@ export async function resolvePlan(
   seller: PlanSeller,
   now = new Date()
 ): Promise<PlanInfo> {
-  const { BILLING_MODULE } = await import("../modules/billing")
   const billing = scope.resolve(BILLING_MODULE) as { getSettings: () => Promise<Settings> }
   return planFor(seller, await billing.getSettings(), now)
 }

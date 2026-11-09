@@ -83,3 +83,36 @@ export const SendCampaignSchema = z
   })
   .strict()
 export type SendCampaignBody = z.infer<typeof SendCampaignSchema>
+
+export const SetDomainSchema = z.object({ domain: z.string().trim().min(3).max(253) }).strict()
+export type SetDomainBody = z.infer<typeof SetDomainSchema>
+
+export const PlanPricesSchema = z
+  .object({
+    prices: z
+      .array(
+        z
+          .object({
+            country_code: z.enum(SELLER_COUNTRIES),
+            monthly_price: z.number().min(0).max(100_000_000),
+          })
+          .strict()
+      )
+      .min(1)
+      .max(20),
+  })
+  .strict()
+export type PlanPricesBody = z.infer<typeof PlanPricesSchema>
+
+export const BillingSettingsSchema = z
+  .object({
+    free_commission_percent: z.number().min(0).max(30),
+    pro_commission_percent: z.number().min(0).max(30),
+    trial_days: z.number().int().min(0).max(90),
+  })
+  .partial()
+  .strict()
+export type BillingSettingsBody = z.infer<typeof BillingSettingsSchema>
+
+export const MarkPaidSchema = z.object({ months: z.number().int().min(1).max(24) }).strict()
+export type MarkPaidBody = z.infer<typeof MarkPaidSchema>
