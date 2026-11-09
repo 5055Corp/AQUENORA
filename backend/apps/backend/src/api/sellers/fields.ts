@@ -13,6 +13,7 @@ export const SELLER_FIELDS = [
   "accent",
   "font",
   "announcement",
+  "design",
   "onboarding_completed",
   "created_at",
 ]

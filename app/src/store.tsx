@@ -4,6 +4,7 @@ import type { Settings } from './settings';
 import * as persist from './persist';
 import { api, ApiError, LIVE, sellerIdFromToken, storeLink, type ApiOrder, type ApiProduct, type ApiSeller } from './api';
 import { demoCost } from './demo';
+import { designFromLegacy, normalizeDesign, type StoreDesign } from './design';
 import { ACCENT_KEYS, demoProducts, initialState, usdConverter, type State } from './state';
 
 export type { State } from './state';
@@ -34,6 +35,7 @@ function fromSeller(se: ApiSeller): Partial<State> {
     accent: Math.max(0, ACCENT_KEYS.indexOf(se.accent)),
     font: se.font,
     announce: se.announcement ?? '',
+    design: se.design ?? null,
   };
 }
 
@@ -105,6 +107,13 @@ function useStoreValue(settings: Settings) {
   const storeUrl = storeLink(slug);
 
   const products: Product[] = demoProducts(s, fromUsd);
+
+  /** The store's design: what the seller saved, or their simple look converted. */
+  const design: StoreDesign = normalizeDesign(
+    s.design,
+    designFromLegacy({ theme: s.theme, accent: s.accent, font: s.font, announce: s.announce, country: country.id === 'DI' ? 'Africa' : country.name }),
+  );
+  const setDesign = (change: (d: StoreDesign) => StoreDesign) => set({ design: change(design), designed: true });
 
   const toggleHelp = (k: string) => set(st => ({ help: { ...st.help, [k]: !st.help[k] } }));
   const advanceOrder = async (id: string) => {
@@ -301,12 +310,8 @@ function useStoreValue(settings: Settings) {
     }
     set({ busy: true });
     try {
-      await api.updateMe(s.token, {
-        theme: s.theme,
-        accent: ACCENT_KEYS[s.accent],
-        font: s.font,
-        announcement: s.announce.trim() || null,
-      });
+      const { seller } = await api.updateMe(s.token, { design });
+      set({ design: seller.design });
       set({ designed: true, busy: false });
       flash('Published. Your store has its new look');
     } catch (e) {
@@ -318,7 +323,7 @@ function useStoreValue(settings: Settings) {
   return {
     s, set, settings, toast, flash, isMobile, framed, country, fmt, fromUsd, slug, shopNameShown, storeUrl,
     products, toggleHelp, advanceOrder, copyLink, shareWhatsApp, startOver,
-    live: LIVE, submitAuth, finishOnboarding, addProduct, setProductCost, publishDesign, logOut, retryLoad,
+    design, setDesign, live: LIVE, submitAuth, finishOnboarding, addProduct, setProductCost, publishDesign, logOut, retryLoad,
     showHints: settings.showHelpHints,
     h1Size: isMobile ? '30px' : '40px',
   };

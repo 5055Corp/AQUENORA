@@ -49,7 +49,7 @@ export function Products() {
           />
           <button type="submit" className="btn-dark" disabled={s.busy}>{s.busy ? 'Adding…' : 'Add'}</button>
         </div>
-        <div className="ctl-note">Cost = what one costs you to make or buy. It's only for your Money page; customers never see it.</div>
+        <div className="ctl-note">Cost = what one costs you to make or buy. It's only for your Financials page; customers never see it.</div>
       </form>
       {products.length === 0 && <div className="empty">No products yet. Add your first one above.</div>}
       <div className="list">

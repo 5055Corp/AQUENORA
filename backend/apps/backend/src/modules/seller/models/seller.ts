@@ -21,6 +21,9 @@ const Seller = model.define("seller", {
   accent: model.enum(["terracotta", "leaf", "indigo", "hibiscus"]).default("terracotta"),
   font: model.enum(["classic", "modern", "friendly"]).default("classic"),
   announcement: model.text().nullable(),
+  // Full store design (colours, fonts, layout, banner, about, social links); see design.ts.
+  // When empty, the store uses theme/accent/font/announcement above.
+  design: model.json().nullable(),
   onboarding_completed: model.boolean().default(false),
 })
 

@@ -59,8 +59,8 @@ export function Money() {
   return (
     <>
       <div className="home-head">
-        <h1 className="h1" style={{ fontSize: h1Size }}>Money</h1>
-        <p>What you sold, what it cost you, and what you kept.</p>
+        <h1 className="h1" style={{ fontSize: h1Size }}>Financials</h1>
+        <p>Track your progress: what you sold, what it cost you, and what you kept.</p>
       </div>
 
       <div className="filters" role="group" aria-label="Time period">

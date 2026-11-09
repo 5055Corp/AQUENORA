@@ -1,5 +1,5 @@
 // Demo-mode copy of the backend's profit maths (backend/apps/backend/src/lib/finance.ts), so the
-// browser-only demo can show a realistic Money page. Live mode always uses the backend's numbers.
+// browser-only demo can show a realistic Financials page. Live mode always uses the backend's numbers.
 
 import type { CountryId } from './data';
 import type { Finance, Period } from './api';

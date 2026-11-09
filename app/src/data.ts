@@ -118,7 +118,7 @@ export const NAV: { key: Tab; label: string; short: string }[] = [
   { key: 'home', label: 'Home', short: 'Home' },
   { key: 'orders', label: 'Orders', short: 'Orders' },
   { key: 'products', label: 'Products', short: 'Products' },
-  { key: 'money', label: 'Money', short: 'Money' },
+  { key: 'money', label: 'Financials', short: 'Financials' },
   { key: 'customers', label: 'Customers', short: 'Buyers' },
   { key: 'design', label: 'Store design', short: 'Design' },
 ];

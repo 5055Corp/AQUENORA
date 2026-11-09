@@ -38,6 +38,8 @@ export interface ApiSeller {
   font: FontId;
   announcement: string | null;
   onboarding_completed: boolean;
+  /** Full store design (see design.ts), or null if the seller hasn't customised it. */
+  design: unknown;
 }
 
 export interface ApiProduct {
@@ -167,7 +169,7 @@ export function sellerIdFromToken(token: string): string {
 const PUBLISHABLE_KEY: string = import.meta.env.VITE_MEDUSA_PUBLISHABLE_KEY ?? '';
 
 export interface PublicStore {
-  store: Pick<ApiSeller, 'id' | 'name' | 'handle' | 'category' | 'country_code' | 'currency_code' | 'sells_abroad' | 'theme' | 'accent' | 'font' | 'announcement'>;
+  store: Pick<ApiSeller, 'id' | 'name' | 'handle' | 'category' | 'country_code' | 'currency_code' | 'sells_abroad' | 'theme' | 'accent' | 'font' | 'announcement' | 'design'>;
   products: ApiProduct[];
 }
 
