@@ -32,6 +32,7 @@ export interface State {
   filter: OrderFilter;
   newName: string;
   newPrice: string;
+  newCost: string;
 
   /** Demo mode only: campaigns "sent" in this browser. */
   campaigns: Campaign[];
@@ -78,6 +79,7 @@ export function initialState(settings: Settings): State {
     filter: 'all',
     newName: '',
     newPrice: '',
+    newCost: '',
     campaigns: [],
     authMode: 'signup',
     email: '',

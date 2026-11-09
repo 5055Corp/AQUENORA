@@ -1,11 +1,26 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { COUNTRIES, STATUS, type Product } from './data';
+import { COUNTRIES, STATUS, type Order, type Product } from './data';
 import type { Settings } from './settings';
 import * as persist from './persist';
-import { api, ApiError, LIVE, sellerIdFromToken, storeLink, type ApiSeller } from './api';
+import { api, ApiError, LIVE, sellerIdFromToken, storeLink, type ApiOrder, type ApiProduct, type ApiSeller } from './api';
+import { demoCost } from './demo';
 import { ACCENT_KEYS, demoProducts, initialState, usdConverter, type State } from './state';
 
 export type { State } from './state';
+
+const toOrder = (o: ApiOrder): Order => ({
+  id: o.id,
+  name: o.customer_name || o.email || 'Customer',
+  place: o.email ?? '',
+  item: o.items.map(i => (i.quantity > 1 ? `${i.title} ×${i.quantity}` : i.title)).join(', '),
+  usd: 0,
+  amount: o.total,
+  intl: o.international,
+  status: o.status,
+  created_at: o.created_at,
+});
+
+const toProduct = (p: ApiProduct): Product => ({ id: p.id, name: p.title, price: p.price, stock: p.stock, cost: p.cost_price });
 
 function fromSeller(se: ApiSeller): Partial<State> {
   return {
@@ -92,8 +107,21 @@ function useStoreValue(settings: Settings) {
   const products: Product[] = demoProducts(s, fromUsd);
 
   const toggleHelp = (k: string) => set(st => ({ help: { ...st.help, [k]: !st.help[k] } }));
-  const advanceOrder = (id: string) =>
-    set(st => ({ orders: st.orders.map(o => (o.id === id ? { ...o, status: STATUS[o.status].next ?? o.status } : o)) }));
+  const advanceOrder = async (id: string) => {
+    const order = s.orders.find(o => o.id === id);
+    const next = order && STATUS[order.status].next;
+    if (!next) return;
+    if (!LIVE) {
+      set(st => ({ orders: st.orders.map(o => (o.id === id ? { ...o, status: next } : o)) }));
+      return;
+    }
+    try {
+      const { order: updated } = await api.updateOrder(s.token, id, next as 'shipped' | 'delivered');
+      set(st => ({ orders: st.orders.map(o => (o.id === id ? toOrder(updated) : o)) }));
+    } catch (e) {
+      fail(e);
+    }
+  };
 
   const copyLink = () => {
     navigator.clipboard?.writeText(storeUrl).catch(() => {});
@@ -125,12 +153,12 @@ function useStoreValue(settings: Settings) {
 
   /** Loads the seller's store and products, then opens the dashboard. */
   const loadStore = async (token: string) => {
-    const [{ seller }, { products }] = await Promise.all([api.me(token), api.products(token)]);
+    const [{ seller }, { products }, { orders }] = await Promise.all([api.me(token), api.products(token), api.orders(token)]);
     set({
       ...fromSeller(seller),
       token,
-      products: products.map(p => ({ id: p.id, name: p.title, price: p.price, stock: p.stock })),
-      orders: [],
+      products: products.map(toProduct),
+      orders: orders.map(toOrder),
       screen: 'app',
       tab: 'home',
       busy: false,
@@ -215,27 +243,51 @@ function useStoreValue(settings: Settings) {
   };
 
   /** Adds a product: saved to the backend in live mode, kept in the browser in demo mode. */
+  /** The product list with demo cost prices fixed in place, so later edits don't shift them. */
+  const withCosts = () => products.map((p, i) => ({ ...p, cost: LIVE ? p.cost ?? null : demoCost(p, i) }));
+
   const addProduct = async () => {
     const name = s.newName.trim();
     if (!name) return;
     const price = Number(s.newPrice) || 0;
+    const cost = s.newCost.trim() === '' ? null : Number(s.newCost);
     if (!LIVE) {
-      set({ products: [{ name, price, stock: 1 }, ...products], newName: '', newPrice: '' });
+      set({ products: [{ name, price, stock: 1, cost }, ...withCosts()], newName: '', newPrice: '', newCost: '' });
       flash('Product added to your store');
       return;
     }
     set({ busy: true });
     try {
-      const { product } = await api.addProduct(s.token, { title: name, price, stock: 1 });
+      const { product } = await api.addProduct(s.token, { title: name, price, stock: 1, ...(cost != null ? { cost_price: cost } : {}) });
       set(st => ({
-        products: [{ id: product.id, name: product.title, price: product.price, stock: product.stock }, ...(st.products ?? [])],
+        products: [toProduct(product), ...(st.products ?? [])],
         newName: '',
         newPrice: '',
+        newCost: '',
         busy: false,
       }));
       flash('Product added to your store');
     } catch (e) {
       set({ busy: false });
+      fail(e);
+    }
+  };
+
+  /** Sets what one item of a product costs the seller (for profit). */
+  const setProductCost = async (index: number, cost: number | null) => {
+    const target = products[index];
+    if (!target) return;
+    if (!LIVE) {
+      set({ products: withCosts().map((p, i) => (i === index ? { ...p, cost } : p)) });
+      flash('Cost price saved');
+      return;
+    }
+    if (!target.id) return;
+    try {
+      const { product } = await api.updateProduct(s.token, target.id, { cost_price: cost });
+      set(st => ({ products: (st.products ?? []).map(p => (p.id === product.id ? toProduct(product) : p)) }));
+      flash('Cost price saved');
+    } catch (e) {
       fail(e);
     }
   };
@@ -266,7 +318,7 @@ function useStoreValue(settings: Settings) {
   return {
     s, set, settings, toast, flash, isMobile, framed, country, fmt, fromUsd, slug, shopNameShown, storeUrl,
     products, toggleHelp, advanceOrder, copyLink, shareWhatsApp, startOver,
-    live: LIVE, submitAuth, finishOnboarding, addProduct, publishDesign, logOut, retryLoad,
+    live: LIVE, submitAuth, finishOnboarding, addProduct, setProductCost, publishDesign, logOut, retryLoad,
     showHints: settings.showHelpHints,
     h1Size: isMobile ? '30px' : '40px',
   };

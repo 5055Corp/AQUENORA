@@ -4,6 +4,8 @@ import { Home } from './Home';
 import { Orders } from './Orders';
 import { Products } from './Products';
 import { ThemeEditor } from './ThemeEditor';
+import { Money } from './Money';
+import { Customers } from './Customers';
 
 export function Dashboard() {
   const { s, set, isMobile, shopNameShown, slug } = useStore();
@@ -64,6 +66,8 @@ export function Dashboard() {
           {s.tab === 'home' && <Home />}
           {s.tab === 'orders' && <Orders />}
           {s.tab === 'products' && <Products />}
+          {s.tab === 'money' && <Money />}
+          {s.tab === 'customers' && <Customers />}
           {s.tab === 'design' && <ThemeEditor />}
         </div>
 

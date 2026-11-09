@@ -24,9 +24,14 @@ export function Home() {
   };
 
   const salesUsd = s.orders.reduce((a, o) => a + o.usd, 0);
+  // Live: real sales in the last 7 days, in the seller's own currency (cancelled orders don't count).
+  const weekAgo = Date.now() - 7 * 86400000;
+  const liveSales = s.orders
+    .filter(o => o.status !== 'canceled' && o.created_at && new Date(o.created_at).getTime() >= weekAgo)
+    .reduce((a, o) => a + (o.amount ?? 0), 0);
   const stats = [
-    { label: 'Sales this week', value: fmt(fromUsd(salesUsd)) },
-    { label: 'Orders', value: String(s.orders.length) },
+    { label: 'Sales this week', value: fmt(live ? liveSales : fromUsd(salesUsd)) },
+    { label: 'Orders', value: String(s.orders.filter(o => o.status !== 'canceled').length) },
     // Visits aren't tracked yet, so live stores show a dash instead of the demo number.
     { label: 'Store visits', value: live ? '—' : '312' },
   ];

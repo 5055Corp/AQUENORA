@@ -73,7 +73,7 @@ export const FONTS: Record<FontId, { label: string; family: string }> = {
   friendly: { label: 'Friendly', family: "'Fredoka', sans-serif" },
 };
 
-export type OrderStatus = 'new' | 'shipped' | 'delivered';
+export type OrderStatus = 'new' | 'shipped' | 'delivered' | 'canceled';
 
 export interface Order {
   id: string;
@@ -84,6 +84,9 @@ export interface Order {
   usd: number;
   intl?: boolean;
   status: OrderStatus;
+  /** Live orders: total in the seller's own currency (demo orders use usd). */
+  amount?: number;
+  created_at?: string;
 }
 
 export const ORDERS: Order[] = [
@@ -97,6 +100,7 @@ export const STATUS: Record<OrderStatus, { label: string; bg: string; color: str
   new: { label: 'Paid, ready to pack', bg: 'oklch(0.93 0.05 40)', color: 'oklch(0.42 0.13 40)', action: 'Mark as shipped', next: 'shipped' },
   shipped: { label: 'On the way', bg: 'oklch(0.93 0.05 265)', color: 'oklch(0.42 0.13 265)', action: 'Mark as delivered', next: 'delivered' },
   delivered: { label: 'Delivered', bg: 'oklch(0.93 0.05 150)', color: 'oklch(0.4 0.12 150)' },
+  canceled: { label: 'Cancelled', bg: '#efe8dc', color: '#6b645a' },
 };
 
 export type OrderFilter = 'all' | OrderStatus;

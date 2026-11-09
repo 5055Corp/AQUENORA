@@ -38,10 +38,10 @@ export function Orders() {
             <article key={o.id} className="card order">
               <div className="order-top">
                 <div className="order-who">
-                  <div>{o.name} <span>· #{o.id}</span></div>
-                  <div>{o.item} · {o.place}{o.intl ? ' · abroad' : ''}</div>
+                  <div>{o.name} <span>· #{o.id.length > 8 ? o.id.slice(-6).toUpperCase() : o.id}</span></div>
+                  <div>{o.item}{o.place ? ' · ' + o.place : ''}{o.intl ? ' · abroad' : ''}</div>
                 </div>
-                <div className="amount">{o.intl ? '$' + o.usd : fmt(fromUsd(o.usd))}</div>
+                <div className="amount">{o.amount != null ? fmt(o.amount) : o.intl ? '$' + o.usd : fmt(fromUsd(o.usd))}</div>
               </div>
               <div className="order-bottom">
                 <span className="pill" style={{ background: st.bg, color: st.color }}>{st.label}</span>
