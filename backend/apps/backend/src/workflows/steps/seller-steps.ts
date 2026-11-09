@@ -20,6 +20,7 @@ export type UpdateSellerData = Partial<Omit<CreateSellerData, "email">> & {
   font?: "classic" | "modern" | "friendly"
   announcement?: string | null
   onboarding_completed?: boolean
+  design?: Record<string, unknown> | null
 }
 
 /** Fails with a clear message if another seller already uses this web address. */

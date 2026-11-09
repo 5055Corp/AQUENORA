@@ -23,6 +23,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       "accent",
       "font",
       "announcement",
+      "design",
       ...PRODUCT_FIELDS,
     ],
     filters: { handle: req.params.handle },

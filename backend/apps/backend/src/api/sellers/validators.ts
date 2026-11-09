@@ -1,6 +1,7 @@
 import { MedusaError } from "@medusajs/framework/utils"
 import { z } from "@medusajs/framework/zod"
 import { SELLER_COUNTRIES } from "../../modules/seller/currency"
+import { StoreDesignSchema } from "../../modules/seller/design"
 
 const shopName = z.string().trim().min(1, "Shop name is required").max(80)
 const handle = z
@@ -31,6 +32,7 @@ export const UpdateSellerSchema = z
     font: z.enum(["classic", "modern", "friendly"]),
     announcement: z.string().trim().max(120).nullable(),
     onboarding_completed: z.boolean(),
+    design: StoreDesignSchema,
   })
   .partial()
   .strict()
