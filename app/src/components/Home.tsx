@@ -4,7 +4,7 @@ import { useStore } from '../store';
 type Key = 'store' | 'product' | 'pay' | 'design' | 'share' | 'order';
 
 export function Home() {
-  const { s, set, flash, products, showHints, toggleHelp, fmt, fromUsd, shopNameShown, storeUrl, slug, isMobile, h1Size, copyLink, shareWhatsApp, startOver, live, logOut } = useStore();
+  const { s, set, flash, products, showHints, toggleHelp, fmt, fromUsd, shopNameShown, storeUrl, isMobile, h1Size, copyLink, shareWhatsApp, startOver, live, logOut } = useStore();
 
   const checklist: { k: Key; label: string; done: boolean; action?: string; help?: string }[] = [
     { k: 'store', label: 'Create your store', done: true },
@@ -24,9 +24,14 @@ export function Home() {
   };
 
   const salesUsd = s.orders.reduce((a, o) => a + o.usd, 0);
+  // Live: real sales in the last 7 days, in the seller's own currency (cancelled orders don't count).
+  const weekAgo = Date.now() - 7 * 86400000;
+  const liveSales = s.orders
+    .filter(o => o.status !== 'canceled' && o.created_at && new Date(o.created_at).getTime() >= weekAgo)
+    .reduce((a, o) => a + (o.amount ?? 0), 0);
   const stats = [
-    { label: 'Sales this week', value: fmt(fromUsd(salesUsd)) },
-    { label: 'Orders', value: String(s.orders.length) },
+    { label: 'Sales this week', value: fmt(live ? liveSales : fromUsd(salesUsd)) },
+    { label: 'Orders', value: String(s.orders.filter(o => o.status !== 'canceled').length) },
     // Visits aren't tracked yet, so live stores show a dash instead of the demo number.
     { label: 'Store visits', value: live ? '—' : '312' },
   ];
@@ -102,8 +107,7 @@ export function Home() {
           <button type="button" className="share-copy" onClick={() => { set({ shared: true }); copyLink(); flash('Link copied'); }}>
             Copy link
           </button>
-          {/* Until <shop>.aqenora.com addresses are live, the store page opens with ?shop= */}
-          <a className="share-copy share-view" href={`store.html?shop=${encodeURIComponent(slug)}`} target="_blank" rel="noopener">
+          <a className="share-copy share-view" href={storeUrl} target="_blank" rel="noopener">
             View my store
           </a>
         </div>

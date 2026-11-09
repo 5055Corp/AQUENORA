@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto"
 import { Modules } from "@medusajs/framework/utils"
 import { createWorkflow, transform, WorkflowResponse } from "@medusajs/framework/workflows-sdk"
 import {
@@ -7,6 +8,11 @@ import {
 } from "@medusajs/medusa/core-flows"
 import { SELLER_MODULE } from "../modules/seller"
 
+function productHandle(title: string): string {
+  const base = title.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "item"
+  return `${base}-${randomBytes(3).toString("hex")}`
+}
+
 export type CreateSellerProductInput = {
   seller_id: string
   title: string
@@ -15,6 +21,8 @@ export type CreateSellerProductInput = {
   description?: string
   /** How many the seller has. Kept in product metadata until real inventory is set up. */
   stock?: number
+  /** What one item costs the seller to make or buy (for profit). */
+  cost_price?: number
 }
 
 /**
@@ -43,6 +51,9 @@ export const createSellerProductWorkflow = createWorkflow(
         products: [
           {
             title: input.title,
+            // Product web handles are unique across all of AQENORA, so two shops (or one shop
+            // twice) can sell something called "Wrap": add a short random ending.
+            handle: productHandle(input.title),
             description: input.description,
             status: "published" as const,
             options: [{ title: "Default", values: ["Default"] }],
@@ -55,7 +66,7 @@ export const createSellerProductWorkflow = createWorkflow(
               },
             ],
             sales_channels: salesChannelId ? [{ id: salesChannelId }] : [],
-            metadata: { stock },
+            metadata: input.cost_price != null ? { stock, cost_price: input.cost_price } : { stock },
           },
         ],
       }

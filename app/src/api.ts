@@ -6,6 +6,21 @@ import type { CountryId, FontId, ThemeId } from './data';
 export const API_URL: string = (import.meta.env.VITE_API_URL ?? '').replace(/\/+$/, '');
 export const LIVE = API_URL !== '';
 
+/**
+ * The domain shops live under, e.g. "aqenora.com" → adirehouse.aqenora.com. Leave unset until
+ * the domain points at the web server; store links then use store.html?shop=<handle> instead.
+ */
+export const STORE_DOMAIN: string = (import.meta.env.VITE_STORE_DOMAIN ?? '').toLowerCase().replace(/^\.+|\.+$/g, '');
+
+/** Subdomains that are never shops (keep in sync with RESERVED in server.mjs). */
+export const RESERVED_SUBDOMAINS = ['app', 'www', 'api', 'admin', 'mail', 'static', 'cdn'];
+
+/** A working link to a shop's store page. */
+export function storeLink(handle: string): string {
+  if (STORE_DOMAIN) return `https://${handle}.${STORE_DOMAIN}`;
+  return new URL(`store.html?shop=${encodeURIComponent(handle)}`, window.location.href).href;
+}
+
 export type Accent = 'terracotta' | 'leaf' | 'indigo' | 'hibiscus';
 
 export interface ApiSeller {
@@ -31,7 +46,69 @@ export interface ApiProduct {
   price: number;
   currency_code: string | null;
   stock: number;
+  /** What one item costs the seller; null until they enter it. */
+  cost_price: number | null;
   status: string;
+}
+
+export type SellerOrderStatus = 'new' | 'shipped' | 'delivered' | 'canceled';
+
+export interface ApiOrder {
+  id: string;
+  display_id: number;
+  created_at: string;
+  customer_name: string | null;
+  email: string | null;
+  currency_code: string;
+  status: SellerOrderStatus;
+  international: boolean;
+  items: { title: string; quantity: number; unit_price: number }[];
+  total: number;
+}
+
+export type Period = '7d' | '30d' | 'all';
+
+export interface Finance {
+  currency_code: string;
+  period: Period;
+  granularity: 'day' | 'month';
+  commission_rate: number;
+  fee_basis: 'estimate' | 'actual';
+  totals: {
+    orders: number;
+    items_sold: number;
+    revenue: number;
+    cost_of_goods: number;
+    payment_fees: number;
+    platform_fees: number;
+    profit: number;
+    items_missing_cost: number;
+  };
+  series: { date: string; revenue: number; profit: number }[];
+  by_product: { product_id: string | null; title: string; quantity: number; revenue: number; cost: number; profit: number }[];
+}
+
+export type Audience = 'all' | 'repeat' | 'lapsed';
+
+export interface Customer {
+  email: string;
+  name: string | null;
+  orders: number;
+  total_spent: number;
+  first_order_at: string;
+  last_order_at: string;
+  subscribed: boolean;
+}
+
+export interface Campaign {
+  id: string;
+  subject: string;
+  message: string;
+  audience: Audience;
+  recipient_count: number;
+  sent_count: number;
+  failed_count: number;
+  sent_at: string | null;
 }
 
 /** An error from the backend, with a message that's fine to show the seller. */
@@ -124,6 +201,20 @@ export const api = {
     request<{ seller: ApiSeller }>('/sellers/me', { body, token }),
 
   products: (token: string) => request<{ products: ApiProduct[] }>('/sellers/me/products', { token }),
-  addProduct: (token: string, body: { title: string; price: number; stock?: number }) =>
+  addProduct: (token: string, body: { title: string; price: number; stock?: number; cost_price?: number }) =>
     request<{ product: ApiProduct }>('/sellers/me/products', { body, token }),
+  updateProduct: (token: string, id: string, body: { title?: string; price?: number; stock?: number; cost_price?: number | null }) =>
+    request<{ product: ApiProduct }>(`/sellers/me/products/${encodeURIComponent(id)}`, { body, token }),
+
+  orders: (token: string) => request<{ orders: ApiOrder[] }>('/sellers/me/orders', { token }),
+  updateOrder: (token: string, id: string, status: 'shipped' | 'delivered') =>
+    request<{ order: ApiOrder }>(`/sellers/me/orders/${encodeURIComponent(id)}`, { body: { status }, token }),
+
+  finance: (token: string, period: Period) => request<Finance>(`/sellers/me/finance?period=${period}`, { token }),
+
+  customers: (token: string) =>
+    request<{ customers: Customer[]; audiences: Record<Audience, number> }>('/sellers/me/customers', { token }),
+  campaigns: (token: string) => request<{ campaigns: Campaign[] }>('/sellers/me/campaigns', { token }),
+  sendCampaign: (token: string, body: { audience: Audience; subject: string; message: string }) =>
+    request<{ campaign: Campaign }>('/sellers/me/campaigns', { body, token }),
 };

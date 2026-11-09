@@ -14,6 +14,19 @@ npm run build    # type-check + production build into dist/
 - **Dashboard**: the "Get to your first sale" checklist, stats and a store-link card (Home); orders with filters and ship/deliver actions; products with an add form. Desktop gets a sidebar, phone gets a top bar and a bottom tab bar (switching at 760px).
 - **Theme editor** (Store design tab): pick a style, main colour, lettering and announcement bar, with a phone or computer preview.
 
+## Money and Customers pages
+
+- **Money:**
+  - Sales, profit (with margin), product costs and fees for the last 7 days, 30 days or all time.
+  - A sales vs profit line chart, with "Show as table" and a hover/tap readout.
+  - "Where your sales went" and profit by product.
+  - A warning when items were sold without a cost price.
+  - Chart colours come from the dataviz skill's validated palette (colour-blind safe, 3:1 contrast).
+- **Customers:** past buyers and whether each agreed to emails. Send an email to everyone, regulars (2+ orders) or lapsed buyers (no order in 60 days). `{name}` becomes each buyer's first name; there's a preview and a confirm step, and a list of sent emails.
+- **Products:** an optional cost price when adding, plus "Add cost price"/"Change" on each product, showing what it makes per item.
+- **Live mode:** Orders and Home show real orders, and status changes are saved. Numbers come from the backend (`/sellers/me/finance`, `/customers`, `/campaigns`).
+- **Demo mode:** six weeks of sample sales and buyers (`src/demo.ts`), with the profit maths copied in `src/finance.ts`. Sending only pretends.
+
 ## Store page (what buyers see)
 
 `store.html` is the public store page: the seller's chosen look, their products, and a bag. It's drawn by the same component as the theme editor's preview (`src/storefront/StoreView.tsx`), so the preview always matches the real page.
@@ -77,8 +90,9 @@ The demo store is saved in the browser (`localStorage`), so a refresh keeps the 
 - `src/settings.ts`: URL parameters
 - `src/persist.ts`: saving and restoring the demo store (with validation of what's read back), and the live login token
 - `src/state.ts`: the app state shape and starting values (shared with the store page)
+- `src/finance.ts`, `src/demo.ts`: demo-mode profit maths and sample sales/buyers
 - `src/storefront/`: the store page (`StorePage`, `StoreView`, `main.tsx` for `store.html`)
-- `src/components/`: `Auth` (login, sign-up, loading), `Onboarding`, `Dashboard` (shell), `Home`, `Orders`, `Products`, `ThemeEditor`, `Help`
+- `src/components/`: `Auth` (login, sign-up, loading), `Onboarding`, `Money`, `LineChart`, `Customers`, `Dashboard` (shell), `Home`, `Orders`, `Products`, `ThemeEditor`, `Help`
 
 ## Not wired up yet (prototype stand-ins)
 

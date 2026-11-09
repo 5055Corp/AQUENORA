@@ -4,7 +4,7 @@ import {
   type CountryId, type FontId, type Order, type OrderFilter, type Product, type Tab, type ThemeId,
 } from './data';
 import type { Settings } from './settings';
-import { LIVE, type Accent } from './api';
+import { LIVE, type Accent, type Campaign } from './api';
 
 export interface State {
   /** 'auth' and 'loading' are only used when connected to the backend (live mode). */
@@ -32,6 +32,10 @@ export interface State {
   filter: OrderFilter;
   newName: string;
   newPrice: string;
+  newCost: string;
+
+  /** Demo mode only: campaigns "sent" in this browser. */
+  campaigns: Campaign[];
 
   // ---- live mode ----
   authMode: 'signup' | 'login';
@@ -75,6 +79,8 @@ export function initialState(settings: Settings): State {
     filter: 'all',
     newName: '',
     newPrice: '',
+    newCost: '',
+    campaigns: [],
     authMode: 'signup',
     email: '',
     password: '',

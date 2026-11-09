@@ -1,3 +1,4 @@
+import { MedusaError } from "@medusajs/framework/utils"
 import { z } from "@medusajs/framework/zod"
 import { SELLER_COUNTRIES } from "../../modules/seller/currency"
 
@@ -35,10 +36,48 @@ export const UpdateSellerSchema = z
   .strict()
 export type UpdateSellerBody = z.infer<typeof UpdateSellerSchema>
 
+const money = z.number().min(0).max(1_000_000_000)
+
 export const CreateSellerProductSchema = z.object({
   title: z.string().trim().min(1, "Product name is required").max(120),
   price: z.number().int().min(0).max(1_000_000_000),
   description: z.string().trim().max(2000).optional(),
   stock: z.number().int().min(0).max(1_000_000).optional(),
+  cost_price: money.optional(),
 })
+
+export const UpdateSellerProductSchema = z
+  .object({
+    title: z.string().trim().min(1, "Product name is required").max(120),
+    price: z.number().int().min(0).max(1_000_000_000),
+    stock: z.number().int().min(0).max(1_000_000),
+    cost_price: money.nullable(),
+  })
+  .partial()
+  .strict()
+export type UpdateSellerProductBody = z.infer<typeof UpdateSellerProductSchema>
+
+export const UpdateSellerOrderSchema = z.object({ status: z.enum(["shipped", "delivered"]) }).strict()
+export type UpdateSellerOrderBody = z.infer<typeof UpdateSellerOrderSchema>
+
+export const FinanceQuerySchema = z.object({ period: z.enum(["7d", "30d", "all"]).default("30d") })
+export type FinanceQuery = z.infer<typeof FinanceQuerySchema>
+
+/** Reads ?period= for the finance routes; anything else is a 400. */
+export function parseFinanceQuery(query: unknown): FinanceQuery {
+  const parsed = FinanceQuerySchema.safeParse(query ?? {})
+  if (!parsed.success) {
+    throw new MedusaError(MedusaError.Types.INVALID_DATA, "period must be 7d, 30d or all")
+  }
+  return parsed.data
+}
 export type CreateSellerProductBody = z.infer<typeof CreateSellerProductSchema>
+
+export const SendCampaignSchema = z
+  .object({
+    subject: z.string().trim().min(1, "Add a subject").max(120),
+    message: z.string().trim().min(1, "Write a message").max(5000),
+    audience: z.enum(["all", "repeat", "lapsed"]),
+  })
+  .strict()
+export type SendCampaignBody = z.infer<typeof SendCampaignSchema>
