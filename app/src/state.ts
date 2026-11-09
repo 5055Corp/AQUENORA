@@ -34,6 +34,8 @@ export interface State {
   newPrice: string;
   newCost: string;
 
+  /** The full store design. null = not customised yet; the simple theme/accent/font above is used. */
+  design: unknown;
   /** Demo mode only: campaigns "sent" in this browser. */
   campaigns: Campaign[];
 
@@ -81,6 +83,7 @@ export function initialState(settings: Settings): State {
     newPrice: '',
     newCost: '',
     campaigns: [],
+    design: null,
     authMode: 'signup',
     email: '',
     password: '',

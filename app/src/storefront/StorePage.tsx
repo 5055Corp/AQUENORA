@@ -3,11 +3,15 @@ import { ApiError, fetchPublicStore, LIVE, RESERVED_SUBDOMAINS, STORE_DOMAIN } f
 import { COUNTRIES } from '../data';
 import * as persist from '../persist';
 import { ACCENT_KEYS, demoProducts, initialState, usdConverter } from '../state';
-import { lookStyle, StoreView, type StoreItem, type StoreLook } from './StoreView';
+import { designFromLegacy, normalizeDesign, STORE_FONTS, type StoreDesign } from '../design';
+import type { CountryId } from '../data';
+import { StoreView, type StoreItem } from './StoreView';
 
 interface StoreData {
   handle: string;
-  look: StoreLook;
+  name: string;
+  country: CountryId;
+  design: StoreDesign;
   items: StoreItem[];
   sellsAbroad: boolean;
 }
@@ -39,24 +43,35 @@ function demoStore(): StoreData {
   const name = s.shopName.trim() || 'Your shop';
   return {
     handle: name.toLowerCase().replace(/[^a-z0-9]+/g, '') || 'yourshop',
-    look: { name, theme: s.theme, accent: s.accent, font: s.font, announce: s.announce, country: s.country },
+    name,
+    country: s.country,
+    design: normalizeDesign(s.design, designFromLegacy({ theme: s.theme, accent: s.accent, font: s.font, announce: s.announce, country: country.id === 'DI' ? 'Africa' : country.name })),
     items: demoProducts(s, usdConverter(country.rate)).map((p, i) => ({ key: `demo-${i}`, name: p.name, price: p.price, stock: p.stock })),
     sellsAbroad: s.intl,
   };
+}
+
+function liveCountryName(id: CountryId) {
+  const c = COUNTRIES.find(x => x.id === id);
+  return !c || c.id === 'DI' ? 'Africa' : c.name;
 }
 
 async function liveStore(handle: string): Promise<StoreData> {
   const { store, products } = await fetchPublicStore(handle);
   return {
     handle: store.handle,
-    look: {
-      name: store.name,
-      theme: store.theme,
-      accent: Math.max(0, ACCENT_KEYS.indexOf(store.accent)),
-      font: store.font,
-      announce: store.announcement ?? '',
-      country: store.country_code,
-    },
+    name: store.name,
+    country: store.country_code,
+    design: normalizeDesign(
+      store.design,
+      designFromLegacy({
+        theme: store.theme,
+        accent: Math.max(0, ACCENT_KEYS.indexOf(store.accent)),
+        font: store.font,
+        announce: store.announcement ?? '',
+        country: liveCountryName(store.country_code),
+      }),
+    ),
     items: products.map(p => ({ key: p.id, name: p.title, price: p.price, stock: p.stock })),
     sellsAbroad: store.sells_abroad,
   };
@@ -150,9 +165,10 @@ export function StorePage() {
 
 function Store({ data }: { data: StoreData }) {
   const width = useWidth();
-  const country = COUNTRIES.find(c => c.id === data.look.country) ?? COUNTRIES[0];
+  const country = COUNTRIES.find(c => c.id === data.country) ?? COUNTRIES[0];
   const fmt = (n: number) => country.sym + Math.round(Number(n) || 0).toLocaleString();
-  const { th, accent } = lookStyle(data.look);
+  const d = data.design;
+  const ink = d.colors.text;
 
   const byKey = useMemo(() => new Map(data.items.map(i => [i.key, i])), [data.items]);
   const [bag, setBag] = useState<Bag>(() => {
@@ -170,9 +186,9 @@ function Store({ data }: { data: StoreData }) {
 
   useEffect(() => saveBag(data.handle, bag), [data.handle, bag]);
   useEffect(() => {
-    document.title = data.look.name;
-    document.body.style.background = th.bg;
-  }, [data.look.name, th.bg]);
+    document.title = data.name;
+    document.body.style.background = d.colors.background;
+  }, [data.name, d.colors.background]);
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
@@ -209,16 +225,16 @@ function Store({ data }: { data: StoreData }) {
   });
   const count = lines.reduce((a, l) => a + l.qty, 0);
   const subtotal = lines.reduce((a, l) => a + l.qty * l.item.price, 0);
-  const columns = width < 520 ? 'repeat(2,minmax(0,1fr))' : width < 900 ? 'repeat(3,minmax(0,1fr))' : 'repeat(4,minmax(0,1fr))';
 
   return (
-    <div className="sp" style={{ color: th.ink }}>
+    <div className="sp" style={{ color: ink, fontFamily: STORE_FONTS[d.fonts.body].family }}>
       <StoreView
         variant="page"
-        look={data.look}
+        name={data.name}
+        design={d}
+        narrow={width < 600}
         items={data.items}
         fmt={fmt}
-        columns={columns}
         bagCount={count}
         onAdd={add}
         onOpenBag={() => setOpen(true)}
@@ -239,12 +255,12 @@ function Store({ data }: { data: StoreData }) {
             role="dialog"
             aria-modal="true"
             aria-label="Your bag"
-            style={{ background: th.card, color: th.ink }}
+            style={{ background: d.colors.card, color: ink }}
             onClick={e => e.stopPropagation()}
           >
             <div className="sp-bag-head">
               <h2>Your bag</h2>
-              <button type="button" className="sp-close" style={{ color: th.ink }} onClick={() => setOpen(false)} aria-label="Close bag">×</button>
+              <button type="button" className="sp-close" style={{ color: ink }} onClick={() => setOpen(false)} aria-label="Close bag">×</button>
             </div>
             {lines.length === 0 ? (
               <p className="sp-bag-empty">Your bag is empty.</p>
@@ -256,12 +272,12 @@ function Store({ data }: { data: StoreData }) {
                       <span>{item.name}</span>
                       <span>{fmt(item.price * qty)}</span>
                     </div>
-                    <div className="sp-qty" style={{ borderColor: th.sa }}>
-                      <button type="button" style={{ color: th.ink }} onClick={() => setQty(item.key, qty - 1)} aria-label={`One less ${item.name}`}>−</button>
+                    <div className="sp-qty" style={{ borderColor: ink + '33' }}>
+                      <button type="button" style={{ color: ink }} onClick={() => setQty(item.key, qty - 1)} aria-label={`One less ${item.name}`}>−</button>
                       <span aria-live="polite">{qty}</span>
                       <button
                         type="button"
-                        style={{ color: th.ink }}
+                        style={{ color: ink }}
                         disabled={qty >= item.stock}
                         onClick={() => setQty(item.key, qty + 1)}
                         aria-label={`One more ${item.name}`}
@@ -277,7 +293,7 @@ function Store({ data }: { data: StoreData }) {
               <span>Subtotal</span>
               <span>{fmt(subtotal)}</span>
             </div>
-            <button type="button" className="sp-checkout" disabled style={{ background: accent }}>
+            <button type="button" className="sp-checkout" disabled style={{ background: d.colors.accent, color: d.colors.accent_text }}>
               Checkout
             </button>
             <p className="sp-soon">Paying online is coming soon. Delivery costs are added at checkout.</p>
