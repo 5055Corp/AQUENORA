@@ -25,6 +25,13 @@ const Seller = model.define("seller", {
   // When empty, the store uses theme/accent/font/announcement above.
   design: model.json().nullable(),
   onboarding_completed: model.boolean().default(false),
+  // ---- plan ----
+  // Pro is active while either date is in the future. A trial keeps the "Powered by AQENORA" badge.
+  trial_ends_at: model.dateTime().nullable(),
+  pro_paid_until: model.dateTime().nullable(),
+  // ---- own domain (Pro) ----
+  custom_domain: model.text().nullable(),
+  domain_verified_at: model.dateTime().nullable(),
 })
 
 export default Seller
