@@ -40,6 +40,8 @@ export interface ApiSeller {
   onboarding_completed: boolean;
   /** Full store design (see design.ts), or null if the seller hasn't customised it. */
   design: unknown;
+  /** In-store pickup settings (see pickup.ts), or null if never set. */
+  pickup: unknown;
 }
 
 export interface ApiProduct {
@@ -53,7 +55,7 @@ export interface ApiProduct {
   status: string;
 }
 
-export type SellerOrderStatus = 'new' | 'shipped' | 'delivered' | 'canceled';
+export type SellerOrderStatus = 'new' | 'shipped' | 'delivered' | 'ready' | 'collected' | 'canceled';
 
 export interface ApiOrder {
   id: string;
@@ -64,6 +66,7 @@ export interface ApiOrder {
   currency_code: string;
   status: SellerOrderStatus;
   international: boolean;
+  fulfillment?: 'delivery' | 'pickup';
   items: { title: string; quantity: number; unit_price: number }[];
   total: number;
 }
@@ -199,7 +202,7 @@ export function sellerIdFromToken(token: string): string {
 const PUBLISHABLE_KEY: string = import.meta.env.VITE_MEDUSA_PUBLISHABLE_KEY ?? '';
 
 export interface PublicStore {
-  store: Pick<ApiSeller, 'id' | 'name' | 'handle' | 'category' | 'country_code' | 'currency_code' | 'sells_abroad' | 'theme' | 'accent' | 'font' | 'announcement' | 'design'> & { show_badge?: boolean };
+  store: Pick<ApiSeller, 'id' | 'name' | 'handle' | 'category' | 'country_code' | 'currency_code' | 'sells_abroad' | 'theme' | 'accent' | 'font' | 'announcement' | 'design'> & { show_badge?: boolean; pickup?: unknown };
   products: ApiProduct[];
 }
 
@@ -250,7 +253,7 @@ export const api = {
     request<{ product: ApiProduct }>(`/sellers/me/products/${encodeURIComponent(id)}`, { body, token }),
 
   orders: (token: string) => request<{ orders: ApiOrder[] }>('/sellers/me/orders', { token }),
-  updateOrder: (token: string, id: string, status: 'shipped' | 'delivered') =>
+  updateOrder: (token: string, id: string, status: 'shipped' | 'delivered' | 'ready' | 'collected') =>
     request<{ order: ApiOrder }>(`/sellers/me/orders/${encodeURIComponent(id)}`, { body: { status }, token }),
 
   finance: (token: string, period: Period) => request<Finance>(`/sellers/me/finance?period=${period}`, { token }),

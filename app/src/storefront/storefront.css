@@ -74,3 +74,36 @@
 .sp-msg h1 { margin: 0; font-family: var(--f-display); font-size: 26px; max-width: 480px; }
 .sp-msg p { margin: 0; max-width: 420px; color: var(--muted-2); line-height: 1.5; }
 .sp-retry { padding: 14px 24px; min-height: 48px; font-size: 15px; }
+
+/* in-store pickup: choice in the bag, and the "pick up from our shop" section */
+.sp-ful { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.sp-ful legend { font-size: 14px; font-weight: 700; margin-bottom: 8px; padding: 0; }
+.sp-ful-opt { display: flex; align-items: flex-start; gap: 10px; border: 2px solid; border-radius: 12px; padding: 12px; cursor: pointer; }
+.sp-ful-opt input { width: 18px; height: 18px; margin: 2px 0 0; flex-shrink: 0; }
+.sp-ful-opt span { display: flex; flex-direction: column; gap: 2px; }
+.sp-ful-opt b { font-size: 15px; }
+.sp-ful-opt small { font-size: 13px; opacity: 0.75; line-height: 1.4; }
+.sp-pick { display: flex; flex-direction: column; gap: 6px; padding: 4px 2px 0; }
+.sp-pick-addr { font-size: 14.5px; font-weight: 600; line-height: 1.4; }
+.sp-pick-today { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13.5px; }
+.sp-pick-note { margin: 0; font-size: 13px; opacity: 0.75; line-height: 1.45; }
+.sp-open, .sp-shut { font-size: 12px; font-weight: 700; padding: 4px 9px; border-radius: 999px; }
+.sp-open { background: oklch(0.93 0.05 150); color: oklch(0.38 0.12 150); }
+.sp-shut { background: #efe8dc; color: #5b554c; }
+.sp-total-sub { margin-top: 0; padding-top: 0; font-size: 14px; font-weight: 600; opacity: 0.8; }
+
+.sp-visit {
+  max-width: 1060px; margin: 28px auto 0; box-sizing: border-box; width: calc(100% - 40px);
+  border: 1px solid; border-radius: 18px; padding: 20px;
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 300px); gap: 16px 32px;
+}
+@media (max-width: 640px) { .sp-visit { grid-template-columns: minmax(0, 1fr); width: calc(100% - 32px); } }
+.sp-visit-main { display: flex; flex-direction: column; gap: 8px; }
+.sp-visit h2 { margin: 0; font-family: var(--f-display); font-size: 20px; }
+.sp-visit p { margin: 0; font-size: 14px; opacity: 0.8; }
+.sp-hours { margin: 0; display: flex; flex-direction: column; gap: 2px; font-size: 13.5px; }
+.sp-hours div { display: flex; justify-content: space-between; gap: 12px; padding: 4px 8px; border-radius: 8px; }
+.sp-hours dt { opacity: 0.8; }
+.sp-hours dd { margin: 0; font-variant-numeric: tabular-nums; }
+.sp-hours .sp-today { font-weight: 700; background: rgba(128, 128, 128, 0.12); }
+.sp-hours .sp-today dt { opacity: 1; }

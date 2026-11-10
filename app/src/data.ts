@@ -73,7 +73,7 @@ export const FONTS: Record<FontId, { label: string; family: string }> = {
   friendly: { label: 'Friendly', family: "'Fredoka', sans-serif" },
 };
 
-export type OrderStatus = 'new' | 'shipped' | 'delivered' | 'canceled';
+export type OrderStatus = 'new' | 'shipped' | 'delivered' | 'ready' | 'collected' | 'canceled';
 
 export interface Order {
   id: string;
@@ -87,9 +87,12 @@ export interface Order {
   /** Live orders: total in the seller's own currency (demo orders use usd). */
   amount?: number;
   created_at?: string;
+  /** "pickup" = the customer collects from the seller's shop. */
+  fulfillment?: 'delivery' | 'pickup';
 }
 
 export const ORDERS: Order[] = [
+  { id: '1043', name: 'Tunde Adeyemi', place: 'Lekki, Lagos', item: 'Silk head wrap', usd: 6, status: 'new', fulfillment: 'pickup' },
   { id: '1042', name: 'Adaeze Okafor', place: 'Lagos', item: 'Indigo adire kimono', usd: 18, status: 'new' },
   { id: '1041', name: 'Kwame Mensah', place: 'London, UK', item: 'Adire tote bag', usd: 24, intl: true, status: 'new' },
   { id: '1040', name: 'Ifeoma Bello', place: 'Abuja', item: 'Silk head wrap ×2', usd: 12, status: 'shipped' },
@@ -100,6 +103,8 @@ export const STATUS: Record<OrderStatus, { label: string; bg: string; color: str
   new: { label: 'Paid, ready to pack', bg: 'oklch(0.93 0.05 40)', color: 'oklch(0.42 0.13 40)', action: 'Mark as shipped', next: 'shipped' },
   shipped: { label: 'On the way', bg: 'oklch(0.93 0.05 265)', color: 'oklch(0.42 0.13 265)', action: 'Mark as delivered', next: 'delivered' },
   delivered: { label: 'Delivered', bg: 'oklch(0.93 0.05 150)', color: 'oklch(0.4 0.12 150)' },
+  ready: { label: 'Ready for pickup', bg: 'oklch(0.93 0.05 265)', color: 'oklch(0.42 0.13 265)', action: 'Mark as picked up', next: 'collected' },
+  collected: { label: 'Picked up', bg: 'oklch(0.93 0.05 150)', color: 'oklch(0.4 0.12 150)' },
   canceled: { label: 'Cancelled', bg: '#efe8dc', color: '#6b645a' },
 };
 
@@ -109,8 +114,16 @@ export const ORDER_FILTERS: [OrderFilter, string][] = [
   ['all', 'All'],
   ['new', 'To pack'],
   ['shipped', 'On the way'],
-  ['delivered', 'Delivered'],
+  ['ready', 'For pickup'],
+  ['delivered', 'Done'],
 ];
+
+/** "Done" covers delivered and picked-up orders. */
+export function matchesFilter(o: Order, f: OrderFilter): boolean {
+  if (f === 'all') return true;
+  if (f === 'delivered') return o.status === 'delivered' || o.status === 'collected';
+  return o.status === f;
+}
 
 export type Tab = 'home' | 'orders' | 'products' | 'money' | 'customers' | 'design' | 'plan';
 
@@ -141,3 +154,12 @@ export const HELP = {
   checklistPay: "Paystack moves money from your customer's card or bank into your bank account. Setup is free. It keeps a small fee from each sale.",
   checklistShare: 'Most first sales come from people who already know you. Post your link on your WhatsApp status and Instagram bio.',
 };
+
+/** The next step for an order and its button label: delivery and pickup orders differ after "paid". */
+export function nextStep(o: Order): { status: OrderStatus; action: string } | null {
+  if (o.status === 'new') {
+    return o.fulfillment === 'pickup' ? { status: 'ready', action: 'Mark as ready for pickup' } : { status: 'shipped', action: 'Mark as shipped' };
+  }
+  const st = STATUS[o.status];
+  return st.next && st.action ? { status: st.next, action: st.action } : null;
+}

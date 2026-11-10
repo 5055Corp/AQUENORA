@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { COUNTRIES, STATUS, type Order, type Product } from './data';
+import { COUNTRIES, nextStep, type Order, type Product } from './data';
+import { DAY_NAMES, DAYS, normalizePickup, type Pickup } from './pickup';
 import type { Settings } from './settings';
 import * as persist from './persist';
 import { api, ApiError, LIVE, sellerIdFromToken, storeLink, type ApiOrder, type ApiProduct, type ApiSeller, type PlanResponse } from './api';
@@ -20,6 +21,7 @@ const toOrder = (o: ApiOrder): Order => ({
   intl: o.international,
   status: o.status,
   created_at: o.created_at,
+  fulfillment: o.fulfillment === 'pickup' ? 'pickup' : 'delivery',
 });
 
 const toProduct = (p: ApiProduct): Product => ({ id: p.id, name: p.title, price: p.price, stock: p.stock, cost: p.cost_price });
@@ -37,6 +39,7 @@ function fromSeller(se: ApiSeller): Partial<State> {
     font: se.font,
     announce: se.announcement ?? '',
     design: se.design ?? null,
+    pickup: se.pickup ?? null,
   };
 }
 
@@ -119,14 +122,14 @@ function useStoreValue(settings: Settings) {
   const toggleHelp = (k: string) => set(st => ({ help: { ...st.help, [k]: !st.help[k] } }));
   const advanceOrder = async (id: string) => {
     const order = s.orders.find(o => o.id === id);
-    const next = order && STATUS[order.status].next;
-    if (!next) return;
+    const next = order && nextStep(order)?.status;
+    if (!next || next === 'new' || next === 'canceled') return;
     if (!LIVE) {
       set(st => ({ orders: st.orders.map(o => (o.id === id ? { ...o, status: next } : o)) }));
       return;
     }
     try {
-      const { order: updated } = await api.updateOrder(s.token, id, next as 'shipped' | 'delivered');
+      const { order: updated } = await api.updateOrder(s.token, id, next);
       set(st => ({ orders: st.orders.map(o => (o.id === id ? toOrder(updated) : o)) }));
     } catch (e) {
       fail(e);
@@ -408,7 +411,38 @@ function useStoreValue(settings: Settings) {
     }
   };
 
+  /** The seller's pickup settings (always complete; disabled until switched on). */
+  const pickup: Pickup = normalizePickup(s.pickup);
+
+  /** Saves pickup settings. Returns an error message to show next to the form, or '' when saved. */
+  const savePickup = async (next: Pickup): Promise<string> => {
+    if (next.enabled) {
+      if (!next.address.trim()) return "Add your shop's address so customers can find you.";
+      if (!next.area.trim()) return 'Add the area or neighbourhood (for example Lekki, Lagos).';
+      if (!DAYS.some(d => next.hours[d])) return 'Open your shop on at least one day.';
+      const bad = DAYS.find(d => { const h = next.hours[d]; return h && h.open >= h.close; });
+      if (bad) return `On ${DAY_NAMES[bad]}, closing time must be after opening time.`;
+    }
+    const clean: Pickup = { ...next, address: next.address.trim(), area: next.area.trim(), instructions: next.instructions.trim() };
+    if (!LIVE) {
+      set({ pickup: clean });
+      flash(clean.enabled ? 'Saved. Customers can now pick up from your shop' : 'Saved. Pickup is off');
+      return '';
+    }
+    set({ busy: true });
+    try {
+      const { seller } = await api.updateMe(s.token, { pickup: clean });
+      set({ pickup: seller.pickup, busy: false });
+      flash(clean.enabled ? 'Saved. Customers can now pick up from your shop' : 'Saved. Pickup is off');
+      return '';
+    } catch (e) {
+      set({ busy: false });
+      return e instanceof Error ? e.message : 'Could not save. Please try again.';
+    }
+  };
+
   return {
+    pickup, savePickup,
     s, set, settings, toast, flash, isMobile, framed, country, fmt, fromUsd, slug, shopNameShown, storeUrl,
     products, toggleHelp, advanceOrder, copyLink, shareWhatsApp, startOver,
     design, setDesign, planInfo, refreshPlan, startTrial, requestUpgrade, connectDomain, checkDomain, removeDomain, live: LIVE, submitAuth, finishOnboarding, addProduct, setProductCost, publishDesign, logOut, retryLoad,
