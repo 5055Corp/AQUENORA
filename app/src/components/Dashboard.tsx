@@ -1,5 +1,6 @@
 import { NAV, type Tab } from '../data';
 import { useStore } from '../store';
+import { TAGLINE } from '../brand';
 import { Home } from './Home';
 import { Orders } from './Orders';
 import { Products } from './Products';
@@ -17,7 +18,10 @@ export function Dashboard() {
     <div className="app">
       {!isMobile && (
         <aside className="sidebar">
-          <div className="wordmark">AQENORA</div>
+          <div className="sb-brand">
+            <div className="wordmark">AQENORA</div>
+            <div className="sb-tagline">{TAGLINE}</div>
+          </div>
           <div className="sb-shop">
             <div>{shopNameShown}</div>
             <div>{slug}.aqenora.com</div>

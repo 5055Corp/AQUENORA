@@ -1,3 +1,11 @@
+# AQENORA
+
+***Illuminating possibilities. Connecting the world.***
+
+An online store builder for African sellers and the diaspora: sell at home and abroad from one store. The seller app and store pages are in [`app/`](app/), the backend in [`backend/`](backend/). To put it online, see [`DEPLOY.md`](DEPLOY.md).
+
+---
+
 # CODING AGENTS: READ THIS FIRST
 
 This is a **handoff bundle** from Claude Design (claude.ai/design).

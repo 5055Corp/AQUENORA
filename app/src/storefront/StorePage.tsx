@@ -6,6 +6,7 @@ import { ACCENT_KEYS, demoProducts, initialState, usdConverter } from '../state'
 import { designFromLegacy, normalizeDesign, STORE_FONTS, type StoreDesign } from '../design';
 import type { CountryId } from '../data';
 import { StoreView, type StoreItem } from './StoreView';
+import { TAGLINE } from '../brand';
 
 interface StoreData {
   handle: string;
@@ -265,7 +266,7 @@ function Store({ data }: { data: StoreData }) {
         <span>Prices in {country.curName}</span>
         {data.sellsAbroad && <span>Ships worldwide</span>}
         {data.showBadge && (
-          <a className="sp-badge" href="https://aqenora.com" target="_blank" rel="noopener noreferrer" style={{ color: ink }}>
+          <a className="sp-badge" href="https://aqenora.com" target="_blank" rel="noopener noreferrer" title={`AQENORA: ${TAGLINE}`} style={{ color: ink }}>
             Powered by <b>AQENORA</b>
           </a>
         )}

@@ -13,7 +13,7 @@ const escape = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)}
 function page(title: string, body: string) {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${escape(title)}</title></head>
 <body style="margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f6f3ee;font-family:Arial,Helvetica,sans-serif;color:#1c1a17;">
-<main style="max-width:420px;padding:32px 20px;text-align:center;"><div style="font-weight:bold;letter-spacing:0.08em;margin-bottom:18px;">AQENORA</div>${body}</main></body></html>`
+<main style="max-width:420px;padding:32px 20px;text-align:center;"><div style="font-weight:bold;letter-spacing:0.08em;">AQENORA</div><div style="font-size:12px;font-style:italic;color:#7a7368;margin:4px 0 18px;">Illuminating possibilities. Connecting the world.</div>${body}</main></body></html>`
 }
 
 async function findContact(req: MedusaRequest) {

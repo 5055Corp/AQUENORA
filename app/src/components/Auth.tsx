@@ -1,5 +1,6 @@
 import type { FormEvent } from 'react';
 import { useStore } from '../store';
+import { TAGLINE } from '../brand';
 
 /** Sign up / log in (live mode only). Styled like the setup steps. */
 export function Auth() {
@@ -59,6 +60,7 @@ export function Auth() {
           >
             {signup ? 'Already have a store? Log in' : 'New to AQENORA? Create a store'}
           </button>
+          <p className="brand-line">{TAGLINE}</p>
         </form>
       </div>
     </>
