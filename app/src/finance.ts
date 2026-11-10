@@ -30,7 +30,7 @@ export interface DemoSale {
 }
 
 /** Same output shape as GET /sellers/me/finance. */
-export function summarize(sales: DemoSale[], country: CountryId, currency: string, period: Period, now = new Date()): Finance {
+export function summarize(sales: DemoSale[], country: CountryId, currency: string, period: Period, now = new Date(), commission = COMMISSION_RATE): Finance {
   const days = period === '7d' ? 7 : period === '30d' ? 30 : 0;
   const start = days ? new Date(now) : null;
   if (start) {
@@ -50,7 +50,7 @@ export function summarize(sales: DemoSale[], country: CountryId, currency: strin
     const revenue = s.items.reduce((a, i) => a + i.quantity * i.unit_price, 0);
     const cost = s.items.reduce((a, i) => a + i.quantity * (i.cost_price ?? 0), 0);
     const fee = estimatePaymentFee(country, revenue, s.international);
-    const platform = Math.round(revenue * COMMISSION_RATE * 100) / 100;
+    const platform = Math.round(revenue * commission * 100) / 100;
     const profit = revenue - cost - fee - platform;
     t.revenue += revenue;
     t.cost_of_goods += cost;
@@ -91,7 +91,7 @@ export function summarize(sales: DemoSale[], country: CountryId, currency: strin
     currency_code: currency,
     period,
     granularity: days ? 'day' : 'month',
-    commission_rate: COMMISSION_RATE,
+    commission_rate: commission,
     fee_basis: 'estimate',
     totals: t,
     series: keys.map(k => ({ date: k, revenue: buckets.get(k)?.revenue ?? 0, profit: buckets.get(k)?.profit ?? 0 })),

@@ -21,15 +21,16 @@ function dateLabel(key: string): string {
 }
 
 export function Money() {
-  const { s, set, live, products, country, fmt, h1Size, isMobile, flash } = useStore();
+  const { s, set, live, products, country, fmt, h1Size, isMobile, flash, planInfo, startTrial } = useStore();
   const [period, setPeriod] = useState<Period>('30d');
   const [liveData, setLiveData] = useState<{ period: Period; data: Finance } | null>(null);
   const [error, setError] = useState('');
 
+  const commissionPct = planInfo?.plan.commission_percent ?? 3;
   // Demo mode: worked out in the browser from sample sales of the demo store's products.
   const demoData = useMemo(
-    () => (live ? null : summarize(demoSales(products), s.country, CURRENCY[s.country] ?? 'ngn', period)),
-    [live, products, s.country, period],
+    () => (live ? null : summarize(demoSales(products), s.country, CURRENCY[s.country] ?? 'ngn', period, new Date(), commissionPct / 100)),
+    [live, products, s.country, period, commissionPct],
   );
 
   useEffect(() => {
@@ -46,6 +47,22 @@ export function Money() {
   }, [live, s.token, period, flash]);
 
   const data = live ? (liveData?.period === period ? liveData.data : null) : demoData;
+  // Free plan: totals only. Charts and profit per product are Pro (the backend leaves them out).
+  const locked = live ? !!data?.locked : !planInfo?.plan.features.full_financials;
+
+  const upgradeCard = (
+    <section className="card money-card upsell">
+      <div className="eyebrow">Pro</div>
+      <h2 className="card-title">See how your shop is growing</h2>
+      <p>Unlock your sales and profit chart over time and see which products really make you money. Pro also gives you your own domain and lowers AQENORA's fee to {planInfo?.settings.pro_commission_percent ?? 1}% per sale.</p>
+      <div className="share-btns">
+        {!planInfo?.plan.trial_used && (
+          <button type="button" className="btn-dark btn-sm" onClick={() => startTrial()}>Try Pro free for {planInfo?.settings.trial_days ?? 14} days</button>
+        )}
+        <button type="button" className="ob-back btn-sm" onClick={() => set({ tab: 'plan' })}>See plans</button>
+      </div>
+    </section>
+  );
 
   /** Money with a proper minus sign for losses. */
   const money = (n: number) => (n < 0 ? '−' : '') + fmt(Math.abs(n));
@@ -120,6 +137,7 @@ export function Money() {
             </div>
           ) : (
             <>
+              {locked ? upgradeCard : (
               <section className="card money-card">
                 <h2 className="card-title">Sales and profit</h2>
                 <LineChart
@@ -134,6 +152,7 @@ export function Money() {
                   height={isMobile ? 190 : 230}
                 />
               </section>
+              )}
 
               <section className="card money-card">
                 <h2 className="card-title">Where your sales went</h2>
@@ -144,7 +163,7 @@ export function Money() {
                     <dt>Paystack fees{data.fee_basis === 'estimate' ? ' (estimated)' : ''}</dt>
                     <dd>−{fmt(data.totals.payment_fees)}</dd>
                   </div>
-                  <div><dt>AQENORA fee ({Math.round(data.commission_rate * 1000) / 10}%)</dt><dd>−{fmt(data.totals.platform_fees)}</dd></div>
+                  <div><dt>AQENORA fee</dt><dd>−{fmt(data.totals.platform_fees)}</dd></div>
                   <div className="breakdown-total"><dt>Profit</dt><dd>{money(data.totals.profit)}</dd></div>
                 </dl>
                 <Help
@@ -153,6 +172,7 @@ export function Money() {
                 />
               </section>
 
+              {!locked && (
               <section className="card money-card">
                 <h2 className="card-title">Profit by product</h2>
                 <div className="lc-table-wrap">
@@ -180,6 +200,7 @@ export function Money() {
                   </table>
                 </div>
               </section>
+              )}
             </>
           )}
           {!live && <p className="demo-note">Demo: these are sample sales, not real orders.</p>}

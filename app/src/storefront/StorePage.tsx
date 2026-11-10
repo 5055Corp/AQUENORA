@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ApiError, fetchPublicStore, LIVE, RESERVED_SUBDOMAINS, STORE_DOMAIN } from '../api';
+import { ApiError, fetchHandleForDomain, fetchPublicStore, LIVE, RESERVED_SUBDOMAINS, STORE_DOMAIN } from '../api';
 import { COUNTRIES } from '../data';
 import * as persist from '../persist';
 import { ACCENT_KEYS, demoProducts, initialState, usdConverter } from '../state';
@@ -14,6 +14,8 @@ interface StoreData {
   design: StoreDesign;
   items: StoreItem[];
   sellsAbroad: boolean;
+  /** "Powered by AQENORA" shows unless the seller pays for Pro. */
+  showBadge: boolean;
 }
 
 type Load =
@@ -34,6 +36,13 @@ function shopHandle(loc: Location = window.location): string {
   return /^[a-z0-9-]+$/.test(sub) && !RESERVED_SUBDOMAINS.includes(sub) ? sub : '';
 }
 
+/** True for a hostname that isn't AQENORA's own (or a dev/hosting address), i.e. a seller's domain. */
+function isOwnDomain(host: string): boolean {
+  const h = host.toLowerCase();
+  if (h === 'localhost' || /^[\d.]+$/.test(h) || h.endsWith('.github.io') || h.endsWith('.up.railway.app')) return false;
+  return !(STORE_DOMAIN && (h === STORE_DOMAIN || h.endsWith('.' + STORE_DOMAIN)));
+}
+
 /** Demo mode: the store from the demo seller app saved in this same browser. */
 function demoStore(): StoreData {
   const s = persist.load(
@@ -48,6 +57,7 @@ function demoStore(): StoreData {
     design: normalizeDesign(s.design, designFromLegacy({ theme: s.theme, accent: s.accent, font: s.font, announce: s.announce, country: country.id === 'DI' ? 'Africa' : country.name })),
     items: demoProducts(s, usdConverter(country.rate)).map((p, i) => ({ key: `demo-${i}`, name: p.name, price: p.price, stock: p.stock })),
     sellsAbroad: s.intl,
+    showBadge: true,
   };
 }
 
@@ -74,6 +84,7 @@ async function liveStore(handle: string): Promise<StoreData> {
     ),
     items: products.map(p => ({ key: p.id, name: p.title, price: p.price, stock: p.stock })),
     sellsAbroad: store.sells_abroad,
+    showBadge: store.show_badge !== false,
   };
 }
 
@@ -117,8 +128,18 @@ function initialLoad(handle: string): Load {
 }
 
 export function StorePage() {
-  const handle = useMemo(() => shopHandle(), []);
-  const [load, setLoad] = useState<Load>(() => initialLoad(handle));
+  const [handle, setHandle] = useState(() => shopHandle());
+  // A seller's own domain (e.g. adirehouse.com): ask the backend which store it opens.
+  const [resolving, setResolving] = useState(() => LIVE && !handle && isOwnDomain(window.location.hostname));
+  const [load, setLoad] = useState<Load>(() => (resolving ? { kind: 'loading' } : initialLoad(handle)));
+  useEffect(() => {
+    if (!resolving) return;
+    fetchHandleForDomain(window.location.hostname).then(h => {
+      if (h) setHandle(h);
+      else setLoad({ kind: 'missing', handle: window.location.hostname });
+      setResolving(false);
+    });
+  }, [resolving]);
 
   const fetchStore = useCallback(() => {
     liveStore(handle)
@@ -243,7 +264,11 @@ function Store({ data }: { data: StoreData }) {
       <footer className="sp-foot">
         <span>Prices in {country.curName}</span>
         {data.sellsAbroad && <span>Ships worldwide</span>}
-        <span>Store by AQENORA</span>
+        {data.showBadge && (
+          <a className="sp-badge" href="https://aqenora.com" target="_blank" rel="noopener noreferrer" style={{ color: ink }}>
+            Powered by <b>AQENORA</b>
+          </a>
+        )}
       </footer>
 
       {note && <div className="toast" role="status">{note}</div>}

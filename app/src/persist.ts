@@ -104,7 +104,7 @@ export function load(base: State): State {
   if (!Number.isInteger(out.step) || out.step < 0 || out.step > 4) out.step = 0;
   if (out.screen !== 'onboarding' && out.screen !== 'app') out.screen = base.screen;
   if (out.authMode !== 'signup' && out.authMode !== 'login') out.authMode = base.authMode;
-  if (!['home', 'orders', 'products', 'money', 'customers', 'design'].includes(out.tab)) out.tab = base.tab;
+  if (!['home', 'orders', 'products', 'money', 'customers', 'design', 'plan'].includes(out.tab)) out.tab = base.tab;
   if (!['all', 'new', 'shipped', 'delivered'].includes(out.filter)) out.filter = 'all';
   if (out.pv !== 'phone' && out.pv !== 'desktop') out.pv = base.pv;
   return out;
