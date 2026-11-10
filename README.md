@@ -1,6 +1,6 @@
 # AQENORA
 
-**Illuminating possibilities. Connecting the world.**
+***Illuminating possibilities. Connecting the world.***
 
 An online store builder for African sellers and the diaspora: sell at home and abroad from one store. The seller app and store pages are in [`app/`](app/), the backend in [`backend/`](backend/). To put it online, see [`DEPLOY.md`](DEPLOY.md).
 
