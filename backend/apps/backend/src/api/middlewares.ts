@@ -12,7 +12,11 @@ import cors from "cors"
 import {
   CreateSellerProductSchema,
   CreateSellerSchema,
+  BillingSettingsSchema,
+  MarkPaidSchema,
+  PlanPricesSchema,
   SendCampaignSchema,
+  SetDomainSchema,
   UpdateSellerOrderSchema,
   UpdateSellerProductSchema,
   UpdateSellerSchema,
@@ -85,6 +89,41 @@ export default defineMiddlewares({
       methods: ["POST"],
       matcher: "/sellers/me/campaigns",
       middlewares: [sellerAuth, validateAndTransformBody(SendCampaignSchema)],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/sellers/me/plan/*",
+      middlewares: [sellerAuth],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/sellers/me/domain",
+      middlewares: [sellerAuth, validateAndTransformBody(SetDomainSchema)],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/sellers/me/domain/verify",
+      middlewares: [sellerAuth],
+    },
+    {
+      methods: ["DELETE"],
+      matcher: "/sellers/me/domain",
+      middlewares: [sellerAuth],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/admin/billing/prices",
+      middlewares: [validateAndTransformBody(PlanPricesSchema)],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/admin/billing/settings",
+      middlewares: [validateAndTransformBody(BillingSettingsSchema)],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/admin/billing/sellers/:id/paid",
+      middlewares: [validateAndTransformBody(MarkPaidSchema)],
     },
   ],
 })

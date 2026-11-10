@@ -1,10 +1,11 @@
 import { HELP } from '../data';
 import { useStore } from '../store';
+import { daysLeft, formatPrice } from '../plan';
 
 type Key = 'store' | 'product' | 'pay' | 'design' | 'share' | 'order';
 
 export function Home() {
-  const { s, set, flash, products, showHints, toggleHelp, fmt, fromUsd, shopNameShown, storeUrl, isMobile, h1Size, copyLink, shareWhatsApp, startOver, live, logOut } = useStore();
+  const { s, set, flash, products, showHints, toggleHelp, fmt, fromUsd, shopNameShown, storeUrl, isMobile, h1Size, copyLink, shareWhatsApp, startOver, live, logOut, planInfo, startTrial } = useStore();
 
   const checklist: { k: Key; label: string; done: boolean; action?: string; help?: string }[] = [
     { k: 'store', label: 'Create your store', done: true },
@@ -42,6 +43,29 @@ export function Home() {
         <h1 className="h1" style={{ fontSize: h1Size }}>Welcome back, {shopNameShown}</h1>
         <p>Here's what to do next. {doneCount === total ? "You're all set." : `${total - doneCount} steps left.`}</p>
       </div>
+
+      {planInfo && planInfo.plan.status !== 'paid' && (
+        <section className="plan-banner">
+          <div>
+            <strong>
+              {planInfo.plan.status === 'trial'
+                ? `Pro trial: ${daysLeft(planInfo.plan.trial_ends_at)} days left`
+                : "You're on the Free plan"}
+            </strong>
+            <span>
+              {planInfo.plan.status === 'trial'
+                ? `Upgrade for ${formatPrice(planInfo.price)} a month to keep your charts and own domain, and remove "Powered by AQENORA".`
+                : `Get full financial charts, your own domain and a lower ${planInfo.settings.pro_commission_percent}% fee with Pro.`}
+            </span>
+          </div>
+          <div className="share-btns">
+            {!planInfo.plan.trial_used && (
+              <button type="button" className="btn-dark btn-sm" onClick={() => startTrial()}>Try Pro free</button>
+            )}
+            <button type="button" className="ob-back btn-sm" onClick={() => set({ tab: 'plan' })}>See plans</button>
+          </div>
+        </section>
+      )}
 
       <section className="card checklist">
         <div className="cl-head">

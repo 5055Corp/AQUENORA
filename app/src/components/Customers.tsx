@@ -140,7 +140,7 @@ export function Customers() {
             </div>
             <Help
               id="consent"
-              text="Only customers who ticked “Send me news and offers” when they paid get these emails, and each email has an unsubscribe link. That's the law in Nigeria, Ghana and South Africa, and it keeps your emails out of spam. You can send one email a day."
+              text="Only customers who ticked “Send me news and offers” when they paid get these emails, and each email has an unsubscribe link. That's the law in Nigeria, Ghana and South Africa, and it keeps your emails out of spam. On the Free plan you can send one email a week; on Pro, one a day."
             />
           </form>
 

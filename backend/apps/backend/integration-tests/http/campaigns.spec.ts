@@ -44,7 +44,7 @@ medusaIntegrationTestRunner({
       expect((await api.get("/sellers/me/customers", { headers: other.headers })).data.customers).toEqual([])
     })
 
-    it("emails only buyers who said yes, personalised, with an unsubscribe link, once a day", async () => {
+    it("emails only buyers who said yes, personalised, with an unsubscribe link, once a week on Free", async () => {
       const shop = await shopWithBuyers()
       const sent = await api.post(
         "/sellers/me/campaigns",
@@ -68,7 +68,7 @@ medusaIntegrationTestRunner({
         .post("/sellers/me/campaigns", { audience: "all", subject: "Again", message: "Hi" }, { headers: shop.headers })
         .catch((e) => e.response)
       expect(again.status).toEqual(400)
-      expect(again.data.message).toContain("last 24 hours")
+      expect(again.data.message).toContain("one campaign a week")
 
       const list = (await api.get("/sellers/me/campaigns", { headers: shop.headers })).data.campaigns
       expect(list).toHaveLength(1)

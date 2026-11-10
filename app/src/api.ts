@@ -87,10 +87,40 @@ export interface Finance {
     items_missing_cost: number;
   };
   series: { date: string; revenue: number; profit: number }[];
+  /** Free plan: charts and profit per product are hidden (Pro feature). */
+  locked?: boolean;
   by_product: { product_id: string | null; title: string; quantity: number; revenue: number; cost: number; profit: number }[];
 }
 
 export type Audience = 'all' | 'repeat' | 'lapsed';
+
+export interface PlanInfo {
+  plan: 'free' | 'pro';
+  status: 'free' | 'trial' | 'paid';
+  trial_ends_at: string | null;
+  pro_paid_until: string | null;
+  trial_used: boolean;
+  show_badge: boolean;
+  commission_percent: number;
+  features: { custom_domain: boolean; full_financials: boolean; campaign_interval_days: number };
+}
+
+export interface DomainInfo {
+  name: string;
+  connected: boolean;
+  records: { type: string; host: string; value: string; note: string }[];
+}
+
+export interface PlanResponse {
+  plan: PlanInfo;
+  price: { currency_code: string; monthly_price: number } | null;
+  settings: { free_commission_percent: number; pro_commission_percent: number; trial_days: number };
+  domain: DomainInfo | null;
+  buy_domain_url: string;
+  billing_contact: string | null;
+  /** Only from the verify call. */
+  connected?: boolean;
+}
 
 export interface Customer {
   email: string;
@@ -169,7 +199,7 @@ export function sellerIdFromToken(token: string): string {
 const PUBLISHABLE_KEY: string = import.meta.env.VITE_MEDUSA_PUBLISHABLE_KEY ?? '';
 
 export interface PublicStore {
-  store: Pick<ApiSeller, 'id' | 'name' | 'handle' | 'category' | 'country_code' | 'currency_code' | 'sells_abroad' | 'theme' | 'accent' | 'font' | 'announcement' | 'design'>;
+  store: Pick<ApiSeller, 'id' | 'name' | 'handle' | 'category' | 'country_code' | 'currency_code' | 'sells_abroad' | 'theme' | 'accent' | 'font' | 'announcement' | 'design'> & { show_badge?: boolean };
   products: ApiProduct[];
 }
 
@@ -186,6 +216,17 @@ export async function fetchPublicStore(handle: string): Promise<PublicStore> {
   if (res.status === 404) throw new ApiError(404, 'not found');
   if (!res.ok) throw new ApiError(res.status, 'This store could not be loaded. Please try again.');
   return res.json();
+}
+
+/** Which store a seller's own domain opens (null if none is connected). */
+export async function fetchHandleForDomain(host: string): Promise<string | null> {
+  try {
+    const res = await fetch(`${API_URL}/store/domains/${encodeURIComponent(host)}`, { headers: { 'x-publishable-api-key': PUBLISHABLE_KEY } });
+    if (!res.ok) return null;
+    return ((await res.json()) as { handle?: string }).handle ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export const api = {
@@ -217,6 +258,14 @@ export const api = {
   customers: (token: string) =>
     request<{ customers: Customer[]; audiences: Record<Audience, number> }>('/sellers/me/customers', { token }),
   campaigns: (token: string) => request<{ campaigns: Campaign[] }>('/sellers/me/campaigns', { token }),
+  plan: (token: string) => request<PlanResponse>('/sellers/me/plan', { token }),
+  startTrial: (token: string) => request<PlanResponse>('/sellers/me/plan/trial', { method: 'POST', token }),
+  upgrade: (token: string) =>
+    request<{ payment: string; message: string; billing_contact: string | null }>('/sellers/me/plan/upgrade', { method: 'POST', token }),
+  setDomain: (token: string, domain: string) => request<PlanResponse>('/sellers/me/domain', { body: { domain }, token }),
+  verifyDomain: (token: string) => request<PlanResponse>('/sellers/me/domain/verify', { method: 'POST', token }),
+  removeDomain: (token: string) => request<PlanResponse>('/sellers/me/domain', { method: 'DELETE', token }),
+
   sendCampaign: (token: string, body: { audience: Audience; subject: string; message: string }) =>
     request<{ campaign: Campaign }>('/sellers/me/campaigns', { body, token }),
 };

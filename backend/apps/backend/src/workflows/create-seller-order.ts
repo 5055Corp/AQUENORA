@@ -1,6 +1,7 @@
 import { MedusaError, Modules } from "@medusajs/framework/utils"
 import { createStep, createWorkflow, StepResponse, transform, WorkflowResponse } from "@medusajs/framework/workflows-sdk"
 import { createOrdersStep, createRemoteLinkStep, useQueryGraphStep } from "@medusajs/medusa/core-flows"
+import { resolvePlan, type PlanSeller } from "../lib/plans"
 import { SELLER_MODULE } from "../modules/seller"
 import { upsertMarketingContactStep } from "./steps/marketing-steps"
 
@@ -18,10 +19,21 @@ export type CreateSellerOrderInput = {
 type SellerWithProducts = {
   id: string
   currency_code: string
+  trial_ends_at?: string | null
+  pro_paid_until?: string | null
   products: { id: string; title: string; metadata: Record<string, unknown> | null; variants: { id: string; prices: { amount: number; currency_code: string }[] }[] }[]
 }
 
 /** Every item must be one of this seller's own products. */
+/** AQENORA's commission on the seller's plan right now; stored on the order so later plan changes don't rewrite it. */
+const sellerCommissionRateStep = createStep(
+  "seller-commission-rate",
+  async (input: { seller: PlanSeller }, { container }) => {
+    const plan = await resolvePlan(container, input.seller)
+    return new StepResponse(plan.commission_percent / 100)
+  }
+)
+
 const checkSellerOrderItemsStep = createStep(
   "check-seller-order-items",
   async (input: { seller: SellerWithProducts; items: CreateSellerOrderInput["items"] }) => {
@@ -51,6 +63,8 @@ export const createSellerOrderWorkflow = createWorkflow(
       fields: [
         "id",
         "currency_code",
+        "trial_ends_at",
+        "pro_paid_until",
         "products.id",
         "products.title",
         "products.metadata",
@@ -64,8 +78,9 @@ export const createSellerOrderWorkflow = createWorkflow(
 
     const seller = transform({ sellers }, ({ sellers }) => sellers[0] as unknown as SellerWithProducts)
     checkSellerOrderItemsStep({ seller, items: input.items })
+    const commissionRate = sellerCommissionRateStep({ seller })
 
-    const orderData = transform({ input, seller }, ({ input, seller }) => {
+    const orderData = transform({ input, seller, commissionRate }, ({ input, seller, commissionRate }) => {
       const products = new Map(seller.products.filter(Boolean).map((p) => [p.id, p]))
       const [first, ...rest] = (input.customer_name ?? "").trim().split(/\s+/)
       return [
@@ -78,6 +93,7 @@ export const createSellerOrderWorkflow = createWorkflow(
             seller_status: "new",
             international: !!input.international,
             marketing_opt_in: !!input.marketing_opt_in,
+            commission_rate: commissionRate,
           },
           items: input.items.map((i) => {
             const p = products.get(i.product_id)!

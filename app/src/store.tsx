@@ -2,9 +2,10 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { COUNTRIES, STATUS, type Order, type Product } from './data';
 import type { Settings } from './settings';
 import * as persist from './persist';
-import { api, ApiError, LIVE, sellerIdFromToken, storeLink, type ApiOrder, type ApiProduct, type ApiSeller } from './api';
+import { api, ApiError, LIVE, sellerIdFromToken, storeLink, type ApiOrder, type ApiProduct, type ApiSeller, type PlanResponse } from './api';
 import { demoCost } from './demo';
 import { designFromLegacy, normalizeDesign, type StoreDesign } from './design';
+import { demoPlan } from './plan';
 import { ACCENT_KEYS, demoProducts, initialState, usdConverter, type State } from './state';
 
 export type { State } from './state';
@@ -162,12 +163,13 @@ function useStoreValue(settings: Settings) {
 
   /** Loads the seller's store and products, then opens the dashboard. */
   const loadStore = async (token: string) => {
-    const [{ seller }, { products }, { orders }] = await Promise.all([api.me(token), api.products(token), api.orders(token)]);
+    const [{ seller }, { products }, { orders }, plan] = await Promise.all([api.me(token), api.products(token), api.orders(token), api.plan(token)]);
     set({
       ...fromSeller(seller),
       token,
       products: products.map(toProduct),
       orders: orders.map(toOrder),
+      plan,
       screen: 'app',
       tab: 'home',
       busy: false,
@@ -301,6 +303,92 @@ function useStoreValue(settings: Settings) {
     }
   };
 
+  /** The seller's plan: from the backend (live), or worked out in the browser (demo). */
+  const planInfo: PlanResponse | null = LIVE
+    ? s.plan
+    : demoPlan(s.country, s.demoTrialEndsAt, s.demoDomain, slug);
+
+  const refreshPlan = async () => {
+    if (!LIVE) return;
+    try {
+      set({ plan: await api.plan(s.token) });
+    } catch (e) {
+      fail(e);
+    }
+  };
+
+  const startTrial = async () => {
+    if (!LIVE) {
+      set({ demoTrialEndsAt: new Date(Date.now() + 14 * 86400000).toISOString() });
+      flash('Your 14-day Pro trial has started');
+      return;
+    }
+    try {
+      set({ plan: await api.startTrial(s.token) });
+      flash('Your Pro trial has started');
+    } catch (e) {
+      fail(e);
+    }
+  };
+
+  /** Asks to upgrade; returns how to pay (online card payment opens with Paystack). */
+  const requestUpgrade = async (): Promise<{ message: string; contact: string | null } | null> => {
+    if (!LIVE) return { message: 'Demo: in the real app, sellers pay here. Online card payment opens with Paystack.', contact: null };
+    try {
+      const r = await api.upgrade(s.token);
+      return { message: r.message, contact: r.billing_contact };
+    } catch (e) {
+      fail(e);
+      return null;
+    }
+  };
+
+  const connectDomain = async (domain: string): Promise<boolean> => {
+    if (!LIVE) {
+      const d = domain.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '');
+      if (!/^([a-z0-9-]+\.)+[a-z]{2,}$/.test(d)) {
+        flash("That doesn't look like a domain. Type it like adirehouse.com");
+        return false;
+      }
+      set({ demoDomain: d });
+      return true;
+    }
+    try {
+      set({ plan: await api.setDomain(s.token, domain) });
+      return true;
+    } catch (e) {
+      fail(e);
+      return false;
+    }
+  };
+
+  const checkDomain = async (): Promise<boolean> => {
+    if (!LIVE) {
+      flash("Demo: the real app checks your domain's settings here");
+      return false;
+    }
+    try {
+      const r = await api.verifyDomain(s.token);
+      set({ plan: r });
+      return !!r.connected;
+    } catch (e) {
+      fail(e);
+      return false;
+    }
+  };
+
+  const removeDomain = async () => {
+    if (!LIVE) {
+      set({ demoDomain: '' });
+      return;
+    }
+    try {
+      set({ plan: await api.removeDomain(s.token) });
+    } catch (e) {
+      fail(e);
+    }
+  };
+
   /** Saves the store's look (live mode) and ticks the checklist item. */
   const publishDesign = async () => {
     if (!LIVE) {
@@ -323,7 +411,7 @@ function useStoreValue(settings: Settings) {
   return {
     s, set, settings, toast, flash, isMobile, framed, country, fmt, fromUsd, slug, shopNameShown, storeUrl,
     products, toggleHelp, advanceOrder, copyLink, shareWhatsApp, startOver,
-    design, setDesign, live: LIVE, submitAuth, finishOnboarding, addProduct, setProductCost, publishDesign, logOut, retryLoad,
+    design, setDesign, planInfo, refreshPlan, startTrial, requestUpgrade, connectDomain, checkDomain, removeDomain, live: LIVE, submitAuth, finishOnboarding, addProduct, setProductCost, publishDesign, logOut, retryLoad,
     showHints: settings.showHelpHints,
     h1Size: isMobile ? '30px' : '40px',
   };

@@ -6,6 +6,7 @@ import { Products } from './Products';
 import { ThemeEditor } from './ThemeEditor';
 import { Money } from './Money';
 import { Customers } from './Customers';
+import { Plan } from './Plan';
 
 export function Dashboard() {
   const { s, set, isMobile, shopNameShown, slug } = useStore();
@@ -69,11 +70,12 @@ export function Dashboard() {
           {s.tab === 'money' && <Money />}
           {s.tab === 'customers' && <Customers />}
           {s.tab === 'design' && <ThemeEditor />}
+          {s.tab === 'plan' && <Plan />}
         </div>
 
         {isMobile && (
           <nav className="tabbar" aria-label="Main">
-            {NAV.map(n => {
+            {NAV.filter(n => n.phone !== false).map(n => {
               const active = s.tab === n.key;
               return (
                 <button

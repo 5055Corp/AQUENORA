@@ -112,15 +112,17 @@ export const ORDER_FILTERS: [OrderFilter, string][] = [
   ['delivered', 'Delivered'],
 ];
 
-export type Tab = 'home' | 'orders' | 'products' | 'money' | 'customers' | 'design';
+export type Tab = 'home' | 'orders' | 'products' | 'money' | 'customers' | 'design' | 'plan';
 
-export const NAV: { key: Tab; label: string; short: string }[] = [
+/** Sidebar items; `phone: false` keeps an item out of the phone tab bar (reached from Home instead). */
+export const NAV: { key: Tab; label: string; short: string; phone?: boolean }[] = [
   { key: 'home', label: 'Home', short: 'Home' },
   { key: 'orders', label: 'Orders', short: 'Orders' },
   { key: 'products', label: 'Products', short: 'Products' },
   { key: 'money', label: 'Financials', short: 'Financials' },
   { key: 'customers', label: 'Customers', short: 'Buyers' },
   { key: 'design', label: 'Store design', short: 'Design' },
+  { key: 'plan', label: 'Plan & domain', short: 'Plan', phone: false },
 ];
 
 export interface Product {

@@ -21,6 +21,16 @@ npm run build    # type-check + production build into dist/
 
   The design is saved on the backend (`seller.design`) and drawn by `src/storefront/StoreView.tsx` for both the preview and the real store page. Stores that were set up before this keep their old look, converted automatically (`src/design.ts`).
 
+## Plan & domain page
+
+- **Plan page:** Free vs Pro in the seller's own currency, plus the free trial and the Upgrade button. Upgrading explains payment by transfer until Paystack is connected.
+- **Own domain:** "Find a domain" (Namecheap, prefilled), connect it, copy the DNS records, and it checks automatically.
+- **Upgrade prompts:**
+  - On the Free plan, Financials shows totals and replaces the chart and product table with an upgrade card.
+  - Home shows a plan banner. On phones this banner is how sellers reach the Plan page; it's in the sidebar on computers.
+- **Store page:** shows "Powered by AQENORA" unless the seller pays for Pro, and opens on a seller's own domain via `/store/domains/:host`.
+- **Demo mode:** the trial and domain are pretend (`src/plan.ts`).
+
 ## Financials and Customers pages
 
 - **Financials:**
@@ -99,7 +109,8 @@ The demo store is saved in the browser (`localStorage`), so a refresh keeps the 
 - `src/state.ts`: the app state shape and starting values (shared with the store page)
 - `src/finance.ts`, `src/demo.ts`: demo-mode profit maths and sample sales/buyers
 - `src/storefront/`: the store page (`StorePage`, `StoreView`, `main.tsx` for `store.html`)
-- `src/components/`: `Auth` (login, sign-up, loading), `Onboarding`, `Money`, `LineChart`, `Customers`, `Dashboard` (shell), `Home`, `Orders`, `Products`, `ThemeEditor`, `Help`
+- `src/plan.ts`: demo plans, days left, prices in local currency
+- `src/components/`: `Plan`, `Auth` (login, sign-up, loading), `Onboarding`, `Money`, `LineChart`, `Customers`, `Dashboard` (shell), `Home`, `Orders`, `Products`, `ThemeEditor`, `Help`
 
 ## Not wired up yet (prototype stand-ins)
 

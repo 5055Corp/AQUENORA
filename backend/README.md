@@ -40,10 +40,50 @@ All `/sellers/me...` routes need a seller login token: `Authorization: Bearer <t
 | `GET /sellers/me/campaigns` | | sent emails |
 | `POST /sellers/me/campaigns` | `{ audience: "all" \| "repeat" \| "lapsed", subject, message }`, where `{name}` becomes each buyer's first name | `{ campaign }`. At most `CAMPAIGNS_PER_DAY` (default 1) per shop per 24 hours |
 | `GET/POST /marketing/unsubscribe/:token` | public | the unsubscribe page (GET shows a button; POST unsubscribes, also used by Gmail's one-click button) |
-| `GET /admin/finance/sellers?period=` | admin login | every seller's numbers for the AQENORA team, totals per currency |
+| `GET /admin/finance/sellers?period=` | admin login | every seller's numbers for the AQENORA team, totals per currency, plus each seller's plan |
+| `GET /sellers/me/plan` | | plan (free / trial / paid), features, commission, the Pro price in the seller's currency, domain status and DNS records |
+| `POST /sellers/me/plan/trial` | | starts the free Pro trial (once per shop) |
+| `POST /sellers/me/plan/upgrade` | | `202` with how to pay by transfer (`BILLING_CONTACT`) until Paystack subscriptions are switched on |
+| `POST /sellers/me/domain` | `{ domain }` | connects an own domain (Pro or trial); returns the DNS records to add |
+| `POST /sellers/me/domain/verify` | | checks DNS (CNAME of www to `STORE_CNAME_TARGET`, or A record to `STORE_IP`) and marks it connected |
+| `DELETE /sellers/me/domain` | | disconnects it |
+| `GET /store/domains/:host` | publishable key | which store a connected own domain opens |
+| `GET/POST /admin/billing/prices` | admin login, `{ prices: [{ country_code, monthly_price }] }` | Pro price per country |
+| `GET/POST /admin/billing/settings` | admin login, `{ free_commission_percent?, pro_commission_percent?, trial_days? }` | commission per plan and trial length |
+| `POST /admin/billing/sellers/:id/paid` | admin login, `{ months }` | records a manual payment and extends Pro |
 | `GET /store/sellers/:handle` | header `x-publishable-api-key` | `{ store, products }`, with no private fields |
 
 Errors: 401 means not logged in. 400 means a bad value (for example an unknown theme) or a change that isn't allowed. 422 means the web address is already taken.
+
+## Plans: Free, Pro and the trial
+
+| | Free | Pro (about USD 25 / month) |
+| --- | --- | --- |
+| Shop at `<shop>.aqenora.com` | yes | yes |
+| Own domain | no | yes |
+| "Powered by AQENORA" on the store | shown | removed (still shown during the trial) |
+| Financials | totals | totals, charts, profit per product |
+| Email campaigns | 1 a week | 1 a day |
+| AQENORA fee per sale | 3% | 1% |
+
+- **Trial:** new shops can try Pro free for 14 days, once. The badge stays until they pay.
+- **Where the rules live:** `src/lib/plans.ts`.
+- **Commission:** each order records the commission rate of the seller's plan when it was placed (`metadata.commission_rate`), so later plan or rate changes never rewrite past profit.
+
+**Prices per country.** In the admin dashboard, go to **Plans & pricing**:
+- Set the Pro price for each country in its own currency. Starting prices are NGN 38,500, GHS 375, ZAR 450, XOF 15,000, and USD 25 for sellers abroad.
+- The free/Pro commission percentages and the trial length are on the same page.
+- To record a bank-transfer payment, press "1 month" or "12 months" next to the seller.
+- Prices and settings are stored in the `billing` module (`src/modules/billing`).
+
+**Paying online.** Charging the monthly price automatically needs Paystack subscriptions (Paystack keys). Until then, "Upgrade" tells the seller how to pay by transfer (`BILLING_CONTACT`), and the team marks them paid.
+
+**Own domains.**
+1. The seller buys a domain anywhere. The app's "Find a domain" opens Namecheap with their shop name already searched, so AQENORA never resells or renews domains.
+2. They type the domain into the app, which shows the DNS records to add.
+3. AQENORA checks DNS every 30 seconds until the domain points at `STORE_CNAME_TARGET`.
+
+Serving the store on that domain needs hosting with custom domains, and HTTPS for each seller's domain (for example Cloudflare for SaaS or Railway custom domains). That's part of launch.
 
 ## Profit and email campaigns
 
@@ -82,7 +122,7 @@ npm run dev                          # server at http://localhost:9000, admin at
 
 Demo seller login: `demo@aqenora.com` / `aqenora-demo`. Change or delete it before going live.
 
-**Run the tests** (needs Postgres running; they use their own throwaway database). There are 18 integration tests, plus unit tests for the fee maths (`npm run test:unit`):
+**Run the tests** with `REDIS_URL=` so they don't need Redis (needs Postgres running; they use their own throwaway database). There are 25 integration tests, plus unit tests for the fee maths (`npm run test:unit`):
 
 ```bash
 cd apps/backend
@@ -102,11 +142,11 @@ The tests and the seed script log "Search index product has no active version ye
 | `STORE_CORS` | Web addresses allowed to call `/store` (the public store page): local dev and `https://5055corp.github.io` |
 | `ADMIN_CORS` | Medusa default for the admin dashboard |
 | `REDIS_URL` | Optional locally; recommended in production |
+| `BILLING_CONTACT` | How sellers pay for Pro by transfer until card payments open (e.g. a WhatsApp number) |
+| `STORE_CNAME_TARGET`, `STORE_IP` | What sellers point their own domain at (the web server's hostname / IP) |
 | `RESEND_API_KEY`, `EMAIL_FROM` | Sending campaign emails (resend.com). Empty = emails only logged |
-| `CAMPAIGNS_PER_DAY` | Campaigns each shop may send per 24 hours (default 1) |
 | `STORE_DOMAIN`, `STORE_PAGE_URL` | The shop link in emails: `https://<shop>.<STORE_DOMAIN>` once the domain works, else `STORE_PAGE_URL?shop=<shop>` |
 | `MEDUSA_BACKEND_URL` | This server's public address (used in unsubscribe links) |
-| `AQENORA_COMMISSION_PERCENT` | AQENORA's fee on each sale (default 2) |
 
 ## Not built yet
 

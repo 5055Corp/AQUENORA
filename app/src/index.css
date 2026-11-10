@@ -494,3 +494,31 @@ button:disabled { cursor: default; }
 .font-grid-5 .font-opt > span + span { font-size: 10.5px; text-align: center; line-height: 1.2; }
 .seg-wide { align-self: flex-start; }
 .ctl textarea, .ctl-input textarea { font-family: inherit; font-size: 15px; padding: 12px 14px; border-radius: 10px; resize: vertical; font-weight: 500; line-height: 1.5; }
+
+/* ---------- Plan & domain ---------- */
+.plan-now-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.plan-name { font-family: var(--f-display); font-weight: 700; font-size: 26px; letter-spacing: -0.01em; overflow-wrap: anywhere; }
+.plan-line { margin: 0; font-size: 14.5px; line-height: 1.55; color: var(--muted-2); }
+.plan-table td { text-align: center; }
+.plan-table thead th:not(:first-child) { text-align: center; }
+.plan-price-row th, .plan-price-row td { font-weight: 700; border-top: 2px solid var(--ink); }
+.plan-actions { flex-wrap: wrap; }
+.plan-actions .ob-back { flex: 1; }
+.plan-inline { display: inline-flex; align-items: center; text-decoration: none; margin-top: 8px; width: fit-content; }
+.steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 16px; font-size: 14.5px; line-height: 1.55; }
+.steps .add-row { margin-top: 8px; }
+.steps .add-row input { font-size: 15px; padding: 12px 14px; border-radius: 10px; }
+.dns-table td, .dns-table th { text-align: left; vertical-align: top; }
+.dns-table code { background: var(--chip); border-radius: 6px; padding: 2px 6px; font-size: 13px; overflow-wrap: anywhere; }
+.dns-table .link-btn { margin-left: 8px; font-size: 12.5px; }
+.upsell { background: linear-gradient(135deg, #fff 0%, #f7efe3 100%); }
+.upsell p { margin: 0; font-size: 14.5px; line-height: 1.55; color: var(--muted-2); }
+.plan-banner {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+  background: var(--ink); color: var(--paper); border-radius: 16px; padding: 16px 18px;
+}
+.plan-banner > div:first-child { display: flex; flex-direction: column; gap: 4px; flex: 1 1 260px; }
+.plan-banner span { font-size: 13.5px; line-height: 1.5; opacity: 0.85; }
+.plan-banner .ob-back { color: var(--paper); border-color: #57524a; }
+.plan-banner .btn-dark { background: var(--paper); color: var(--ink); }
+.sp-badge { text-decoration: none; opacity: 0.9; }

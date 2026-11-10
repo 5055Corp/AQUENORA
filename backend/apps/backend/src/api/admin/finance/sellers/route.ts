@@ -1,5 +1,8 @@
 import type { AuthenticatedMedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
+import { BILLING_MODULE } from "../../../../modules/billing"
+import type BillingModuleService from "../../../../modules/billing/service"
+import { PLAN_FIELDS, planFor } from "../../../../lib/plans"
 import { currentCostPrices, ORDER_FIELDS, summarizeSeller, toFinanceOrder, type SellerWithOrders } from "../../../../lib/finance"
 import { parseFinanceQuery } from "../../../sellers/validators"
 
@@ -13,15 +16,20 @@ export async function GET(req: AuthenticatedMedusaRequest, res: MedusaResponse) 
   const query = req.scope.resolve(ContainerRegistrationKeys.QUERY)
   const { data } = await query.graph({
     entity: "seller",
-    fields: ["id", "name", "handle", "email", "country_code", "currency_code", "created_at", "products.id", "products.metadata", ...ORDER_FIELDS],
+    fields: ["id", "name", "handle", "email", "country_code", "currency_code", "created_at", ...PLAN_FIELDS, "custom_domain", "domain_verified_at", "products.id", "products.metadata", ...ORDER_FIELDS],
   })
 
-  const sellers = (data as unknown as SellerWithOrders[]).map((s) => {
+  const billing: BillingModuleService = req.scope.resolve(BILLING_MODULE)
+  const settings = await billing.getSettings()
+  const sellers = (data as unknown as (SellerWithOrders & { custom_domain?: string | null; domain_verified_at?: string | null })[]).map((s) => {
+    const plan = planFor(s, settings)
     const { totals } = summarizeSeller(
       (s.orders ?? []).filter(Boolean).map(toFinanceOrder),
       s.country_code,
       period,
-      currentCostPrices(s)
+      currentCostPrices(s),
+      new Date(),
+      plan.commission_percent / 100
     )
     return {
       id: s.id,
@@ -38,6 +46,12 @@ export async function GET(req: AuthenticatedMedusaRequest, res: MedusaResponse) 
       platform_fees: totals.platform_fees,
       profit: totals.profit,
       items_missing_cost: totals.items_missing_cost,
+      plan: plan.plan,
+      plan_status: plan.status,
+      trial_ends_at: plan.trial_ends_at,
+      pro_paid_until: plan.pro_paid_until,
+      commission_percent: plan.commission_percent,
+      custom_domain: s.domain_verified_at ? s.custom_domain ?? null : null,
     }
   })
   sellers.sort((a, b) => b.revenue - a.revenue || a.name.localeCompare(b.name))

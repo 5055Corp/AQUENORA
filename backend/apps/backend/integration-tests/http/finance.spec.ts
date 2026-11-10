@@ -46,14 +46,20 @@ medusaIntegrationTestRunner({
         let money = (await api.get("/sellers/me/finance?period=7d", { headers })).data
         expect(money.currency_code).toEqual("ngn")
         expect(money.totals).toEqual(
-          expect.objectContaining({ orders: 2, items_sold: 3, revenue: 66000, cost_of_goods: 30000, payment_fees: 1190, platform_fees: 1320, items_missing_cost: 1 })
+          expect.objectContaining({ orders: 2, items_sold: 3, revenue: 66000, cost_of_goods: 30000, payment_fees: 1190, platform_fees: 1980, items_missing_cost: 1 })
         )
-        expect(money.totals.profit).toEqual(66000 - 30000 - 1190 - 1320)
+        // Free plan: AQENORA keeps 3% of each sale.
+        expect(money.totals.profit).toEqual(66000 - 30000 - 1190 - 1980)
 
         // Adding the tote's cost price later fills in the gap for its earlier sale.
         const updated = (await api.post(`/sellers/me/products/${tote.id}`, { cost_price: 4000, stock: 3, price: 12000 }, { headers })).data.product
         expect(updated).toEqual(expect.objectContaining({ cost_price: 4000, stock: 3, price: 12000 }))
+        // Free plan shows totals only; the charts and profit per product need Pro (or the trial).
         money = (await api.get("/sellers/me/finance?period=30d", { headers })).data
+        expect(money.locked).toBe(true)
+        await api.post("/sellers/me/plan/trial", {}, { headers })
+        money = (await api.get("/sellers/me/finance?period=30d", { headers })).data
+        expect(money.locked).toBe(false)
         expect(money.totals.cost_of_goods).toEqual(34000)
         expect(money.totals.items_missing_cost).toEqual(0)
         expect(money.series).toHaveLength(30)
@@ -121,9 +127,9 @@ medusaIntegrationTestRunner({
 
         const res = (await api.get("/admin/finance/sellers?period=30d", { headers: await adminHeaders() })).data
         expect(res.sellers.map((s: { name: string }) => s.name)).toEqual(["Naija Shop", "Cape Shop"])
-        expect(res.sellers[0]).toEqual(expect.objectContaining({ currency_code: "ngn", orders: 1, revenue: 20000, platform_fees: 400 }))
+        expect(res.sellers[0]).toEqual(expect.objectContaining({ currency_code: "ngn", orders: 1, revenue: 20000, platform_fees: 600, plan: "free" }))
         expect(res.totals_by_currency.map((t: { currency_code: string }) => t.currency_code)).toEqual(["ngn", "zar"])
-        expect(res.totals_by_currency[1]).toEqual(expect.objectContaining({ sellers: 1, orders: 1, revenue: 1000, platform_fees: 20 }))
+        expect(res.totals_by_currency[1]).toEqual(expect.objectContaining({ sellers: 1, orders: 1, revenue: 1000, platform_fees: 30 }))
       })
     })
   },

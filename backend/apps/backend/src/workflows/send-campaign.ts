@@ -22,6 +22,8 @@ export const sendCampaignWorkflow = createWorkflow("send-campaign", function (in
       "id",
       "name",
       "handle",
+      "trial_ends_at",
+      "pro_paid_until",
       "orders.status",
       "orders.email",
       "orders.created_at",
@@ -34,10 +36,10 @@ export const sendCampaignWorkflow = createWorkflow("send-campaign", function (in
     options: { throwIfKeyNotFound: true },
   })
 
-  const seller = transform({ sellers }, ({ sellers }) => sellers[0] as unknown as { id: string; name: string; handle: string; orders?: unknown[] | null })
+  const seller = transform({ sellers }, ({ sellers }) => sellers[0] as unknown as { id: string; name: string; handle: string; trial_ends_at?: string | null; pro_paid_until?: string | null; orders?: unknown[] | null })
   const orders = transform({ seller }, ({ seller }) => (seller.orders ?? []).filter(Boolean))
 
-  const { recipients } = prepareCampaignRecipientsStep({ seller_id: input.seller_id, audience: input.audience, orders })
+  const { recipients } = prepareCampaignRecipientsStep({ seller_id: input.seller_id, audience: input.audience, orders, seller })
 
   const campaignInput = transform({ input, recipients }, ({ input, recipients }) => ({
     seller_id: input.seller_id,
