@@ -13,7 +13,7 @@ export const LIVE = API_URL !== '';
 export const STORE_DOMAIN: string = (import.meta.env.VITE_STORE_DOMAIN ?? '').toLowerCase().replace(/^\.+|\.+$/g, '');
 
 /** Subdomains that are never shops (keep in sync with RESERVED in server.mjs). */
-export const RESERVED_SUBDOMAINS = ['app', 'www', 'api', 'admin', 'mail', 'static', 'cdn'];
+export const RESERVED_SUBDOMAINS = ['app', 'www', 'api', 'admin', 'mail', 'static', 'cdn', 'stores', 'store', 'shop', 'help', 'support', 'status', 'blog', 'docs', 'billing', 'pay', 'checkout', 'account', 'login', 'signup', 'aqenora'];
 
 /** A working link to a shop's store page. */
 export function storeLink(handle: string): string {

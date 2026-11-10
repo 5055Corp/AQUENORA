@@ -1,0 +1,85 @@
+# Checks every pull request and every push to main: the web app and the backend must build,
+# pass type checks and lint, and pass their tests.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: Web app (seller app + store pages)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - run: npm ci
+      - name: Type check and build (demo and live)
+        run: |
+          npm run build
+          VITE_API_URL=https://api.example.com npm run build
+      - name: Lint
+        run: npx oxlint
+      - name: Web server tests
+        run: npm run test:server
+
+  backend:
+    name: Backend (Medusa)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DB_HOST: localhost
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      # Tests use in-memory events and workflows, not Redis.
+      REDIS_URL: ""
+      JWT_SECRET: ci-only-jwt-secret
+      COOKIE_SECRET: ci-only-cookie-secret
+      STORE_CORS: http://localhost:5173
+      ADMIN_CORS: http://localhost:9000
+      AUTH_CORS: http://localhost:5173
+      SELLER_CORS: http://localhost:5173
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+        working-directory: backend
+      - name: Type check
+        working-directory: backend/apps/backend
+        run: npx tsc --noEmit
+      - name: Lint
+        working-directory: backend/apps/backend
+        run: npm run lint
+      - name: Unit tests
+        working-directory: backend/apps/backend
+        run: npm run test:unit
+      - name: Integration tests
+        working-directory: backend/apps/backend
+        run: npm run test:integration:http

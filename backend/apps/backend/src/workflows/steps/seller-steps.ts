@@ -28,12 +28,27 @@ export type UpdateSellerData = Partial<Omit<CreateSellerData, "email">> & {
   domain_verified_at?: Date | null
 }
 
-/** Fails with a clear message if another seller already uses this web address. */
+/**
+ * Web addresses (<name>.aqenora.com) shops can't have, because AQENORA uses them itself.
+ * Keep in sync with RESERVED in app/server.mjs and RESERVED_SUBDOMAINS in app/src/api.ts.
+ */
+export const RESERVED_HANDLES = new Set([
+  "app", "www", "api", "admin", "mail", "static", "cdn", "stores", "store", "shop", "help", "support",
+  "status", "blog", "docs", "billing", "pay", "checkout", "account", "login", "signup", "aqenora",
+])
+
+/** Fails with a clear message if the web address is reserved or another seller already uses it. */
 export const ensureSellerHandleAvailableStep = createStep(
   "ensure-seller-handle-available",
   async (input: { handle?: string; seller_id?: string }, { container }) => {
     if (!input.handle) {
       return new StepResponse(true)
+    }
+    if (RESERVED_HANDLES.has(input.handle)) {
+      throw new MedusaError(
+        MedusaError.Types.DUPLICATE_ERROR,
+        `The web address ${input.handle}.aqenora.com is reserved for AQENORA. Try another shop name or address.`
+      )
     }
     const sellers: SellerModuleService = container.resolve(SELLER_MODULE)
     const [existing] = await sellers.listSellers({ handle: input.handle }, { take: 1 })
