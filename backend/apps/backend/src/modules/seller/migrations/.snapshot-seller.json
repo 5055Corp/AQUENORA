@@ -573,6 +573,22 @@
           "enumItems": [],
           "mappedType": "json"
         },
+        "shipping": {
+          "name": "shipping",
+          "type": "jsonb",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "json"
+        },
         "onboarding_completed": {
           "name": "onboarding_completed",
           "type": "boolean",
