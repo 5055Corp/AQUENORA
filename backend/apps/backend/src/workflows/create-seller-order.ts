@@ -13,6 +13,8 @@ export type CreateSellerOrderInput = {
   international?: boolean
   /** The buyer ticked "Send me news and offers from this shop" at checkout. */
   marketing_opt_in?: boolean
+  /** "pickup" = the buyer collects from the seller's shop (only if the seller offers pickup). */
+  fulfillment?: "delivery" | "pickup"
   items: { product_id: string; quantity: number }[]
 }
 
@@ -21,6 +23,7 @@ type SellerWithProducts = {
   currency_code: string
   trial_ends_at?: string | null
   pro_paid_until?: string | null
+  pickup?: { enabled?: boolean } | null
   products: { id: string; title: string; metadata: Record<string, unknown> | null; variants: { id: string; prices: { amount: number; currency_code: string }[] }[] }[]
 }
 
@@ -36,7 +39,10 @@ const sellerCommissionRateStep = createStep(
 
 const checkSellerOrderItemsStep = createStep(
   "check-seller-order-items",
-  async (input: { seller: SellerWithProducts; items: CreateSellerOrderInput["items"] }) => {
+  async (input: { seller: SellerWithProducts; items: CreateSellerOrderInput["items"]; fulfillment?: string }) => {
+    if (input.fulfillment === "pickup" && !input.seller.pickup?.enabled) {
+      throw new MedusaError(MedusaError.Types.NOT_ALLOWED, "This store doesn't offer pickup.")
+    }
     if (!input.items.length) {
       throw new MedusaError(MedusaError.Types.INVALID_DATA, "An order needs at least one item.")
     }
@@ -65,6 +71,7 @@ export const createSellerOrderWorkflow = createWorkflow(
         "currency_code",
         "trial_ends_at",
         "pro_paid_until",
+        "pickup",
         "products.id",
         "products.title",
         "products.metadata",
@@ -77,7 +84,7 @@ export const createSellerOrderWorkflow = createWorkflow(
     }).config({ name: "get-seller-products" })
 
     const seller = transform({ sellers }, ({ sellers }) => sellers[0] as unknown as SellerWithProducts)
-    checkSellerOrderItemsStep({ seller, items: input.items })
+    checkSellerOrderItemsStep({ seller, items: input.items, fulfillment: input.fulfillment })
     const commissionRate = sellerCommissionRateStep({ seller })
 
     const orderData = transform({ input, seller, commissionRate }, ({ input, seller, commissionRate }) => {
@@ -94,6 +101,7 @@ export const createSellerOrderWorkflow = createWorkflow(
             international: !!input.international,
             marketing_opt_in: !!input.marketing_opt_in,
             commission_rate: commissionRate,
+            fulfillment: input.fulfillment === "pickup" ? "pickup" : "delivery",
           },
           items: input.items.map((i) => {
             const p = products.get(i.product_id)!

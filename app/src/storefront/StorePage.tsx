@@ -7,6 +7,7 @@ import { designFromLegacy, normalizeDesign, STORE_FONTS, type StoreDesign } from
 import type { CountryId } from '../data';
 import { StoreView, type StoreItem } from './StoreView';
 import { TAGLINE } from '../brand';
+import { DAY_NAMES, DAYS, hoursText, isOpenNow, normalizePickup, shopNow, type Pickup } from '../pickup';
 
 interface StoreData {
   handle: string;
@@ -17,6 +18,8 @@ interface StoreData {
   sellsAbroad: boolean;
   /** "Powered by AQENORA" shows unless the seller pays for Pro. */
   showBadge: boolean;
+  /** In-store pickup, when the seller offers it. */
+  pickup: Pickup | null;
 }
 
 type Load =
@@ -59,7 +62,14 @@ function demoStore(): StoreData {
     items: demoProducts(s, usdConverter(country.rate)).map((p, i) => ({ key: `demo-${i}`, name: p.name, price: p.price, stock: p.stock })),
     sellsAbroad: s.intl,
     showBadge: true,
+    pickup: offered(s.pickup),
   };
+}
+
+/** Pickup settings if the seller has switched pickup on, else null. */
+function offered(raw: unknown): Pickup | null {
+  const p = normalizePickup(raw);
+  return p.enabled && p.address && p.area ? p : null;
 }
 
 function liveCountryName(id: CountryId) {
@@ -86,6 +96,7 @@ async function liveStore(handle: string): Promise<StoreData> {
     items: products.map(p => ({ key: p.id, name: p.title, price: p.price, stock: p.stock })),
     sellsAbroad: store.sells_abroad,
     showBadge: store.show_badge !== false,
+    pickup: offered(store.pickup),
   };
 }
 
@@ -100,6 +111,25 @@ function loadBag(handle: string): Bag {
     return v && typeof v === 'object' ? v : {};
   } catch {
     return {};
+  }
+}
+
+export type Fulfillment = 'delivery' | 'pickup';
+const fulfillmentKey = (handle: string) => `aqenora-fulfillment-${handle}`;
+
+function loadFulfillment(handle: string): Fulfillment {
+  try {
+    return localStorage.getItem(fulfillmentKey(handle)) === 'pickup' ? 'pickup' : 'delivery';
+  } catch {
+    return 'delivery';
+  }
+}
+
+function saveFulfillment(handle: string, f: Fulfillment) {
+  try {
+    localStorage.setItem(fulfillmentKey(handle), f);
+  } catch {
+    /* storage unavailable */
   }
 }
 
@@ -205,6 +235,10 @@ function Store({ data }: { data: StoreData }) {
   });
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState('');
+  // Delivery or pickup, remembered for checkout. Pickup only while the seller offers it.
+  const [choice, setChoice] = useState<Fulfillment>(() => (data.pickup ? loadFulfillment(data.handle) : 'delivery'));
+  const fulfillment: Fulfillment = data.pickup ? choice : 'delivery';
+  useEffect(() => saveFulfillment(data.handle, fulfillment), [data.handle, fulfillment]);
 
   useEffect(() => saveBag(data.handle, bag), [data.handle, bag]);
   useEffect(() => {
@@ -262,9 +296,12 @@ function Store({ data }: { data: StoreData }) {
         onOpenBag={() => setOpen(true)}
       />
 
+      {data.pickup && <ShopVisit pickup={data.pickup} country={data.country} ink={ink} card={d.colors.card} />}
+
       <footer className="sp-foot">
         <span>Prices in {country.curName}</span>
         {data.sellsAbroad && <span>Ships worldwide</span>}
+        {data.pickup && <span>Pickup available in {data.pickup.area}</span>}
         {data.showBadge && (
           <a className="sp-badge" href="https://aqenora.com" target="_blank" rel="noopener noreferrer" title={`AQENORA: ${TAGLINE}`} style={{ color: ink }}>
             Powered by <b>AQENORA</b>
@@ -315,17 +352,94 @@ function Store({ data }: { data: StoreData }) {
                 ))}
               </ul>
             )}
+            {data.pickup && lines.length > 0 && (
+              <fieldset className="sp-ful">
+                <legend>How do you want to get it?</legend>
+                {(['delivery', 'pickup'] as const).map(f => {
+                  const on = fulfillment === f;
+                  return (
+                    <label key={f} className="sp-ful-opt" style={{ borderColor: on ? d.colors.accent : ink + '33' }}>
+                      <input type="radio" name="fulfillment" value={f} checked={on} onChange={() => setChoice(f)} style={{ accentColor: d.colors.accent }} />
+                      <span>
+                        <b>{f === 'delivery' ? 'Delivery' : 'Pick up in store'}</b>
+                        <small>{f === 'delivery' ? 'Delivered to your address. Cost added at checkout.' : `Free · ${data.pickup!.area}`}</small>
+                      </span>
+                    </label>
+                  );
+                })}
+                {fulfillment === 'pickup' && <PickupDetails pickup={data.pickup} country={data.country} />}
+              </fieldset>
+            )}
             <div className="sp-total">
               <span>Subtotal</span>
               <span>{fmt(subtotal)}</span>
             </div>
+            {fulfillment === 'pickup' && lines.length > 0 && (
+              <div className="sp-total sp-total-sub">
+                <span>Pickup</span>
+                <span>Free</span>
+              </div>
+            )}
             <button type="button" className="sp-checkout" disabled style={{ background: d.colors.accent, color: d.colors.accent_text }}>
               Checkout
             </button>
-            <p className="sp-soon">Paying online is coming soon. Delivery costs are added at checkout.</p>
+            <p className="sp-soon">
+              {fulfillment === 'pickup'
+                ? "Paying online is coming soon. Pay now, then collect your order from the shop during opening hours."
+                : 'Paying online is coming soon. Delivery costs are added at checkout.'}
+            </p>
           </aside>
         </div>
       )}
     </div>
+  );
+}
+
+/** Today's hours and whether the shop is open right now (shop's own time zone). */
+function todayLine(pickup: Pickup, country: CountryId) {
+  const { day } = shopNow(country);
+  const open = isOpenNow(pickup, country);
+  const h = pickup.hours[day];
+  return { day, open, text: h ? `Today ${hoursText(h)}` : 'Closed today' };
+}
+
+/** Address, today's hours and instructions, shown in the bag when the buyer picks "Pick up in store". */
+function PickupDetails({ pickup, country }: { pickup: Pickup; country: CountryId }) {
+  const today = todayLine(pickup, country);
+  return (
+    <div className="sp-pick">
+      <div className="sp-pick-addr">{pickup.address}</div>
+      <div className="sp-pick-today">
+        <span className={today.open ? 'sp-open' : 'sp-shut'}>{today.open ? 'Open now' : 'Closed now'}</span>
+        <span>{today.text}</span>
+      </div>
+      {pickup.instructions && <p className="sp-pick-note">{pickup.instructions}</p>}
+      <p className="sp-pick-note">We'll let you know when your order is ready to collect.</p>
+    </div>
+  );
+}
+
+/** "Visit our shop": address and the week's opening hours, with today highlighted. */
+function ShopVisit({ pickup, country, ink, card }: { pickup: Pickup; country: CountryId; ink: string; card: string }) {
+  const today = todayLine(pickup, country);
+  return (
+    <section className="sp-visit" style={{ background: card, borderColor: ink + '1f' }} aria-labelledby="sp-visit-title">
+      <div className="sp-visit-main">
+        <h2 id="sp-visit-title">Pick up from our shop</h2>
+        <p>Order online and collect for free in {pickup.area}.</p>
+        <div className="sp-pick-addr">{pickup.address}</div>
+        <div className="sp-pick-today">
+          <span className={today.open ? 'sp-open' : 'sp-shut'}>{today.open ? 'Open now' : 'Closed now'}</span>
+        </div>
+      </div>
+      <dl className="sp-hours">
+        {DAYS.map(day => (
+          <div key={day} className={day === today.day ? 'sp-today' : undefined}>
+            <dt>{DAY_NAMES[day]}</dt>
+            <dd>{hoursText(pickup.hours[day])}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
   );
 }

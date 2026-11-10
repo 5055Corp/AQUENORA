@@ -25,6 +25,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       "font",
       "announcement",
       "design",
+      "pickup",
       "trial_ends_at",
       "pro_paid_until",
       ...PRODUCT_FIELDS,
@@ -39,8 +40,14 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
   const { products, trial_ends_at, pro_paid_until, ...store } = seller as typeof seller & { trial_ends_at?: string | null; pro_paid_until?: string | null }
   const plan = await resolvePlan(req.scope, { trial_ends_at, pro_paid_until })
+  const pickup = (store as unknown as { pickup?: { enabled?: boolean } | null }).pickup
   res.json({
-    store: { ...store, show_badge: plan.show_badge },
+    store: {
+      ...store,
+      // Only shown to buyers when the seller has turned pickup on.
+      pickup: pickup?.enabled ? pickup : null,
+      show_badge: plan.show_badge,
+    },
     products: newestFirst(
       (products ?? [])
         .filter(Boolean)

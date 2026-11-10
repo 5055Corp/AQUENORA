@@ -1,13 +1,15 @@
-import { ORDER_FILTERS, STATUS } from '../data';
+import { matchesFilter, nextStep, ORDER_FILTERS, STATUS } from '../data';
 import { useStore } from '../store';
+import { PickupSettings } from './PickupSettings';
 
 export function Orders() {
   const { s, set, fmt, fromUsd, advanceOrder, h1Size } = useStore();
-  const shown = s.orders.filter(o => s.filter === 'all' || o.status === s.filter);
+  const shown = s.orders.filter(o => matchesFilter(o, s.filter));
 
   return (
     <>
       <h1 className="h1" style={{ fontSize: h1Size }}>Orders</h1>
+      <PickupSettings />
       <div className="filters" role="group" aria-label="Filter orders">
         {ORDER_FILTERS.map(([k, label]) => {
           const on = s.filter === k;
@@ -34,6 +36,7 @@ export function Orders() {
       <div className="list">
         {shown.map(o => {
           const st = STATUS[o.status];
+          const step = nextStep(o);
           return (
             <article key={o.id} className="card order">
               <div className="order-top">
@@ -44,9 +47,12 @@ export function Orders() {
                 <div className="amount">{o.amount != null ? fmt(o.amount) : o.intl ? '$' + o.usd : fmt(fromUsd(o.usd))}</div>
               </div>
               <div className="order-bottom">
-                <span className="pill" style={{ background: st.bg, color: st.color }}>{st.label}</span>
-                {st.next && (
-                  <button type="button" className="btn-dark btn-sm" onClick={() => advanceOrder(o.id)}>{st.action}</button>
+                <span className="order-pills">
+                  <span className="pill" style={{ background: st.bg, color: st.color }}>{st.label}</span>
+                  {o.fulfillment === 'pickup' && <span className="pill pill-pickup">Pickup</span>}
+                </span>
+                {step && (
+                  <button type="button" className="btn-dark btn-sm" onClick={() => advanceOrder(o.id)}>{step.action}</button>
                 )}
               </div>
             </article>

@@ -52,6 +52,7 @@ npm run build    # type-check + production build into dist/
 - **Opening it:** the seller dashboard's "View my store" button opens the seller's own page.
 - **Products:** sold-out items show "Sold out". Buyers can't add more than the stock.
 - **Bag:** kept in the buyer's browser, one per store. Checkout is switched off with a "coming soon" note until Paystack is built.
+- **In-store pickup:** sellers with a physical shop switch it on under Orders → "In-store pickup", with the shop address, the area, opening hours per day and optional instructions (`src/pickup.ts`, `src/components/PickupSettings.tsx`, saved as `seller.pickup`). The store page then shows "Pick up from our shop" with the week's hours (today highlighted, open now or closed in the shop's own time zone), and the bag offers **Delivery** or **Pick up in store (free)**. The buyer's choice is kept in their browser for checkout. Pickup orders go "Paid, ready to pack" → "Ready for pickup" → "Picked up" and carry a Pickup tag in Orders.
 - **Demo mode:** shows the demo store from the seller app in the same browser, so during an interview the seller can see "their" store.
 - **Live mode:** loads the store from the backend. It needs `VITE_MEDUSA_PUBLISHABLE_KEY` (see `.env.example`). A wrong address shows a "no store here" page.
 

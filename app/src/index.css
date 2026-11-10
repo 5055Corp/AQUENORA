@@ -528,3 +528,22 @@ button:disabled { cursor: default; }
 .sb-brand { display: flex; flex-direction: column; gap: 6px; padding: 0 10px; }
 .sb-brand .wordmark { padding: 0; }
 .sb-tagline { font-size: 11.5px; line-height: 1.4; font-style: italic; color: var(--muted-3); }
+
+/* ---------- in-store pickup (Orders page) ---------- */
+.pickup-card { border-radius: 18px; padding: 18px 20px; display: flex; flex-direction: column; gap: 16px; margin-bottom: 18px; }
+.pickup-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.pickup-sub { margin: 4px 0 0; font-size: 14px; color: var(--muted); line-height: 1.45; }
+.pickup-edit { background: #fff; border: 2px solid var(--field); color: var(--ink); border-radius: 10px; font-weight: 700; cursor: pointer; }
+.pickup-form { display: flex; flex-direction: column; gap: 14px; }
+.pickup-input { font: inherit; font-size: 15px; font-weight: 400; padding: 12px 14px; border-radius: 10px; resize: vertical; }
+.pickup-hours { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.pickup-hours legend { margin-bottom: 6px; }
+.pickup-day { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; min-height: 44px; }
+.pickup-day-name { display: flex; align-items: center; gap: 10px; font-size: 14.5px; font-weight: 600; min-width: 130px; cursor: pointer; }
+.pickup-day-name input { width: 20px; height: 20px; accent-color: var(--ink); }
+.pickup-times { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--muted); }
+.pickup-times input { font: inherit; color: var(--ink); padding: 8px 10px; border-radius: 10px; min-height: 40px; }
+.pickup-closed { font-size: 14px; color: var(--muted); }
+.pickup-actions { display: flex; justify-content: flex-end; }
+.order-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+.pill-pickup { background: var(--chip); color: var(--chip-ink); }

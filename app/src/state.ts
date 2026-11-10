@@ -36,6 +36,8 @@ export interface State {
 
   /** The full store design. null = not customised yet; the simple theme/accent/font above is used. */
   design: unknown;
+  /** In-store pickup settings (see pickup.ts). null = never set up. */
+  pickup: unknown;
   /** Live mode: the seller's plan, price and domain (GET /sellers/me/plan). */
   plan: PlanResponse | null;
   /** Demo mode only: a pretend Pro trial and domain. */
@@ -89,6 +91,7 @@ export function initialState(settings: Settings): State {
     newCost: '',
     campaigns: [],
     design: null,
+    pickup: null,
     plan: null,
     demoTrialEndsAt: null,
     demoDomain: '',
