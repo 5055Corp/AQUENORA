@@ -176,7 +176,7 @@ function StepProduct() {
 }
 
 function StepPayment() {
-  const { s, set, country } = useStore();
+  const { s, set, country, live } = useStore();
   const feeLine =
     'Fees in ' + country.name + ': ' + country.local +
     (s.intl ? ' Cards from abroad cost a little more (around 3–4%).' : '');
@@ -188,14 +188,19 @@ function StepPayment() {
             <div>Paystack</div>
             <div>Cards, bank transfer and USSD</div>
           </div>
-          <button
-            type="button"
-            className="ob-pay-btn"
-            style={s.paystack ? { background: 'var(--go-soft)', color: 'var(--go-ink)' } : { background: 'var(--ink)', color: '#fff' }}
-            onClick={() => set({ paystack: true })}
-          >
-            {s.paystack ? '✓ Connected' : 'Connect'}
-          </button>
+          {live ? (
+            // The store must exist before a bank account can be connected: done from Financials.
+            <span className="ob-pay-later">Next: add your bank account</span>
+          ) : (
+            <button
+              type="button"
+              className="ob-pay-btn"
+              style={s.paystack ? { background: 'var(--go-soft)', color: 'var(--go-ink)' } : { background: 'var(--ink)', color: '#fff' }}
+              onClick={() => set({ paystack: true })}
+            >
+              {s.paystack ? '✓ Connected' : 'Connect'}
+            </button>
+          )}
         </div>
         <div className="ob-fee">{feeLine}</div>
       </div>

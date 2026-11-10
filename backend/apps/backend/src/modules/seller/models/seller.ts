@@ -15,8 +15,11 @@ const Seller = model.define("seller", {
   country_code: model.enum(["NG", "GH", "ZA", "CI", "SN", "DI"]).default("NG"),
   currency_code: model.text().default("ngn"),
   sells_abroad: model.boolean().default(true),
-  // Filled in once the seller connects Paystack (split payments come in a later step)
+  // The seller's Paystack subaccount: sales settle to their bank, minus AQENORA's commission and
+  // Paystack's fee (see lib/paystack.ts). Set by POST /sellers/me/payouts.
   paystack_subaccount_code: model.text().nullable(),
+  // What the seller sees about their payout account: { bank_name, bank_code, account_last4, account_name }.
+  payout: model.json().nullable(),
   theme: model.enum(["harmattan", "lagos", "savanna"]).default("harmattan"),
   accent: model.enum(["terracotta", "leaf", "indigo", "hibiscus"]).default("terracotta"),
   font: model.enum(["classic", "modern", "friendly"]).default("classic"),

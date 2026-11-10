@@ -15,7 +15,24 @@ export type CreateSellerOrderInput = {
   marketing_opt_in?: boolean
   /** "pickup" = the buyer collects from the seller's shop (only if the seller offers pickup). */
   fulfillment?: "delivery" | "pickup"
-  items: { product_id: string; quantity: number }[]
+  /** Buyer's phone and delivery address (delivery orders). */
+  phone?: string
+  address?: string
+  city?: string
+  /** Set when Paystack took the payment: the real fees are recorded on the order. */
+  payment?: {
+    reference: string
+    /** Paystack's fee, whole units. */
+    fee: number | null
+    /** AQENORA's commission actually charged, whole units. */
+    platform_fee: number
+    /** Commission rate fixed at checkout (wins over the seller's current plan). */
+    commission_rate: number
+  }
+  /** unit_price: the price shown at checkout (defaults to the product's current price). */
+  items: { product_id: string; quantity: number; unit_price?: number }[]
+  /** Take the sold quantities out of stock (real sales; the demo seed leaves stock alone). */
+  reduce_stock?: boolean
 }
 
 type SellerWithProducts = {
@@ -34,6 +51,40 @@ const sellerCommissionRateStep = createStep(
   async (input: { seller: PlanSeller }, { container }) => {
     const plan = await resolvePlan(container, input.seller)
     return new StepResponse(plan.commission_percent / 100)
+  }
+)
+
+/** Takes sold items out of stock (metadata.stock); puts them back if the order fails. */
+const reduceStockStep = createStep(
+  "reduce-stock",
+  async (input: { seller: SellerWithProducts; items: CreateSellerOrderInput["items"]; enabled?: boolean }, { container }) => {
+    if (!input.enabled) {
+      return new StepResponse([], [])
+    }
+    const productService = container.resolve(Modules.PRODUCT)
+    const byId = new Map(input.seller.products.filter(Boolean).map((p) => [p.id, p]))
+    const qty = new Map<string, number>()
+    for (const i of input.items) {
+      qty.set(i.product_id, (qty.get(i.product_id) ?? 0) + i.quantity)
+    }
+    const before: { id: string; metadata: Record<string, unknown> }[] = []
+    for (const [id, n] of qty) {
+      const metadata = byId.get(id)?.metadata ?? {}
+      const stock = Number(metadata.stock ?? 0)
+      before.push({ id, metadata })
+      // Paid already, so never refuse here; stock just can't go below zero.
+      await productService.updateProducts(id, { metadata: { ...metadata, stock: Math.max(0, (Number.isFinite(stock) ? stock : 0) - n) } })
+    }
+    return new StepResponse(before, before)
+  },
+  async (before, { container }) => {
+    if (!before?.length) {
+      return
+    }
+    const productService = container.resolve(Modules.PRODUCT)
+    for (const p of before) {
+      await productService.updateProducts(p.id, { metadata: p.metadata })
+    }
   }
 )
 
@@ -58,8 +109,8 @@ const checkSellerOrderItemsStep = createStep(
 /**
  * Records a paid order for one seller: the line items keep the price and the product's cost
  * price at the time of sale (so later price or cost changes don't rewrite past profit), and the
- * order is linked to the seller. Paystack checkout will call this once payment succeeds; for now
- * the demo seed script uses it.
+ * order is linked to the seller. Paystack checkout (lib/checkout.ts) runs it once a payment is
+ * confirmed; the demo seed script uses it too.
  */
 export const createSellerOrderWorkflow = createWorkflow(
   "create-seller-order",
@@ -85,7 +136,8 @@ export const createSellerOrderWorkflow = createWorkflow(
 
     const seller = transform({ sellers }, ({ sellers }) => sellers[0] as unknown as SellerWithProducts)
     checkSellerOrderItemsStep({ seller, items: input.items, fulfillment: input.fulfillment })
-    const commissionRate = sellerCommissionRateStep({ seller })
+    const planRate = sellerCommissionRateStep({ seller })
+    const commissionRate = transform({ input, planRate }, ({ input, planRate }) => input.payment?.commission_rate ?? planRate)
 
     const orderData = transform({ input, seller, commissionRate }, ({ input, seller, commissionRate }) => {
       const products = new Map(seller.products.filter(Boolean).map((p) => [p.id, p]))
@@ -95,13 +147,29 @@ export const createSellerOrderWorkflow = createWorkflow(
           email: input.email.trim().toLowerCase(),
           currency_code: seller.currency_code,
           status: "pending",
-          shipping_address: input.customer_name ? { first_name: first, last_name: rest.join(" ") } : undefined,
+          shipping_address:
+            input.customer_name || input.phone || input.address
+              ? {
+                  first_name: first || undefined,
+                  last_name: rest.join(" ") || undefined,
+                  phone: input.phone,
+                  address_1: input.fulfillment === "pickup" ? undefined : input.address,
+                  city: input.fulfillment === "pickup" ? undefined : input.city,
+                }
+              : undefined,
           metadata: {
             seller_status: "new",
             international: !!input.international,
             marketing_opt_in: !!input.marketing_opt_in,
             commission_rate: commissionRate,
             fulfillment: input.fulfillment === "pickup" ? "pickup" : "delivery",
+            ...(input.payment
+              ? {
+                  paystack_reference: input.payment.reference,
+                  payment_fee: input.payment.fee,
+                  platform_fee: input.payment.platform_fee,
+                }
+              : {}),
           },
           items: input.items.map((i) => {
             const p = products.get(i.product_id)!
@@ -113,7 +181,7 @@ export const createSellerOrderWorkflow = createWorkflow(
               product_id: p.id,
               variant_id: variant?.id,
               quantity: i.quantity,
-              unit_price: Number(price?.amount ?? 0),
+              unit_price: i.unit_price ?? Number(price?.amount ?? 0),
               metadata: Number.isFinite(cost) && p.metadata?.cost_price != null ? { cost_price: cost } : {},
             }
           }),
@@ -121,6 +189,7 @@ export const createSellerOrderWorkflow = createWorkflow(
       ]
     })
 
+    reduceStockStep({ seller, items: input.items, enabled: input.reduce_stock })
     const orders = createOrdersStep(orderData)
 
     const links = transform({ input, orders }, ({ input, orders }) => [

@@ -5,6 +5,7 @@ import { summarize } from '../finance';
 import { useStore } from '../store';
 import { Help } from './Help';
 import { LineChart } from './LineChart';
+import { PayoutSettings } from './PayoutSettings';
 
 // Validated chart colours (dataviz reference palette, slots 1 and 2): pass CVD, normal-vision and 3:1 contrast on white.
 const REVENUE_COLOR = '#2a78d6';
@@ -79,6 +80,7 @@ export function Money() {
         <h1 className="h1" style={{ fontSize: h1Size }}>Financials</h1>
         <p>Track your progress: what you sold, what it cost you, and what you kept.</p>
       </div>
+      <PayoutSettings id="get-paid" />
 
       <div className="filters" role="group" aria-label="Time period">
         {PERIODS.map(([k, label]) => (

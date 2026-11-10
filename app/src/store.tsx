@@ -40,6 +40,8 @@ function fromSeller(se: ApiSeller): Partial<State> {
     announce: se.announcement ?? '',
     design: se.design ?? null,
     pickup: se.pickup ?? null,
+    payout: se.payout ?? null,
+    paystack: !!se.paystack_subaccount_code,
   };
 }
 
@@ -441,8 +443,30 @@ function useStoreValue(settings: Settings) {
     }
   };
 
+  /** Connects the bank account sales are paid into. Returns an error to show by the form, or ''. */
+  const savePayout = async (bank: { code: string; name: string }, accountNumber: string): Promise<string> => {
+    const acct = accountNumber.replace(/\s+/g, '');
+    if (!bank.code) return 'Choose your bank.';
+    if (!/^[0-9A-Za-z]{6,20}$/.test(acct)) return 'Enter your account number (numbers only, no spaces).';
+    if (!LIVE) {
+      set({ paystack: true, payout: { bank_name: bank.name, bank_code: bank.code, account_last4: acct.slice(-4), account_name: null } });
+      flash('Bank account connected. Sales are paid straight into it');
+      return '';
+    }
+    set({ busy: true });
+    try {
+      const { seller } = await api.setPayout(s.token, { bank_code: bank.code, account_number: acct });
+      set({ busy: false, paystack: !!seller.paystack_subaccount_code, payout: seller.payout });
+      flash('Bank account connected. Sales are paid straight into it');
+      return '';
+    } catch (e) {
+      set({ busy: false });
+      return e instanceof Error ? e.message : 'Could not connect. Please try again.';
+    }
+  };
+
   return {
-    pickup, savePickup,
+    pickup, savePickup, savePayout,
     s, set, settings, toast, flash, isMobile, framed, country, fmt, fromUsd, slug, shopNameShown, storeUrl,
     products, toggleHelp, advanceOrder, copyLink, shareWhatsApp, startOver,
     design, setDesign, planInfo, refreshPlan, startTrial, requestUpgrade, connectDomain, checkDomain, removeDomain, live: LIVE, submitAuth, finishOnboarding, addProduct, setProductCost, publishDesign, logOut, retryLoad,

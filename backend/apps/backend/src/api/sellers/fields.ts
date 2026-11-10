@@ -9,6 +9,7 @@ export const SELLER_FIELDS = [
   "currency_code",
   "sells_abroad",
   "paystack_subaccount_code",
+  "payout",
   "theme",
   "accent",
   "font",
