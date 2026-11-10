@@ -24,6 +24,8 @@ const Seller = model.define("seller", {
   // Full store design (colours, fonts, layout, banner, about, social links); see design.ts.
   // When empty, the store uses theme/accent/font/announcement above.
   design: model.json().nullable(),
+  // In-store pickup: address, area, opening hours per day, instructions (see pickup.ts).
+  pickup: model.json().nullable(),
   onboarding_completed: model.boolean().default(false),
   // ---- plan ----
   // Pro is active while either date is in the future. A trial keeps the "Powered by AQENORA" badge.

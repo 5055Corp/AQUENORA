@@ -2,6 +2,7 @@ import { MedusaError } from "@medusajs/framework/utils"
 import { z } from "@medusajs/framework/zod"
 import { SELLER_COUNTRIES } from "../../modules/seller/currency"
 import { StoreDesignSchema } from "../../modules/seller/design"
+import { PickupSchema } from "../../modules/seller/pickup"
 
 const shopName = z.string().trim().min(1, "Shop name is required").max(80)
 const handle = z
@@ -33,6 +34,7 @@ export const UpdateSellerSchema = z
     announcement: z.string().trim().max(120).nullable(),
     onboarding_completed: z.boolean(),
     design: StoreDesignSchema,
+    pickup: PickupSchema,
   })
   .partial()
   .strict()
@@ -59,7 +61,7 @@ export const UpdateSellerProductSchema = z
   .strict()
 export type UpdateSellerProductBody = z.infer<typeof UpdateSellerProductSchema>
 
-export const UpdateSellerOrderSchema = z.object({ status: z.enum(["shipped", "delivered"]) }).strict()
+export const UpdateSellerOrderSchema = z.object({ status: z.enum(["shipped", "delivered", "ready", "collected"]) }).strict()
 export type UpdateSellerOrderBody = z.infer<typeof UpdateSellerOrderSchema>
 
 export const FinanceQuerySchema = z.object({ period: z.enum(["7d", "30d", "all"]).default("30d") })

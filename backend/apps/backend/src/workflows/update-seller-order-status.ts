@@ -2,9 +2,13 @@ import { MedusaError } from "@medusajs/framework/utils"
 import { createStep, createWorkflow, StepResponse, transform, WorkflowResponse } from "@medusajs/framework/workflows-sdk"
 import { updateOrdersStep, useQueryGraphStep } from "@medusajs/medusa/core-flows"
 
-export type SellerOrderStatus = "new" | "shipped" | "delivered"
+export type SellerOrderStatus = "new" | "shipped" | "delivered" | "ready" | "collected"
 
-const NEXT: Record<SellerOrderStatus, SellerOrderStatus | null> = { new: "shipped", shipped: "delivered", delivered: null }
+// Delivery: paid -> on the way -> delivered. Pickup: paid -> ready for pickup -> picked up.
+const NEXT: Record<"delivery" | "pickup", Partial<Record<SellerOrderStatus, SellerOrderStatus>>> = {
+  delivery: { new: "shipped", shipped: "delivered" },
+  pickup: { new: "ready", ready: "collected" },
+}
 
 type SellerOrders = { orders: ({ id: string; metadata: Record<string, unknown> | null } | null)[] | null }
 type StatusInput = { seller_id: string; order_id: string; status: SellerOrderStatus }
@@ -18,7 +22,8 @@ const prepareSellerOrderStatusStep = createStep(
       throw new MedusaError(MedusaError.Types.NOT_FOUND, "Order not found.")
     }
     const current = (order.metadata?.seller_status as SellerOrderStatus) ?? "new"
-    if (NEXT[current] !== input.status) {
+    const how = order.metadata?.fulfillment === "pickup" ? "pickup" : "delivery"
+    if (NEXT[how][current] !== input.status) {
       throw new MedusaError(MedusaError.Types.NOT_ALLOWED, `This order is already marked "${current}".`)
     }
     return new StepResponse({

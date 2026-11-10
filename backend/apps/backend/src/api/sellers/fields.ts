@@ -14,6 +14,7 @@ export const SELLER_FIELDS = [
   "font",
   "announcement",
   "design",
+  "pickup",
   "onboarding_completed",
   "created_at",
 ]
@@ -58,9 +59,11 @@ export function toSellerOrder(raw: unknown) {
     customer_name: name || null,
     email: o.email,
     currency_code: o.currency_code,
-    // "new" (paid, ready to pack) -> "shipped" -> "delivered"; cancelled orders show as such.
+    // Delivery: "new" (paid, ready to pack) -> "shipped" -> "delivered".
+    // Pickup: "new" -> "ready" (ready for pickup) -> "collected". Cancelled orders show as such.
     status: o.status === "canceled" ? "canceled" : (o.metadata?.seller_status as string) ?? "new",
     international: o.metadata?.international === true,
+    fulfillment: o.metadata?.fulfillment === "pickup" ? "pickup" : "delivery",
     items,
     total: items.reduce((a, i) => a + i.quantity * i.unit_price, 0),
   }
