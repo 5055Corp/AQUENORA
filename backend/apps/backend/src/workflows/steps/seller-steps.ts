@@ -15,6 +15,7 @@ export type CreateSellerData = {
 
 export type UpdateSellerData = Partial<Omit<CreateSellerData, "email">> & {
   paystack_subaccount_code?: string | null
+  payout?: Record<string, unknown> | null
   theme?: "harmattan" | "lagos" | "savanna"
   accent?: "terracotta" | "leaf" | "indigo" | "hibiscus"
   font?: "classic" | "modern" | "friendly"

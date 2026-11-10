@@ -118,3 +118,44 @@ export type BillingSettingsBody = z.infer<typeof BillingSettingsSchema>
 
 export const MarkPaidSchema = z.object({ months: z.number().int().min(1).max(24) }).strict()
 export type MarkPaidBody = z.infer<typeof MarkPaidSchema>
+
+// ---- payments (Paystack) ----
+
+/** The seller's bank account for payouts. */
+export const SetPayoutSchema = z
+  .object({
+    bank_code: z.string().trim().min(1, "Choose your bank").max(40),
+    account_number: z
+      .string()
+      .trim()
+      .regex(/^[0-9A-Za-z]{6,20}$/, "Enter your account number (numbers only, no spaces)"),
+  })
+  .strict()
+export type SetPayoutBody = z.infer<typeof SetPayoutSchema>
+
+/** A buyer's checkout from a store page. */
+export const CheckoutSchema = z
+  .object({
+    email: z.string().trim().email("Enter a valid email address").max(200),
+    name: z.string().trim().min(1, "Enter your name").max(100),
+    phone: z.string().trim().regex(/^\+?[0-9 ()-]{7,20}$/, "Enter a valid phone number"),
+    fulfillment: z.enum(["delivery", "pickup"]).default("delivery"),
+    address: z.string().trim().max(200).optional(),
+    city: z.string().trim().max(80).optional(),
+    marketing_opt_in: z.boolean().default(false),
+    /** Where Paystack sends the buyer back to (the store page). Only http(s). */
+    return_url: z.string().url().max(500).refine((u) => /^https?:\/\//.test(u), "Invalid return address"),
+    items: z
+      .array(z.object({ product_id: z.string().min(1).max(100), quantity: z.number().int().min(1).max(100) }).strict())
+      .min(1, "Your bag is empty")
+      .max(50),
+  })
+  .strict()
+  .refine((b) => b.fulfillment === "pickup" || (!!b.address && !!b.city), {
+    message: "Enter your delivery address and city",
+    path: ["address"],
+  })
+export type CheckoutBody = z.infer<typeof CheckoutSchema>
+
+export const VerifyPaymentSchema = z.object({ reference: z.string().trim().min(4).max(100) }).strict()
+export type VerifyPaymentBody = z.infer<typeof VerifyPaymentSchema>

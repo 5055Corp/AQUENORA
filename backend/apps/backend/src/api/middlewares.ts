@@ -13,6 +13,9 @@ import {
   CreateSellerProductSchema,
   CreateSellerSchema,
   BillingSettingsSchema,
+  CheckoutSchema,
+  SetPayoutSchema,
+  VerifyPaymentSchema,
   MarkPaidSchema,
   PlanPricesSchema,
   SendCampaignSchema,
@@ -109,6 +112,28 @@ export default defineMiddlewares({
       methods: ["DELETE"],
       matcher: "/sellers/me/domain",
       middlewares: [sellerAuth],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/sellers/me/payouts",
+      middlewares: [sellerAuth, validateAndTransformBody(SetPayoutSchema)],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/store/sellers/:handle/checkout",
+      middlewares: [validateAndTransformBody(CheckoutSchema)],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/store/payments/verify",
+      middlewares: [validateAndTransformBody(VerifyPaymentSchema)],
+    },
+    {
+      // Paystack signs the exact bytes it sends, so keep the raw body for the signature check.
+      methods: ["POST"],
+      matcher: "/paystack/webhook",
+      bodyParser: { preserveRawBody: true },
+      middlewares: [],
     },
     {
       methods: ["POST"],
