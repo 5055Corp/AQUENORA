@@ -7,7 +7,7 @@ import type { State } from './state';
 const KEY = 'aqenora-demo-v1';
 
 /** Keys not worth keeping across visits. */
-const SKIP: (keyof State)[] = ['help', 'password', 'busy', 'authError', 'nameError', 'token'];
+const SKIP: (keyof State)[] = ['help', 'password', 'busy', 'authError', 'nameError', 'token', 'plan'];
 
 export function save(s: State) {
   try {

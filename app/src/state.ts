@@ -4,7 +4,7 @@ import {
   type CountryId, type FontId, type Order, type OrderFilter, type Product, type Tab, type ThemeId,
 } from './data';
 import type { Settings } from './settings';
-import { LIVE, type Accent, type Campaign } from './api';
+import { LIVE, type Accent, type Campaign, type PlanResponse } from './api';
 
 export interface State {
   /** 'auth' and 'loading' are only used when connected to the backend (live mode). */
@@ -36,6 +36,11 @@ export interface State {
 
   /** The full store design. null = not customised yet; the simple theme/accent/font above is used. */
   design: unknown;
+  /** Live mode: the seller's plan, price and domain (GET /sellers/me/plan). */
+  plan: PlanResponse | null;
+  /** Demo mode only: a pretend Pro trial and domain. */
+  demoTrialEndsAt: string | null;
+  demoDomain: string;
   /** Demo mode only: campaigns "sent" in this browser. */
   campaigns: Campaign[];
 
@@ -84,6 +89,9 @@ export function initialState(settings: Settings): State {
     newCost: '',
     campaigns: [],
     design: null,
+    plan: null,
+    demoTrialEndsAt: null,
+    demoDomain: '',
     authMode: 'signup',
     email: '',
     password: '',
