@@ -3,6 +3,7 @@ import { Modules } from "@medusajs/framework/utils"
 import { createUserAccountWorkflow } from "@medusajs/medusa/core-flows"
 import { createSellerOrderWorkflow } from "../../src/workflows/create-seller-order"
 import { SELLER_MODULE } from "../../src/modules/seller"
+import type SellerModuleService from "../../src/modules/seller/service"
 
 jest.setTimeout(120 * 1000)
 const password = "supersecret123"
@@ -26,7 +27,8 @@ medusaIntegrationTestRunner({
     }
     const buy = (seller_id: string, product_id: string, email = "b@example.com") =>
       createSellerOrderWorkflow(getContainer()).run({ input: { seller_id, email, marketing_opt_in: true, items: [{ product_id, quantity: 1 }] } })
-    const err = (p: Promise<unknown>) => p.catch((e) => e.response)
+    type ErrorResponse = { status: number; data: { message: string } }
+    const err = (p: Promise<unknown>): Promise<ErrorResponse> => p.then(() => ({ status: 200, data: { message: "" } }), (e) => e.response)
 
     it("starts on Free: 3% per sale, badge, totals only, weekly campaigns, no own domain", async () => {
       const s = await signUp("free@example.com", "Free Shop")
@@ -89,7 +91,8 @@ medusaIntegrationTestRunner({
       const h = { headers: { "x-publishable-api-key": pub.token } }
       expect((await err(api.get("/store/domains/adirehouse.com", h))).status).toEqual(404)
       // DNS can't be reached from tests, so mark it verified as the check would.
-      await getContainer().resolve(SELLER_MODULE).updateSellers({ id: s.seller.id, domain_verified_at: new Date() })
+      const sellers: SellerModuleService = getContainer().resolve(SELLER_MODULE)
+      await sellers.updateSellers({ id: s.seller.id, domain_verified_at: new Date() })
       expect((await api.get("/store/domains/www.adirehouse.com", h)).data).toEqual({ handle: "adirehouse" })
 
       await api.delete("/sellers/me/domain", { headers: s.headers })
