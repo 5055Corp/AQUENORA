@@ -2,7 +2,8 @@
 //
 //   app.<ROOT_DOMAIN>, www.<ROOT_DOMAIN>, <ROOT_DOMAIN>  -> seller app (index.html)
 //   <shop>.<ROOT_DOMAIN>                                  -> that shop's store page (store.html)
-//   any other host (e.g. *.up.railway.app)                -> seller app; stores via /store.html?shop=<shop>
+//   a seller's own domain (e.g. adirehouse.com)           -> store page; it asks the backend which shop
+//   localhost, IPs, *.up.railway.app                      -> seller app; stores via /store.html?shop=<shop>
 //
 // Env: PORT (default 8080), ROOT_DOMAIN (e.g. aqenora.com; leave unset until the domain is live).
 
@@ -16,7 +17,7 @@ const DIST = join(fileURLToPath(new URL('.', import.meta.url)), 'dist');
 const PORT = Number(process.env.PORT) || 8080;
 const ROOT_DOMAIN = (process.env.ROOT_DOMAIN ?? '').toLowerCase().replace(/^\.+|\.+$/g, '');
 /** Subdomains that are never shop addresses. Shops can't take these names. */
-const RESERVED = new Set(['app', 'www', 'api', 'admin', 'mail', 'static', 'cdn']);
+const RESERVED = new Set(['app', 'www', 'api', 'admin', 'mail', 'static', 'cdn', 'stores', 'store', 'shop', 'help', 'support', 'status', 'blog', 'docs', 'billing', 'pay', 'checkout', 'account', 'login', 'signup', 'aqenora']);
 
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -33,14 +34,18 @@ const TYPES = {
 };
 const COMPRESSIBLE = new Set(['.html', '.js', '.css', '.svg', '.json', '.txt']);
 
-/** The shop handle for a store subdomain, or '' for the seller app. */
-export function shopFromHost(hostHeader, rootDomain = ROOT_DOMAIN) {
-  if (!rootDomain || !hostHeader) return '';
-  const host = hostHeader.toLowerCase().split(':')[0];
-  if (!host.endsWith('.' + rootDomain)) return '';
-  const sub = host.slice(0, -(rootDomain.length + 1));
-  if (!/^[a-z0-9-]+$/.test(sub) || RESERVED.has(sub)) return '';
-  return sub;
+/** Which page a host shows: the seller app or the store page. */
+export function pageForHost(hostHeader, rootDomain = ROOT_DOMAIN) {
+  const host = (hostHeader || '').toLowerCase().split(':')[0];
+  if (!host || host === 'localhost' || /^[\d.]+$/.test(host) || host.endsWith('.up.railway.app') || host.endsWith('.railway.internal')) return 'app';
+  if (!rootDomain) return 'app';
+  if (host === rootDomain) return 'app';
+  if (host.endsWith('.' + rootDomain)) {
+    const sub = host.slice(0, -(rootDomain.length + 1));
+    if (sub === 'stores') return 'store'; // the address sellers point their own domains at
+    return RESERVED.has(sub) || !/^[a-z0-9-]+$/.test(sub) ? 'app' : 'store';
+  }
+  return 'store'; // a seller's own domain
 }
 
 const cache = new Map();
@@ -110,15 +115,16 @@ export const server = createServer(async (req, res) => {
       return res.end();
     }
 
-    const shop = shopFromHost(req.headers.host);
+    const shop = pageForHost(req.headers.host) === 'store';
     const page = join(DIST, shop ? 'store.html' : 'index.html');
 
     // On a shop subdomain every page path shows the store; real files (assets) are still served.
     const file = await fileFor(url.pathname === '/' ? '/__none__' : url.pathname);
     if (file && !(shop && file.endsWith('.html'))) return send(req, res, file);
 
-    // Paths that look like files but don't exist are real 404s; anything else is a page.
-    if (extname(url.pathname)) {
+    // Paths that look like files but don't exist are real 404s; anything else is a page
+    // (on a shop's address, .html requests always get the store page).
+    if (extname(url.pathname) && !(shop && extname(url.pathname) === '.html')) {
       res.writeHead(404, { ...securityHeaders(req), 'Content-Type': 'text/plain' });
       return res.end('Not found');
     }
