@@ -4,7 +4,7 @@ import {
   type CountryId, type FontId, type Order, type OrderFilter, type Product, type Tab, type ThemeId,
 } from './data';
 import type { Settings } from './settings';
-import { LIVE, type Accent, type Campaign, type PlanResponse } from './api';
+import { LIVE, type Accent, type Campaign, type Payout, type PlanResponse } from './api';
 
 export interface State {
   /** 'auth' and 'loading' are only used when connected to the backend (live mode). */
@@ -38,6 +38,8 @@ export interface State {
   design: unknown;
   /** In-store pickup settings (see pickup.ts). null = never set up. */
   pickup: unknown;
+  /** Bank account sales are paid into (live: from the backend; demo: pretend). */
+  payout: Payout | null;
   /** Live mode: the seller's plan, price and domain (GET /sellers/me/plan). */
   plan: PlanResponse | null;
   /** Demo mode only: a pretend Pro trial and domain. */
@@ -92,6 +94,7 @@ export function initialState(settings: Settings): State {
     campaigns: [],
     design: null,
     pickup: null,
+    payout: null,
     plan: null,
     demoTrialEndsAt: null,
     demoDomain: '',

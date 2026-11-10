@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ApiError, fetchHandleForDomain, fetchPublicStore, LIVE, RESERVED_SUBDOMAINS, STORE_DOMAIN } from '../api';
+import { ApiError, fetchHandleForDomain, fetchPublicStore, LIVE, RESERVED_SUBDOMAINS, startCheckout, STORE_DOMAIN, verifyPayment, type PaymentResult } from '../api';
 import { COUNTRIES } from '../data';
 import * as persist from '../persist';
 import { ACCENT_KEYS, demoProducts, initialState, usdConverter } from '../state';
@@ -20,6 +20,8 @@ interface StoreData {
   showBadge: boolean;
   /** In-store pickup, when the seller offers it. */
   pickup: Pickup | null;
+  /** The Checkout button works: Paystack is on and the seller has connected a bank account. */
+  acceptsPayments: boolean;
 }
 
 type Load =
@@ -63,6 +65,7 @@ function demoStore(): StoreData {
     sellsAbroad: s.intl,
     showBadge: true,
     pickup: offered(s.pickup),
+    acceptsPayments: true,
   };
 }
 
@@ -97,6 +100,7 @@ async function liveStore(handle: string): Promise<StoreData> {
     sellsAbroad: store.sells_abroad,
     showBadge: store.show_badge !== false,
     pickup: offered(store.pickup),
+    acceptsPayments: store.accepts_payments === true,
   };
 }
 
@@ -140,6 +144,46 @@ function saveBag(handle: string, bag: Bag) {
     /* storage unavailable */
   }
 }
+
+// ---- buyer's details, remembered in this browser for next time ----
+
+export interface Buyer { name: string; email: string; phone: string; address: string; city: string; optIn: boolean }
+const BUYER_KEY = 'aqenora-buyer';
+const emptyBuyer: Buyer = { name: '', email: '', phone: '', address: '', city: '', optIn: false };
+
+function loadBuyer(): Buyer {
+  try {
+    const v = JSON.parse(localStorage.getItem(BUYER_KEY) ?? '{}');
+    return { ...emptyBuyer, ...Object.fromEntries(Object.entries(v ?? {}).filter(([k, x]) => k in emptyBuyer && typeof x === typeof emptyBuyer[k as keyof Buyer])) };
+  } catch {
+    return emptyBuyer;
+  }
+}
+
+function saveBuyer(b: Buyer) {
+  try {
+    localStorage.setItem(BUYER_KEY, JSON.stringify(b));
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+/** Problems with the buyer's details, by field. */
+function checkBuyer(b: Buyer, pickup: boolean): Partial<Record<keyof Buyer, string>> {
+  const e: Partial<Record<keyof Buyer, string>> = {};
+  if (!b.name.trim()) e.name = 'Enter your name';
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(b.email.trim())) e.email = 'Enter a valid email address';
+  if (!/^\+?[0-9 ()-]{7,20}$/.test(b.phone.trim())) e.phone = 'Enter a valid phone number';
+  if (!pickup && !b.address.trim()) e.address = 'Enter your delivery address';
+  if (!pickup && !b.city.trim()) e.city = 'Enter your city or town';
+  return e;
+}
+
+/** What happened to a payment, after Paystack sent the buyer back (?reference=...). */
+type Paid =
+  | { kind: 'checking' }
+  | { kind: 'paid'; orderNo: number | string; total: number; pickup: boolean; items: { title: string; quantity: number }[] }
+  | { kind: 'pending' | 'failed' | 'error'; message: string; reference: string };
 
 function useWidth() {
   const [w, setW] = useState(() => window.innerWidth);
@@ -240,6 +284,36 @@ function Store({ data }: { data: StoreData }) {
   const fulfillment: Fulfillment = data.pickup ? choice : 'delivery';
   useEffect(() => saveFulfillment(data.handle, fulfillment), [data.handle, fulfillment]);
 
+  // Checkout: the bag, then the buyer's details, then Paystack's payment page.
+  const [stage, setStage] = useState<'bag' | 'details'>('bag');
+  const [buyer, setBuyer] = useState<Buyer>(loadBuyer);
+  const [showErrors, setShowErrors] = useState(false);
+  const [paying, setPaying] = useState(false);
+  const [payError, setPayError] = useState('');
+  const [paid, setPaid] = useState<Paid | null>(() => (new URLSearchParams(window.location.search).get('reference') ? { kind: 'checking' } : null));
+
+  // Back from Paystack: ask the shop whether the payment went through.
+  const checkPayment = useCallback((reference: string) => {
+    verifyPayment(reference)
+      .then((r: PaymentResult) => {
+        if (r.status === 'paid') {
+          setPaid({ kind: 'paid', orderNo: r.order.display_id, total: r.checkout.amount, pickup: r.checkout.fulfillment === 'pickup', items: r.checkout.items });
+          setBag({});
+          const url = new URL(window.location.href);
+          url.searchParams.delete('reference');
+          url.searchParams.delete('trxref');
+          window.history.replaceState(null, '', url.toString());
+        } else {
+          setPaid({ kind: r.status, message: r.message, reference });
+        }
+      })
+      .catch(e => setPaid({ kind: 'error', message: e instanceof Error ? e.message : 'Could not check your payment.', reference }));
+  }, []);
+  useEffect(() => {
+    const reference = new URLSearchParams(window.location.search).get('reference');
+    if (reference && LIVE) checkPayment(reference);
+  }, [checkPayment]);
+
   useEffect(() => saveBag(data.handle, bag), [data.handle, bag]);
   useEffect(() => {
     document.title = data.name;
@@ -247,7 +321,7 @@ function Store({ data }: { data: StoreData }) {
   }, [data.name, d.colors.background]);
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && closeBag();
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open]);
@@ -281,6 +355,57 @@ function Store({ data }: { data: StoreData }) {
   });
   const count = lines.reduce((a, l) => a + l.qty, 0);
   const subtotal = lines.reduce((a, l) => a + l.qty * l.item.price, 0);
+  function closeBag() {
+    setOpen(false);
+    setStage('bag');
+  }
+  const errors = checkBuyer(buyer, fulfillment === 'pickup');
+  const editBuyer = (patch: Partial<Buyer>) => {
+    setBuyer(b => ({ ...b, ...patch }));
+    setPayError('');
+  };
+
+  const pay = async () => {
+    if (Object.keys(errors).length) {
+      setShowErrors(true);
+      return;
+    }
+    saveBuyer(buyer);
+    setPaying(true);
+    setPayError('');
+    if (!LIVE) {
+      // Demo: no real payment. Show what the buyer would see afterwards.
+      window.setTimeout(() => {
+        setPaid({ kind: 'paid', orderNo: 1044, total: subtotal, pickup: fulfillment === 'pickup', items: lines.map(l => ({ title: l.item.name, quantity: l.qty })) });
+        setBag({});
+        setOpen(false);
+        setPaying(false);
+      }, 600);
+      return;
+    }
+    try {
+      const back = new URL(window.location.href);
+      back.search = '';
+      back.hash = '';
+      const shop = new URLSearchParams(window.location.search).get('shop');
+      if (shop) back.searchParams.set('shop', shop);
+      const { authorization_url } = await startCheckout(data.handle, {
+        email: buyer.email.trim(),
+        name: buyer.name.trim(),
+        phone: buyer.phone.trim(),
+        fulfillment,
+        ...(fulfillment === 'delivery' ? { address: buyer.address.trim(), city: buyer.city.trim() } : {}),
+        marketing_opt_in: buyer.optIn,
+        return_url: back.toString(),
+        items: lines.map(l => ({ product_id: l.item.key, quantity: l.qty })),
+      });
+      window.location.assign(authorization_url);
+    } catch (e) {
+      setPaying(false);
+      setPayError(e instanceof Error ? e.message : 'Could not start the payment. Please try again.');
+    }
+  };
+  const fieldError = (k: keyof Buyer) => (showErrors && errors[k] ? errors[k] : '');
 
   return (
     <div className="sp" style={{ color: ink, fontFamily: STORE_FONTS[d.fonts.body].family }}>
@@ -311,8 +436,49 @@ function Store({ data }: { data: StoreData }) {
 
       {note && <div className="toast" role="status">{note}</div>}
 
+      {paid && (
+        <div className="sp-overlay sp-center">
+          <div className="sp-receipt" role="dialog" aria-modal="true" aria-labelledby="sp-receipt-title" style={{ background: d.colors.card, color: ink }}>
+            {paid.kind === 'checking' && <p role="status" id="sp-receipt-title">Checking your payment…</p>}
+            {paid.kind === 'paid' && (
+              <>
+                <div className="sp-tick" style={{ background: d.colors.accent, color: d.colors.accent_text }} aria-hidden="true">✓</div>
+                <h2 id="sp-receipt-title">Thank you! Order #{paid.orderNo} is paid</h2>
+                <ul className="sp-receipt-items">
+                  {paid.items.map((i, n) => <li key={n}>{i.title}{i.quantity > 1 ? ` ×${i.quantity}` : ''}</li>)}
+                </ul>
+                <div className="sp-total"><span>Paid</span><span>{fmt(paid.total)}</span></div>
+                {paid.pickup && data.pickup ? (
+                  <div className="sp-pick">
+                    <p className="sp-pick-note"><b>Pick up in store.</b> A receipt from Paystack is in your email.</p>
+                    <PickupDetails pickup={data.pickup} country={data.country} />
+                  </div>
+                ) : (
+                  <p className="sp-pick-note">{data.name} will contact you about delivery. A receipt from Paystack is in your email.</p>
+                )}
+                <button type="button" className="sp-checkout" style={{ background: d.colors.accent, color: d.colors.accent_text, opacity: 1 }} onClick={() => setPaid(null)}>
+                  Keep shopping
+                </button>
+              </>
+            )}
+            {(paid.kind === 'pending' || paid.kind === 'failed' || paid.kind === 'error') && (
+              <>
+                <h2 id="sp-receipt-title">{paid.kind === 'failed' ? 'Payment not completed' : 'We couldn’t confirm your payment yet'}</h2>
+                <p className="sp-pick-note">{paid.message} {paid.kind !== 'failed' ? 'If money left your account, your order will still come through. Check again in a minute.' : 'Your bag is still saved.'}</p>
+                {paid.kind !== 'failed' && (
+                  <button type="button" className="sp-checkout" style={{ background: d.colors.accent, color: d.colors.accent_text, opacity: 1 }} onClick={() => { setPaid({ kind: 'checking' }); checkPayment(paid.reference); }}>
+                    Check again
+                  </button>
+                )}
+                <button type="button" className="sp-back" style={{ color: ink }} onClick={() => setPaid(null)}>Back to the shop</button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {open && (
-        <div className="sp-overlay" onClick={() => setOpen(false)}>
+        <div className="sp-overlay" onClick={closeBag}>
           <aside
             className="sp-bag"
             role="dialog"
@@ -323,7 +489,7 @@ function Store({ data }: { data: StoreData }) {
           >
             <div className="sp-bag-head">
               <h2>Your bag</h2>
-              <button type="button" className="sp-close" style={{ color: ink }} onClick={() => setOpen(false)} aria-label="Close bag">×</button>
+              <button type="button" className="sp-close" style={{ color: ink }} onClick={closeBag} aria-label="Close bag">×</button>
             </div>
             {lines.length === 0 ? (
               <p className="sp-bag-empty">Your bag is empty.</p>
@@ -380,14 +546,58 @@ function Store({ data }: { data: StoreData }) {
                 <span>Free</span>
               </div>
             )}
-            <button type="button" className="sp-checkout" disabled style={{ background: d.colors.accent, color: d.colors.accent_text }}>
-              Checkout
-            </button>
-            <p className="sp-soon">
-              {fulfillment === 'pickup'
-                ? "Paying online is coming soon. Pay now, then collect your order from the shop during opening hours."
-                : 'Paying online is coming soon. Delivery costs are added at checkout.'}
-            </p>
+            {stage === 'details' && lines.length > 0 && (
+              <form className="sp-form" noValidate onSubmit={e => { e.preventDefault(); pay(); }}>
+                <h3>Your details</h3>
+                <BuyerField label="Full name" value={buyer.name} error={fieldError('name')} autoComplete="name" ink={ink}
+                  onChange={v => editBuyer({ name: v })} />
+                <BuyerField label="Email" type="email" value={buyer.email} error={fieldError('email')} autoComplete="email" ink={ink}
+                  hint="Your receipt is sent here." onChange={v => editBuyer({ email: v })} />
+                <BuyerField label="Phone (WhatsApp if you have it)" type="tel" value={buyer.phone} error={fieldError('phone')} autoComplete="tel" ink={ink}
+                  onChange={v => editBuyer({ phone: v })} />
+                {fulfillment === 'delivery' && (
+                  <>
+                    <BuyerField label="Delivery address" value={buyer.address} error={fieldError('address')} autoComplete="street-address" ink={ink}
+                      onChange={v => editBuyer({ address: v })} />
+                    <BuyerField label="City or town" value={buyer.city} error={fieldError('city')} autoComplete="address-level2" ink={ink}
+                      onChange={v => editBuyer({ city: v })} />
+                  </>
+                )}
+                <label className="sp-optin">
+                  <input type="checkbox" checked={buyer.optIn} onChange={e => editBuyer({ optIn: e.target.checked })} style={{ accentColor: d.colors.accent }} />
+                  <span>Send me news and offers from {data.name}</span>
+                </label>
+                {payError && <div className="sp-pay-error" role="alert">{payError}</div>}
+                <button type="submit" className="sp-checkout sp-pay" disabled={paying} style={{ background: d.colors.accent, color: d.colors.accent_text }}>
+                  {paying ? 'Opening Paystack…' : `Pay ${fmt(subtotal)}`}
+                </button>
+                <p className="sp-soon">
+                  {LIVE ? 'You pay securely on Paystack: card, bank transfer or USSD.' : 'Demo store: no real payment is taken.'}
+                  {fulfillment === 'delivery' ? ' The shop will contact you about delivery.' : ''}
+                </p>
+                <button type="button" className="sp-back" style={{ color: ink }} onClick={() => setStage('bag')}>← Back to bag</button>
+              </form>
+            )}
+            {stage === 'bag' && (
+              <>
+                <button
+                  type="button"
+                  className="sp-checkout"
+                  disabled={!data.acceptsPayments || lines.length === 0}
+                  style={{ background: d.colors.accent, color: d.colors.accent_text, opacity: !data.acceptsPayments || lines.length === 0 ? 0.5 : 1 }}
+                  onClick={() => { setShowErrors(false); setStage('details'); }}
+                >
+                  Checkout
+                </button>
+                <p className="sp-soon">
+                  {!data.acceptsPayments
+                    ? "This shop isn't taking online payments yet. Message the shop to order."
+                    : fulfillment === 'pickup'
+                      ? 'Pay now, then collect your order from the shop during opening hours.'
+                      : 'The shop arranges delivery with you after you pay.'}
+                </p>
+              </>
+            )}
           </aside>
         </div>
       )}
@@ -441,5 +651,23 @@ function ShopVisit({ pickup, country, ink, card }: { pickup: Pickup; country: Co
         ))}
       </dl>
     </section>
+  );
+}
+
+function BuyerField(props: { label: string; value: string; onChange: (v: string) => void; error: string; ink: string; type?: string; autoComplete?: string; hint?: string }) {
+  return (
+    <label className="sp-field">
+      <span>{props.label}</span>
+      <input
+        type={props.type ?? 'text'}
+        value={props.value}
+        autoComplete={props.autoComplete}
+        aria-invalid={!!props.error}
+        maxLength={props.type === 'tel' ? 20 : 200}
+        style={{ color: props.ink, borderColor: props.error ? 'oklch(0.55 0.18 30)' : props.ink + '33' }}
+        onChange={e => props.onChange(e.target.value)}
+      />
+      {props.error ? <small className="sp-field-error">{props.error}</small> : props.hint ? <small>{props.hint}</small> : null}
+    </label>
   );
 }

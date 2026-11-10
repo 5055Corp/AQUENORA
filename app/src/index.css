@@ -547,3 +547,14 @@ button:disabled { cursor: default; }
 .pickup-actions { display: flex; justify-content: flex-end; }
 .order-pills { display: flex; gap: 6px; flex-wrap: wrap; }
 .pill-pickup { background: var(--chip); color: var(--chip-ink); }
+
+/* ---------- Get paid (Financials page) ---------- */
+.payout-card { border-radius: 18px; padding: 18px 20px; display: flex; flex-direction: column; gap: 16px; margin-bottom: 18px; }
+.split { margin: 0; display: flex; flex-direction: column; gap: 4px; font-size: 14px; background: var(--tile); border: 1px solid var(--line-soft); border-radius: 12px; padding: 12px 14px; }
+.split-head { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted-3); margin-bottom: 4px; }
+.split div:not(.split-head) { display: flex; justify-content: space-between; gap: 12px; }
+.split dt { color: var(--muted-2); }
+.split dd { margin: 0; font-variant-numeric: tabular-nums; }
+.split .split-you { border-top: 1px solid var(--line); padding-top: 6px; margin-top: 2px; font-weight: 700; }
+.split .split-you dt { color: var(--ink); }
+.ob-pay-later { font-size: 13px; font-weight: 700; color: var(--muted-2); text-align: right; }

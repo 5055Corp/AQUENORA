@@ -42,7 +42,18 @@ export interface ApiSeller {
   design: unknown;
   /** In-store pickup settings (see pickup.ts), or null if never set. */
   pickup: unknown;
+  /** The bank account sales are paid into (set once Paystack is connected). */
+  payout: Payout | null;
 }
+
+export interface Payout {
+  bank_name: string;
+  bank_code: string;
+  account_last4: string;
+  account_name: string | null;
+}
+
+export interface Bank { name: string; code: string }
 
 export interface ApiProduct {
   id: string;
@@ -202,7 +213,7 @@ export function sellerIdFromToken(token: string): string {
 const PUBLISHABLE_KEY: string = import.meta.env.VITE_MEDUSA_PUBLISHABLE_KEY ?? '';
 
 export interface PublicStore {
-  store: Pick<ApiSeller, 'id' | 'name' | 'handle' | 'category' | 'country_code' | 'currency_code' | 'sells_abroad' | 'theme' | 'accent' | 'font' | 'announcement' | 'design'> & { show_badge?: boolean; pickup?: unknown };
+  store: Pick<ApiSeller, 'id' | 'name' | 'handle' | 'category' | 'country_code' | 'currency_code' | 'sells_abroad' | 'theme' | 'accent' | 'font' | 'announcement' | 'design'> & { show_badge?: boolean; pickup?: unknown; accepts_payments?: boolean };
   products: ApiProduct[];
 }
 
@@ -220,6 +231,48 @@ export async function fetchPublicStore(handle: string): Promise<PublicStore> {
   if (!res.ok) throw new ApiError(res.status, 'This store could not be loaded. Please try again.');
   return res.json();
 }
+
+export interface CheckoutRequest {
+  email: string;
+  name: string;
+  phone: string;
+  fulfillment: 'delivery' | 'pickup';
+  address?: string;
+  city?: string;
+  marketing_opt_in: boolean;
+  return_url: string;
+  items: { product_id: string; quantity: number }[];
+}
+
+export interface CheckoutLine { product_id: string; title: string; quantity: number; unit_price: number }
+
+export type PaymentResult =
+  | { status: 'paid'; order: { id: string; display_id: number }; checkout: { amount: number; currency_code: string; fulfillment: 'delivery' | 'pickup'; items: CheckoutLine[] } }
+  | { status: 'pending' | 'failed'; message: string; checkout: { amount: number; fulfillment: 'delivery' | 'pickup'; items: CheckoutLine[] } | null };
+
+/** POSTs to a public /store route; errors carry the backend's message (e.g. "Only 2 left of Kimono."). */
+async function storePost<T>(path: string, body: unknown): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-publishable-api-key': PUBLISHABLE_KEY },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new ApiError(0, "Can't reach the shop right now. Check your internet connection and try again.");
+  }
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw new ApiError(res.status, res.status < 500 && data?.message ? data.message : 'Something went wrong. Please try again.');
+  return data as T;
+}
+
+/** Starts paying: returns Paystack's payment page to send the buyer to. */
+export const startCheckout = (handle: string, body: CheckoutRequest) =>
+  storePost<{ reference: string; authorization_url: string }>(`/store/sellers/${encodeURIComponent(handle)}/checkout`, body);
+
+/** After Paystack sends the buyer back: did the payment go through? */
+export const verifyPayment = (reference: string) => storePost<PaymentResult>('/store/payments/verify', { reference });
 
 /** Which store a seller's own domain opens (null if none is connected). */
 export async function fetchHandleForDomain(host: string): Promise<string | null> {
@@ -243,7 +296,7 @@ export const api = {
   createSeller: (token: string, body: { name: string; category: string; country_code: CountryId; sells_abroad: boolean }) =>
     request<{ seller: ApiSeller }>('/sellers', { body, token }),
   me: (token: string) => request<{ seller: ApiSeller }>('/sellers/me', { token }),
-  updateMe: (token: string, body: Partial<Omit<ApiSeller, 'id' | 'email' | 'currency_code' | 'paystack_subaccount_code'>>) =>
+  updateMe: (token: string, body: Partial<Omit<ApiSeller, 'id' | 'email' | 'currency_code' | 'paystack_subaccount_code' | 'payout'>>) =>
     request<{ seller: ApiSeller }>('/sellers/me', { body, token }),
 
   products: (token: string) => request<{ products: ApiProduct[] }>('/sellers/me/products', { token }),
@@ -268,6 +321,10 @@ export const api = {
   setDomain: (token: string, domain: string) => request<PlanResponse>('/sellers/me/domain', { body: { domain }, token }),
   verifyDomain: (token: string) => request<PlanResponse>('/sellers/me/domain/verify', { method: 'POST', token }),
   removeDomain: (token: string) => request<PlanResponse>('/sellers/me/domain', { method: 'DELETE', token }),
+
+  banks: (token: string) => request<{ banks: Bank[] }>('/sellers/me/payouts/banks', { token }),
+  setPayout: (token: string, body: { bank_code: string; account_number: string }) =>
+    request<{ seller: ApiSeller }>('/sellers/me/payouts', { body, token }),
 
   sendCampaign: (token: string, body: { audience: Audience; subject: string; message: string }) =>
     request<{ campaign: Campaign }>('/sellers/me/campaigns', { body, token }),

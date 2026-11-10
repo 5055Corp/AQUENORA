@@ -10,7 +10,7 @@ export function Home() {
   const checklist: { k: Key; label: string; done: boolean; action?: string; help?: string }[] = [
     { k: 'store', label: 'Create your store', done: true },
     { k: 'product', label: 'Add your first product', done: products.length > 0 },
-    { k: 'pay', label: 'Connect Paystack so you can get paid', done: s.paystack, action: 'Connect', help: HELP.checklistPay },
+    { k: 'pay', label: 'Add your bank account so you can get paid', done: s.paystack, action: 'Add', help: HELP.checklistPay },
     { k: 'design', label: 'Choose how your store looks', done: s.designed, action: 'Choose' },
     { k: 'share', label: 'Share your store link on WhatsApp or Instagram', done: s.shared, action: 'Share', help: HELP.checklistShare },
     { k: 'order', label: 'Get your first order', done: s.orders.length > 0 },
@@ -19,7 +19,11 @@ export function Home() {
   const total = checklist.length;
 
   const doItem = (k: Key) => {
-    if (k === 'pay') { set({ paystack: true }); flash('Paystack connected. You can now get paid'); }
+    if (k === 'pay') {
+      // The "Get paid" card on Financials: choose a bank and enter the account number.
+      set({ tab: 'money' });
+      window.setTimeout(() => document.getElementById('get-paid')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+    }
     if (k === 'design') set({ tab: 'design' });
     if (k === 'share') { set({ shared: true }); copyLink(); flash('Link copied. Paste it in your WhatsApp status'); }
   };

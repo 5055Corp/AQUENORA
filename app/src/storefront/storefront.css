@@ -107,3 +107,24 @@
 .sp-hours dd { margin: 0; font-variant-numeric: tabular-nums; }
 .sp-hours .sp-today { font-weight: 700; background: rgba(128, 128, 128, 0.12); }
 .sp-hours .sp-today dt { opacity: 1; }
+
+/* checkout: buyer's details and the receipt */
+.sp-form { display: flex; flex-direction: column; gap: 12px; border-top: 1px solid rgba(128, 128, 128, 0.2); padding-top: 14px; }
+.sp-form h3 { margin: 0; font-size: 16px; }
+.sp-field { display: flex; flex-direction: column; gap: 5px; font-size: 13.5px; font-weight: 600; }
+.sp-field input { font: inherit; font-size: 15px; font-weight: 400; padding: 11px 12px; border: 1.5px solid; border-radius: 10px; background: transparent; min-height: 44px; box-sizing: border-box; }
+.sp-field small { font-size: 12.5px; font-weight: 500; opacity: 0.7; }
+.sp-field .sp-field-error { color: oklch(0.5 0.18 30); opacity: 1; font-weight: 700; }
+.sp-optin { display: flex; align-items: center; gap: 10px; font-size: 14px; min-height: 44px; cursor: pointer; }
+.sp-optin input { width: 18px; height: 18px; flex-shrink: 0; }
+.sp-pay-error { font-size: 14px; font-weight: 700; color: oklch(0.5 0.18 30); background: oklch(0.95 0.03 30); border-radius: 10px; padding: 10px 12px; }
+.sp-pay { opacity: 1; }
+.sp-pay:disabled { opacity: 0.6; }
+.sp-back { background: none; border: none; font: inherit; font-size: 14px; font-weight: 600; min-height: 44px; align-self: center; opacity: 0.8; cursor: pointer; }
+.sp-center { align-items: center; justify-content: center; padding: 16px; }
+.sp-receipt { width: 100%; max-width: 420px; border-radius: 18px; padding: 24px; display: flex; flex-direction: column; gap: 12px; box-sizing: border-box; max-height: 90vh; overflow-y: auto; }
+.sp-receipt h2 { margin: 0; font-family: var(--f-display); font-size: 22px; line-height: 1.25; }
+.sp-receipt .sp-total { margin-top: 0; }
+.sp-tick { width: 48px; height: 48px; border-radius: 24px; display: grid; place-items: center; font-size: 24px; font-weight: 700; }
+.sp-receipt-items { margin: 0; padding-left: 18px; font-size: 14.5px; line-height: 1.6; }
+@media (max-width: 520px) { .sp-center { align-items: center; } }

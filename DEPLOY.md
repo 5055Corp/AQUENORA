@@ -119,7 +119,13 @@ Adding domains by hand is fine for the first sellers. Once there are more, AQENO
   3. On the backend, set `RESEND_API_KEY` and `EMAIL_FROM=AQENORA <news@aqenora.com>`.
 
   Until then, campaign emails are only written to the server log.
-- **Payments (Paystack):** checkout and automatic Pro billing are the next build step. They need Paystack keys, which go into Railway variables, never into GitHub.
+- **Payments (Paystack):** buyer checkout with automatic split payments is built.
+  1. In the Paystack dashboard → Settings → API Keys & Webhooks, copy the **secret key** (start with `sk_test_...` to try it safely, switch to `sk_live_...` at launch).
+  2. On the backend service in Railway, set `PAYSTACK_SECRET_KEY` to it. Never paste it in chat or commit it to GitHub.
+  3. In the same Paystack page, set the **Webhook URL** to `https://<your-backend>/paystack/webhook`. It records orders even if a buyer closes the page before coming back.
+  4. Make sure `STORE_DOMAIN` is set (e.g. `aqenora.com`), so Paystack may send buyers back to `<shop>.aqenora.com`.
+
+  Then each seller adds their bank account in the app (Financials → Get paid). Every sale is split by Paystack: the seller's share goes to their bank, AQENORA's commission to your Paystack account, and Paystack's fee comes out of the seller's share. Automatic Pro billing is still to come.
 
 ## Keeping it safe
 
