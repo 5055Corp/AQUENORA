@@ -8,5 +8,5 @@ routes = [{ pattern = "*/*", zone_name = "aquenora.com" }]
 
 [vars]
 BACKEND_ORIGIN = "https://api.aquenora.com"
-# Set to the web service's Railway address (Settings -> Networking in Railway).
-WEB_ORIGIN = ""
+# The seller app's address (grey-cloud DNS, so it goes straight to Railway's web service).
+WEB_ORIGIN = "https://app.aquenora.com"

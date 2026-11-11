@@ -8,7 +8,7 @@
 //
 // Variables (Worker -> Settings -> Variables):
 //   BACKEND_ORIGIN  e.g. https://api.aquenora.com
-//   WEB_ORIGIN      the web service's Railway address, e.g. https://web-production-1234.up.railway.app
+//   WEB_ORIGIN      the seller app's address, https://app.aquenora.com
 
 export default {
   async fetch(request, env) {
