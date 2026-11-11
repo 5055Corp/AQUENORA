@@ -1,17 +1,17 @@
 import type { AuthenticatedMedusaRequest, MedusaResponse } from "@medusajs/framework/http"
-import { sellerPlanResponse } from "../../../../../lib/seller-plan-route"
+import { MedusaError } from "@medusajs/framework/utils"
+import { paystackEnabled } from "../../../../../lib/paystack"
+import { startProCheckout } from "../../../../../lib/pro-billing"
+import type { ProCheckoutBody } from "../../../validators"
 
 /**
- * POST /sellers/me/plan/upgrade
- * Paying online needs Paystack subscriptions (not switched on yet). Until then this answers with
- * how to pay by transfer; the AQUENORA team then marks the shop as paid in the admin dashboard.
+ * POST /sellers/me/plan/upgrade { return_url }
+ * Starts paying for Pro by card: returns Paystack's payment page. The card is then charged
+ * automatically each month (see lib/pro-billing.ts).
  */
-export async function POST(req: AuthenticatedMedusaRequest, res: MedusaResponse) {
-  const info = await sellerPlanResponse(req, req.auth_context.actor_id)
-  res.status(202).json({
-    payment: "manual",
-    message: "Online card payment for Pro opens soon. To upgrade now, pay by bank transfer and we'll switch on Pro for you.",
-    price: info.price,
-    billing_contact: info.billing_contact,
-  })
+export async function POST(req: AuthenticatedMedusaRequest<ProCheckoutBody>, res: MedusaResponse) {
+  if (!paystackEnabled()) {
+    throw new MedusaError(MedusaError.Types.NOT_ALLOWED, "Card payments for Pro aren't switched on yet.")
+  }
+  res.json(await startProCheckout(req.scope, req.auth_context.actor_id, req.validatedBody.return_url))
 }

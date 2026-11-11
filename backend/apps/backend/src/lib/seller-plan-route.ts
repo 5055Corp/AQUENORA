@@ -4,8 +4,10 @@ import { BILLING_MODULE } from "../modules/billing"
 import type BillingModuleService from "../modules/billing/service"
 import { buyDomainUrl, dnsRecords } from "./domains"
 import { planFor } from "./plans"
+import { paystackEnabled } from "./paystack"
+import { billingSummary, monthlyCharge, type ProBilling } from "./pro-billing"
 
-export const SELLER_PLAN_FIELDS = ["id", "handle", "country_code", "currency_code", "trial_ends_at", "pro_paid_until", "custom_domain", "domain_verified_at"]
+export const SELLER_PLAN_FIELDS = ["id", "handle", "country_code", "currency_code", "trial_ends_at", "pro_paid_until", "pro_billing", "custom_domain", "domain_verified_at"]
 
 type Row = {
   id: string
@@ -16,6 +18,7 @@ type Row = {
   pro_paid_until: string | null
   custom_domain: string | null
   domain_verified_at: string | null
+  pro_billing: ProBilling | null
 }
 
 /** Everything the seller app's "Plan & domain" page shows. */
@@ -34,8 +37,15 @@ export async function sellerPlanResponse(req: MedusaRequest, sellerId: string) {
       ? { name: seller.custom_domain, connected: !!seller.domain_verified_at, records: dnsRecords(seller.custom_domain) }
       : null,
     buy_domain_url: buyDomainUrl(seller.handle),
-    // How to pay until Paystack subscriptions are switched on (BILLING_CONTACT, e.g. a WhatsApp number).
-    billing_contact: process.env.BILLING_CONTACT || null,
+    // Pro is paid by card through Paystack and renews monthly.
+    billing: {
+      card_payments: paystackEnabled(),
+      // What the card is charged each month (may be converted to AQUENORA's Paystack currency).
+      charge: await monthlyCharge(req.scope, seller.country_code)
+        .then((c) => ({ amount: c.amount, currency_code: c.currency.toLowerCase() }))
+        .catch(() => null),
+      ...billingSummary(seller),
+    },
   }
 }
 

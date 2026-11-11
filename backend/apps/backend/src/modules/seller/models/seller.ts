@@ -36,6 +36,10 @@ const Seller = model.define("seller", {
   // Pro is active while either date is in the future. A trial keeps the "Powered by AQUENORA" badge.
   trial_ends_at: model.dateTime().nullable(),
   pro_paid_until: model.dateTime().nullable(),
+  // Pro by card (see lib/pro-billing.ts): the saved Paystack card and renewal state.
+  // { authorization_code, signature, email, brand, last4, exp_month, exp_year, auto_renew,
+  //   failures, last_error, last_attempt_at }
+  pro_billing: model.json().nullable(),
   // ---- own domain (Pro) ----
   custom_domain: model.text().nullable(),
   domain_verified_at: model.dateTime().nullable(),

@@ -122,9 +122,8 @@ medusaIntegrationTestRunner({
       const finance = (await api.get("/admin/finance/sellers", { headers })).data.sellers[0]
       expect(finance).toEqual(expect.objectContaining({ plan: "pro", plan_status: "paid", commission_percent: 1 }))
 
-      const upgrade = await api.post("/sellers/me/plan/upgrade", {}, { headers: s.headers })
-      expect(upgrade.status).toEqual(202)
-      expect(upgrade.data.payment).toEqual("manual")
+      // Paying for Pro is by card only (see pro-billing.spec.ts); it needs a return address.
+      expect((await err(api.post("/sellers/me/plan/upgrade", {}, { headers: s.headers }))).status).toEqual(400)
     })
   },
 })

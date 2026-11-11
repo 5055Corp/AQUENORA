@@ -2,6 +2,7 @@ import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import { confirmPayment } from "../../../lib/checkout"
 import { validWebhookSignature } from "../../../lib/paystack"
+import { confirmProPayment } from "../../../lib/pro-billing"
 
 /**
  * POST /paystack/webhook
@@ -15,12 +16,14 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     return
   }
   const event = req.body as { event?: string; data?: { reference?: string } }
-  if (event.event === "charge.success" && event.data?.reference?.startsWith("aq_")) {
+  const ref = event.data?.reference ?? ""
+  if (event.event === "charge.success" && /^aq[pr]?_/.test(ref)) {
     try {
-      await confirmPayment(req.scope, event.data.reference)
+      // aq_ = a buyer's order; aqp_ / aqr_ = a seller paying for Pro (first payment / renewal).
+      await (ref.startsWith("aq_") ? confirmPayment(req.scope, ref) : confirmProPayment(req.scope, ref))
     } catch (e) {
       // A 500 makes Paystack retry later.
-      req.scope.resolve(ContainerRegistrationKeys.LOGGER).error(`Paystack webhook ${event.data.reference}: ${(e as Error).message}`)
+      req.scope.resolve(ContainerRegistrationKeys.LOGGER).error(`Paystack webhook ${ref}: ${(e as Error).message}`)
       res.status(500).json({ message: "Couldn't record the order yet" })
       return
     }

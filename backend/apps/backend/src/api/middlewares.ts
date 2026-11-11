@@ -13,6 +13,9 @@ import {
   CreateSellerProductSchema,
   CreateSellerSchema,
   BillingSettingsSchema,
+  AutoRenewSchema,
+  ProCheckoutSchema,
+  ProConfirmSchema,
   UploadImageSchema,
   CheckoutSchema,
   SetPayoutSchema,
@@ -98,6 +101,21 @@ export default defineMiddlewares({
       methods: ["POST"],
       matcher: "/sellers/me/plan/*",
       middlewares: [sellerAuth],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/sellers/me/plan/upgrade",
+      middlewares: [validateAndTransformBody(ProCheckoutSchema)],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/sellers/me/plan/confirm",
+      middlewares: [validateAndTransformBody(ProConfirmSchema)],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/sellers/me/plan/auto-renew",
+      middlewares: [validateAndTransformBody(AutoRenewSchema)],
     },
     {
       methods: ["POST"],

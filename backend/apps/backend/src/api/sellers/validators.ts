@@ -180,3 +180,11 @@ export const UploadImageSchema = z
   })
   .strict()
 export type UploadImageBody = z.infer<typeof UploadImageSchema>
+
+// ---- Pro by card ----
+export const ProCheckoutSchema = z.object({ return_url: z.string().url().max(500) }).strict()
+export type ProCheckoutBody = z.infer<typeof ProCheckoutSchema>
+export const ProConfirmSchema = z.object({ reference: z.string().trim().regex(/^aq[pr]_[0-9a-f]{8,64}$/) }).strict()
+export type ProConfirmBody = z.infer<typeof ProConfirmSchema>
+export const AutoRenewSchema = z.object({ on: z.boolean() }).strict()
+export type AutoRenewBody = z.infer<typeof AutoRenewSchema>
