@@ -55,8 +55,9 @@ button { font-family: inherit; color: var(--ink); cursor: pointer; }
   letter-spacing: 0.08em;
 }
 /* The AQUENORA logo (components/Logo.tsx): symbol + name, sized by font-size. */
-.logo { display: inline-flex; align-items: center; gap: 0.4em; color: var(--ink); line-height: 1; }
-.m-top .logo { color: var(--muted-3); }
+/* Brand colours (Midnight): the A, star and name in Midnight, the orbit ring in Dusk. */
+:root { --brand-midnight: #120A1F; --brand-ring: #6B6378; }
+.logo { display: inline-flex; align-items: center; gap: 0.4em; color: var(--brand-midnight); line-height: 1; }
 .link-btn {
   align-self: flex-start;
   background: none;

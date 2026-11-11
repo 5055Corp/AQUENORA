@@ -40,7 +40,7 @@ export function Mark({ size = '1em', ringColor, title, style }: { size?: string 
  * Symbol + name. The name is the original AQUENORA wordmark (Bricolage Grotesque Bold, set by the
  * .wordmark class), at the same size as before; the symbol is sized to fit the same height.
  */
-export function Logo({ className = 'wordmark', ringColor, style }: { className?: string; ringColor?: string; style?: CSSProperties }) {
+export function Logo({ className = 'wordmark', ringColor = 'var(--brand-ring)', style }: { className?: string; ringColor?: string; style?: CSSProperties }) {
   return (
     <div className={`logo ${className}`} aria-label="AQUENORA" style={style}>
       <Mark size="1.25em" ringColor={ringColor} />
