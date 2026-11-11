@@ -35,7 +35,7 @@ const prepareSellerOrderStatusStep = createStep(
 
 /**
  * Moves one of the seller's orders along: paid and ready to pack -> on the way -> delivered.
- * Kept in order metadata until AQENORA uses Medusa's fulfillment flow for delivery tracking.
+ * Kept in order metadata until AQUENORA uses Medusa's fulfillment flow for delivery tracking.
  */
 export const updateSellerOrderStatusWorkflow = createWorkflow(
   "update-seller-order-status",

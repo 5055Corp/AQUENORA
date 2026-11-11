@@ -51,7 +51,7 @@ export const createSellerProductWorkflow = createWorkflow(
         products: [
           {
             title: input.title,
-            // Product web handles are unique across all of AQENORA, so two shops (or one shop
+            // Product web handles are unique across all of AQUENORA, so two shops (or one shop
             // twice) can sell something called "Wrap": add a short random ending.
             handle: productHandle(input.title),
             description: input.description,

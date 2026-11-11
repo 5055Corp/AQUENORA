@@ -1,7 +1,7 @@
 import { model } from "@medusajs/framework/utils"
 
 /**
- * A seller's store on AQENORA. One seller = one shop at <handle>.aqenora.com.
+ * A seller's store on AQUENORA. One seller = one shop at <handle>.aquenora.com.
  * The seller's login lives in the auth module and points here through
  * `app_metadata.seller_id` (actor type "seller").
  */
@@ -15,7 +15,7 @@ const Seller = model.define("seller", {
   country_code: model.enum(["NG", "GH", "ZA", "CI", "SN", "DI"]).default("NG"),
   currency_code: model.text().default("ngn"),
   sells_abroad: model.boolean().default(true),
-  // The seller's Paystack subaccount: sales settle to their bank, minus AQENORA's commission and
+  // The seller's Paystack subaccount: sales settle to their bank, minus AQUENORA's commission and
   // Paystack's fee (see lib/paystack.ts). Set by POST /sellers/me/payouts.
   paystack_subaccount_code: model.text().nullable(),
   // What the seller sees about their payout account: { bank_name, bank_code, account_last4, account_name }.
@@ -33,7 +33,7 @@ const Seller = model.define("seller", {
   shipping: model.json().nullable(),
   onboarding_completed: model.boolean().default(false),
   // ---- plan ----
-  // Pro is active while either date is in the future. A trial keeps the "Powered by AQENORA" badge.
+  // Pro is active while either date is in the future. A trial keeps the "Powered by AQUENORA" badge.
   trial_ends_at: model.dateTime().nullable(),
   pro_paid_until: model.dateTime().nullable(),
   // ---- own domain (Pro) ----

@@ -58,7 +58,7 @@ export function Home() {
             </strong>
             <span>
               {planInfo.plan.status === 'trial'
-                ? `Upgrade for ${formatPrice(planInfo.price)} a month to keep your charts and own domain, and remove "Powered by AQENORA".`
+                ? `Upgrade for ${formatPrice(planInfo.price)} a month to keep your charts and own domain, and remove "Powered by AQUENORA".`
                 : `Get full financial charts, your own domain and a lower ${planInfo.settings.pro_commission_percent}% fee with Pro.`}
             </span>
           </div>

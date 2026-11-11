@@ -14,7 +14,7 @@ const Checkout = model.define("checkout", {
   currency_code: model.text(),
   /** Total in the seller's currency (whole units). */
   amount: model.bigNumber(),
-  /** AQENORA's commission (whole units) and its rate, fixed at checkout. */
+  /** AQUENORA's commission (whole units) and its rate, fixed at checkout. */
   platform_fee: model.bigNumber(),
   commission_rate: model.float(),
   /** Buyer, items and delivery or pickup (see api/store/sellers/[handle]/checkout). */

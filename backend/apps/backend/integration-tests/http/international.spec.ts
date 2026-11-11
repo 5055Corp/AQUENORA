@@ -36,7 +36,7 @@ beforeAll(async () => {
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r))
   process.env.PAYSTACK_API_URL = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
   process.env.PAYSTACK_SECRET_KEY = SECRET
-  process.env.STORE_DOMAIN = "aqenora.test"
+  process.env.STORE_DOMAIN = "aquenora.test"
   process.env.EXCHANGE_RATES_URL = "" // no network in tests: built-in rates
 })
 afterAll(() => new Promise<void>((r) => server.close(() => r())))
@@ -72,7 +72,7 @@ medusaIntegrationTestRunner({
       postal_code: "M5J 2J2",
       country: "CA",
       display_currency: "CAD",
-      return_url: "https://adirehouse.aqenora.test/",
+      return_url: "https://adirehouse.aquenora.test/",
       items: [{ product_id, quantity: 1 }],
       ...extra,
     })
@@ -94,7 +94,7 @@ medusaIntegrationTestRunner({
       expect(JSON.stringify(pub)).not.toContain("106104")
     })
 
-    it("a buyer in Canada pays items + DHL; AQENORA's fee is on the items only", async () => {
+    it("a buyer in Canada pays items + DHL; AQUENORA's fee is on the items only", async () => {
       const { headers, product, store } = await setup()
       await api.post("/sellers/me", { shipping: { from, options: [dhl, local] } }, { headers })
 

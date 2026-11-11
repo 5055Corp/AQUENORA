@@ -1,5 +1,5 @@
-# AQENORA backend (Medusa). Build context: this backend/ folder.
-# Railway builds this automatically (see railway.json); locally: docker build -t aqenora-backend .
+# AQUENORA backend (Medusa). Build context: this backend/ folder.
+# Railway builds this automatically (see railway.json); locally: docker build -t aquenora-backend .
 
 # ---- build: install everything, compile the server and the admin dashboard ----
 FROM node:22-bookworm-slim AS build

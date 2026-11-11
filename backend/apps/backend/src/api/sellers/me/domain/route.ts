@@ -23,7 +23,7 @@ export async function POST(req: AuthenticatedMedusaRequest<SetDomainBody>, res: 
   const sellers: SellerModuleService = req.scope.resolve(SELLER_MODULE)
   const [taken] = await sellers.listSellers({ custom_domain: domain }, { take: 1 })
   if (taken && taken.id !== seller.id) {
-    throw new MedusaError(MedusaError.Types.DUPLICATE_ERROR, `${domain} is already connected to another AQENORA store.`)
+    throw new MedusaError(MedusaError.Types.DUPLICATE_ERROR, `${domain} is already connected to another AQUENORA store.`)
   }
   if (seller.custom_domain && seller.custom_domain !== domain) {
     await removeCustomHostname(seller.custom_domain).catch(() => undefined)

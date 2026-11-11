@@ -59,16 +59,16 @@ medusaIntegrationTestRunner({
           .post("/sellers", { name: "Adire  House!" }, { headers: { authorization: `Bearer ${reg.data.token}` } })
           .catch((e) => e.response)
         expect(err.status).toEqual(422)
-        expect(err.data.message).toContain("adirehouse.aqenora.com is already taken")
+        expect(err.data.message).toContain("adirehouse.aquenora.com is already taken")
       })
 
-      it("refuses web addresses AQENORA uses itself", async () => {
+      it("refuses web addresses AQUENORA uses itself", async () => {
         const reg = await api.post("/auth/seller/emailpass/register", { email: "res@example.com", password })
         const res = await api
           .post("/sellers", { name: "App" }, { headers: { authorization: `Bearer ${reg.data.token}` } })
           .catch((e) => e.response)
         expect(res.status).toEqual(422)
-        expect(res.data.message).toContain("reserved for AQENORA")
+        expect(res.data.message).toContain("reserved for AQUENORA")
       })
 
       it("blocks the seller API without a seller login", async () => {

@@ -19,10 +19,10 @@ medusaIntegrationTestRunner({
       return { seller: created.data.seller, headers, product }
     }
     async function admin() {
-      const reg = await api.post("/auth/user/emailpass/register", { email: "owner@aqenora.com", password })
+      const reg = await api.post("/auth/user/emailpass/register", { email: "owner@aquenora.com", password })
       const authIdentityId = JSON.parse(Buffer.from(reg.data.token.split(".")[1], "base64").toString()).auth_identity_id
-      await createUserAccountWorkflow(getContainer()).run({ input: { authIdentityId, userData: { email: "owner@aqenora.com" } } })
-      const login = await api.post("/auth/user/emailpass", { email: "owner@aqenora.com", password })
+      await createUserAccountWorkflow(getContainer()).run({ input: { authIdentityId, userData: { email: "owner@aquenora.com" } } })
+      const login = await api.post("/auth/user/emailpass", { email: "owner@aquenora.com", password })
       return { authorization: `Bearer ${login.data.token}` }
     }
     const buy = (seller_id: string, product_id: string, email = "b@example.com") =>
@@ -78,7 +78,7 @@ medusaIntegrationTestRunner({
       await api.post("/sellers/me/plan/trial", {}, { headers: s.headers })
 
       expect((await err(api.post("/sellers/me/domain", { domain: "not a domain" }, { headers: s.headers }))).status).toEqual(400)
-      expect((await err(api.post("/sellers/me/domain", { domain: "shop.aqenora.com" }, { headers: s.headers }))).status).toEqual(400)
+      expect((await err(api.post("/sellers/me/domain", { domain: "shop.aquenora.com" }, { headers: s.headers }))).status).toEqual(400)
       const set = (await api.post("/sellers/me/domain", { domain: "https://www.AdireHouse.com/" }, { headers: s.headers })).data
       expect(set.domain).toEqual(expect.objectContaining({ name: "adirehouse.com", connected: false }))
       expect(set.domain.records[0]).toEqual(expect.objectContaining({ type: "CNAME", host: "www" }))
@@ -99,7 +99,7 @@ medusaIntegrationTestRunner({
       expect((await err(api.get("/store/domains/adirehouse.com", h))).status).toEqual(404)
     })
 
-    it("lets the AQENORA team set prices per country, rates and trial length, and mark sellers paid", async () => {
+    it("lets the AQUENORA team set prices per country, rates and trial length, and mark sellers paid", async () => {
       const s = await signUp("gh@example.com", "Accra Art", "GH")
       const headers = await admin()
 

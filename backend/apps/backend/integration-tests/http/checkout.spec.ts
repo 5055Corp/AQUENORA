@@ -56,7 +56,7 @@ beforeAll(async () => {
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r))
   process.env.PAYSTACK_API_URL = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
   process.env.PAYSTACK_SECRET_KEY = SECRET
-  process.env.STORE_DOMAIN = "aqenora.test"
+  process.env.STORE_DOMAIN = "aquenora.test"
 })
 afterAll(() => new Promise<void>((r) => server.close(() => r())))
 
@@ -85,7 +85,7 @@ medusaIntegrationTestRunner({
       city: "Ikeja, Lagos",
       country: "NG",
       marketing_opt_in: true,
-      return_url: "https://adirehouse.aqenora.test/",
+      return_url: "https://adirehouse.aquenora.test/",
       items: [{ product_id, quantity }],
     })
 
@@ -131,7 +131,7 @@ medusaIntegrationTestRunner({
       expect(started.authorization_url).toBe(`https://checkout.paystack.test/${started.reference}`)
       expect(started.amount).toBe(56000)
 
-      // What Paystack was asked: seller's subaccount, AQENORA's 3% as transaction_charge, Paystack fee from the seller.
+      // What Paystack was asked: seller's subaccount, AQUENORA's 3% as transaction_charge, Paystack fee from the seller.
       const tx = paystack.transactions.get(started.reference)!
       expect(tx.body).toMatchObject({
         email: "buyer@example.com",
@@ -141,7 +141,7 @@ medusaIntegrationTestRunner({
         transaction_charge: 168000,
         bearer: "subaccount",
       })
-      expect(tx.body.callback_url).toBe(`https://adirehouse.aqenora.test/?reference=${started.reference}`)
+      expect(tx.body.callback_url).toBe(`https://adirehouse.aquenora.test/?reference=${started.reference}`)
 
       // The return page and the webhook both confirm; only one order is made.
       const [a, b] = await Promise.all([

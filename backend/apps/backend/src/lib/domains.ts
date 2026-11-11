@@ -1,12 +1,12 @@
-// Sellers' own domains (Pro). The seller buys a domain anywhere, points it at AQENORA with the
-// records below, and AQENORA checks DNS until it's connected.
+// Sellers' own domains (Pro). The seller buys a domain anywhere, points it at AQUENORA with the
+// records below, and AQUENORA checks DNS until it's connected.
 
 import { promises as dns } from "node:dns"
 
 /** Where sellers point their domain (the web server's hostname / IP, set when hosting). */
 export function dnsTargets() {
   return {
-    cname: (process.env.STORE_CNAME_TARGET || "stores.aqenora.com").toLowerCase().replace(/\.$/, ""),
+    cname: (process.env.STORE_CNAME_TARGET || "stores.aquenora.com").toLowerCase().replace(/\.$/, ""),
     ip: process.env.STORE_IP || "",
   }
 }
@@ -17,7 +17,7 @@ export function normalizeDomain(input: string): string | null {
   if (d.length > 253 || !/^(?=.{1,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(d)) {
     return null
   }
-  const root = (process.env.STORE_DOMAIN || "aqenora.com").toLowerCase()
+  const root = (process.env.STORE_DOMAIN || "aquenora.com").toLowerCase()
   if (d === root || d.endsWith("." + root)) {
     return null
   }
@@ -35,7 +35,7 @@ export function dnsRecords(domain: string) {
   ]
 }
 
-/** True when www.<domain> (or the domain itself) points at AQENORA. */
+/** True when www.<domain> (or the domain itself) points at AQUENORA. */
 export async function domainPointsHere(domain: string): Promise<boolean> {
   const { cname, ip } = dnsTargets()
   for (const host of [`www.${domain}`, domain]) {

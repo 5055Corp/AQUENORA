@@ -60,7 +60,7 @@ export type FinanceOrder = {
   international: boolean
   /** Real Paystack fee, once payments record it. */
   payment_fee?: number | null
-  /** AQENORA's commission (fraction) on the seller's plan when the order was placed. */
+  /** AQUENORA's commission (fraction) on the seller's plan when the order was placed. */
   commission_rate?: number | null
   items: FinanceItem[]
 }

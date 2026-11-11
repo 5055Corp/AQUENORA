@@ -19,7 +19,7 @@ export function Onboarding() {
       finishOnboarding(false);
     } else {
       set({ screen: 'app', tab: 'home' });
-      flash('Your store is live at ' + slug + '.aqenora.com');
+      flash('Your store is live at ' + slug + '.aquenora.com');
     }
   };
 
@@ -32,7 +32,7 @@ export function Onboarding() {
   return (
     <>
       <div className="ob-top">
-        <div className="wordmark" style={{ fontSize: 20 }}>AQENORA</div>
+        <div className="wordmark" style={{ fontSize: 20 }}>AQUENORA</div>
         <div className="ob-top-right">
           <div className="ob-step">Step {step + 1} of 5</div>
           {live && <button type="button" className="ob-logout" onClick={() => logOut()}>Log out</button>}
@@ -120,7 +120,7 @@ function StepName() {
         placeholder="e.g. Adire House"
         aria-invalid={!!s.nameError}
       />
-      <div className="ob-note">Your web address: <strong>{slug}.aqenora.com</strong></div>
+      <div className="ob-note">Your web address: <strong>{slug}.aquenora.com</strong></div>
       {s.nameError && <div className="field-error" role="alert">{s.nameError}</div>}
       <Help id="url" text={HELP.url} />
     </div>
@@ -230,7 +230,7 @@ function LivePreview() {
     <div className="pv-side" aria-label="Live preview of your store">
       <div className="eyebrow">Live preview</div>
       <div className="pv-card">
-        <div className="pv-url">{slug}.aqenora.com</div>
+        <div className="pv-url">{slug}.aquenora.com</div>
         <div className="pv-body">
           <div className="pv-name">{shopNameShown}</div>
           <div className="pv-cat">{s.category}</div>

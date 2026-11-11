@@ -4,7 +4,7 @@ import type BillingModuleService from "../../../../modules/billing/service"
 import { updateBillingSettingsWorkflow } from "../../../../workflows/update-billing"
 import type { BillingSettingsBody } from "../../../sellers/validators"
 
-/** GET /admin/billing/settings: commission per plan and trial length (AQENORA team). */
+/** GET /admin/billing/settings: commission per plan and trial length (AQUENORA team). */
 export async function GET(req: AuthenticatedMedusaRequest, res: MedusaResponse) {
   const billing: BillingModuleService = req.scope.resolve(BILLING_MODULE)
   res.json({ settings: await billing.getSettings() })

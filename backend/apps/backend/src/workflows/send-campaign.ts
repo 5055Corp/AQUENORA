@@ -54,7 +54,7 @@ export const sendCampaignWorkflow = createWorkflow("send-campaign", function (in
     recipients.map((r) => ({
       to: r.email,
       channel: "email",
-      template: "aqenora-campaign",
+      template: "aquenora-campaign",
       resource_id: campaign.id,
       resource_type: "marketing_campaign",
       idempotency_key: `${campaign.id}:${r.email}`,

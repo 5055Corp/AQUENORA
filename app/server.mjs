@@ -1,11 +1,11 @@
-// Production web server for the AQENORA seller app and store pages. No dependencies.
+// Production web server for the AQUENORA seller app and store pages. No dependencies.
 //
 //   app.<ROOT_DOMAIN>, www.<ROOT_DOMAIN>, <ROOT_DOMAIN>  -> seller app (index.html)
 //   <shop>.<ROOT_DOMAIN>                                  -> that shop's store page (store.html)
 //   a seller's own domain (e.g. adirehouse.com)           -> store page; it asks the backend which shop
 //   localhost, IPs, *.up.railway.app                      -> seller app; stores via /store.html?shop=<shop>
 //
-// Env: PORT (default 8080), ROOT_DOMAIN (e.g. aqenora.com; leave unset until the domain is live).
+// Env: PORT (default 8080), ROOT_DOMAIN (e.g. aquenora.com; leave unset until the domain is live).
 
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
@@ -17,7 +17,7 @@ const DIST = join(fileURLToPath(new URL('.', import.meta.url)), 'dist');
 const PORT = Number(process.env.PORT) || 8080;
 const ROOT_DOMAIN = (process.env.ROOT_DOMAIN ?? '').toLowerCase().replace(/^\.+|\.+$/g, '');
 /** Subdomains that are never shop addresses. Shops can't take these names. */
-const RESERVED = new Set(['app', 'www', 'api', 'admin', 'mail', 'static', 'cdn', 'stores', 'store', 'shop', 'help', 'support', 'status', 'blog', 'docs', 'billing', 'pay', 'checkout', 'account', 'login', 'signup', 'aqenora']);
+const RESERVED = new Set(['app', 'www', 'api', 'admin', 'mail', 'static', 'cdn', 'stores', 'store', 'shop', 'help', 'support', 'status', 'blog', 'docs', 'billing', 'pay', 'checkout', 'account', 'login', 'signup', 'aquenora', 'aqenora']);
 
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -117,7 +117,7 @@ export const server = createServer(async (req, res) => {
 
     // Sellers' own domains arrive through the Cloudflare Worker (cloudflare/store-worker.js),
     // which says which domain was visited. It only ever chooses the store page over the app.
-    const shop = pageForHost(req.headers.host) === 'store' || !!req.headers['x-aqenora-shop-domain'];
+    const shop = pageForHost(req.headers.host) === 'store' || !!req.headers['x-aquenora-shop-domain'];
     const page = join(DIST, shop ? 'store.html' : 'index.html');
 
     // On a shop subdomain every page path shows the store; real files (assets) are still served.
@@ -139,5 +139,5 @@ export const server = createServer(async (req, res) => {
 });
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
-  server.listen(PORT, () => console.log(`AQENORA web on :${PORT}${ROOT_DOMAIN ? ` (stores at *.${ROOT_DOMAIN})` : ''}`));
+  server.listen(PORT, () => console.log(`AQUENORA web on :${PORT}${ROOT_DOMAIN ? ` (stores at *.${ROOT_DOMAIN})` : ''}`));
 }

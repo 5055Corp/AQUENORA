@@ -36,7 +36,7 @@ export function demoPlan(country: CountryId, trialEndsAt: string | null, domain:
           name: domain,
           connected: false,
           records: [
-            { type: 'CNAME', host: 'www', value: 'stores.aqenora.com', note: `Makes www.${domain} open your store.` },
+            { type: 'CNAME', host: 'www', value: 'stores.aquenora.com', note: `Makes www.${domain} open your store.` },
             { type: 'Forwarding', host: '@', value: `https://www.${domain}`, note: `Sends ${domain} to www.${domain}.` },
           ],
         }

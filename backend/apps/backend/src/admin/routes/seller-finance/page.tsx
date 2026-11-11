@@ -51,7 +51,7 @@ function money(amount: number, currency: string) {
 const pct = (part: number, whole: number) => (whole > 0 ? `${Math.round((part / whole) * 100)}%` : "–")
 
 /**
- * AQENORA owner page (/app/seller-finance): every seller's sales and profit, and what AQENORA
+ * AQUENORA owner page (/app/seller-finance): every seller's sales and profit, and what AQUENORA
  * earned from them. Totals stay per currency; they can't be added together.
  */
 const SellerFinancePage = () => {
@@ -84,8 +84,8 @@ const SellerFinancePage = () => {
           <div>
             <Heading level="h1">Sellers: sales and profit</Heading>
             <Text size="small" className="text-ui-fg-subtle mt-1">
-              Each seller's sales, their profit after product costs and fees, and AQENORA's commission. Paystack fees are
-              estimated until payments run through AQENORA.
+              Each seller's sales, their profit after product costs and fees, and AQUENORA's commission. Paystack fees are
+              estimated until payments run through AQUENORA.
             </Text>
           </div>
           <div className="flex gap-2" role="group" aria-label="Time period">
@@ -113,7 +113,7 @@ const SellerFinancePage = () => {
                 <div className="mt-3 flex justify-between gap-2">
                   <div>
                     <Text size="small" weight="plus">{money(t.platform_fees, t.currency_code)}</Text>
-                    <Text size="xsmall" className="text-ui-fg-subtle">AQENORA earned</Text>
+                    <Text size="xsmall" className="text-ui-fg-subtle">AQUENORA earned</Text>
                   </div>
                   <div className="text-right">
                     <Text size="small" weight="plus">{money(t.profit, t.currency_code)}</Text>
@@ -138,7 +138,7 @@ const SellerFinancePage = () => {
                   <Table.HeaderCell className="text-right">Sales</Table.HeaderCell>
                   <Table.HeaderCell className="text-right">Product costs</Table.HeaderCell>
                   <Table.HeaderCell className="text-right">Paystack fees</Table.HeaderCell>
-                  <Table.HeaderCell className="text-right">AQENORA earned</Table.HeaderCell>
+                  <Table.HeaderCell className="text-right">AQUENORA earned</Table.HeaderCell>
                   <Table.HeaderCell className="text-right">Seller profit</Table.HeaderCell>
                   <Table.HeaderCell className="text-right">Margin</Table.HeaderCell>
                 </Table.Row>
@@ -149,7 +149,7 @@ const SellerFinancePage = () => {
                     <Table.Cell>
                       <div className="flex flex-col">
                         <span className="txt-compact-small-plus">{s.name}</span>
-                        <span className="txt-compact-xsmall text-ui-fg-subtle">{s.handle}.aqenora.com · {s.email}</span>
+                        <span className="txt-compact-xsmall text-ui-fg-subtle">{s.handle}.aquenora.com · {s.email}</span>
                         {s.items_missing_cost > 0 && (
                           <Badge size="2xsmall" color="orange" className="mt-1 w-fit">
                             {s.items_missing_cost} items without cost price

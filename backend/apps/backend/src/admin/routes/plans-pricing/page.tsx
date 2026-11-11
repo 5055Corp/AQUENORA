@@ -43,7 +43,7 @@ async function call<T>(path: string, body?: unknown): Promise<T> {
 const date = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "")
 
 /**
- * AQENORA owner page (/app/plans-pricing): the Pro plan's monthly price in each country, the
+ * AQUENORA owner page (/app/plans-pricing): the Pro plan's monthly price in each country, the
  * commission on each plan, the trial length, and every seller's plan (with "mark as paid" for
  * transfers).
  */
@@ -172,7 +172,7 @@ const PlansPricingPage = () => {
         <div>
           <Heading level="h2">Commission and trial</Heading>
           <Text size="small" className="text-ui-fg-subtle mt-1">
-            AQENORA's share of every sale on each plan, and how long the free Pro trial lasts. Changes apply to new orders only.
+            AQUENORA's share of every sale on each plan, and how long the free Pro trial lasts. Changes apply to new orders only.
           </Text>
         </div>
         {settings && (
@@ -223,7 +223,7 @@ const PlansPricingPage = () => {
                     <Table.Cell>
                       <div className="flex flex-col">
                         <span className="txt-compact-small-plus">{s.name}</span>
-                        <span className="txt-compact-xsmall text-ui-fg-subtle">{s.handle}.aqenora.com</span>
+                        <span className="txt-compact-xsmall text-ui-fg-subtle">{s.handle}.aquenora.com</span>
                       </div>
                     </Table.Cell>
                     <Table.Cell>{s.country_code}</Table.Cell>

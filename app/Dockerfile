@@ -1,4 +1,4 @@
-# AQENORA web: the seller app (index.html) and store pages (store.html), served by server.mjs.
+# AQUENORA web: the seller app (index.html) and store pages (store.html), served by server.mjs.
 # Build context: this app/ folder. Railway passes the service's variables in as build args.
 
 FROM node:22-bookworm-slim AS build
@@ -12,7 +12,7 @@ ARG VITE_API_URL
 ARG VITE_MEDUSA_PUBLISHABLE_KEY
 ARG VITE_STORE_DOMAIN
 # Refuse to build the live site without a backend: it would silently become the demo.
-RUN test -n "$VITE_API_URL" || (echo "Set VITE_API_URL to the backend's public address (e.g. https://api.aqenora.com)" && exit 1)
+RUN test -n "$VITE_API_URL" || (echo "Set VITE_API_URL to the backend's public address (e.g. https://api.aquenora.com)" && exit 1)
 RUN npm run build
 
 FROM node:22-bookworm-slim
