@@ -29,6 +29,8 @@ const Seller = model.define("seller", {
   design: model.json().nullable(),
   // In-store pickup: address, area, opening hours per day, instructions (see pickup.ts).
   pickup: model.json().nullable(),
+  // Ship-from address and delivery options (DHL, FedEx, UPS... with the seller's flat rates); see shipping.ts.
+  shipping: model.json().nullable(),
   onboarding_completed: model.boolean().default(false),
   // ---- plan ----
   // Pro is active while either date is in the future. A trial keeps the "Powered by AQENORA" badge.

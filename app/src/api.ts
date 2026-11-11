@@ -42,6 +42,8 @@ export interface ApiSeller {
   design: unknown;
   /** In-store pickup settings (see pickup.ts), or null if never set. */
   pickup: unknown;
+  /** Ship-from address and delivery options (see shipping.ts), or null if never set. */
+  shipping: unknown;
   /** The bank account sales are paid into (set once Paystack is connected). */
   payout: Payout | null;
 }
@@ -54,6 +56,10 @@ export interface Payout {
 }
 
 export interface Bank { name: string; code: string }
+
+/** The delivery option a buyer chose (price in the seller's currency). */
+export interface OrderShipping { carrier: string; name: string; price: number; days: string }
+export interface OrderAddress { address: string; city: string; region: string; postal_code: string; country: string }
 
 export interface ApiProduct {
   id: string;
@@ -78,6 +84,10 @@ export interface ApiOrder {
   status: SellerOrderStatus;
   international: boolean;
   fulfillment?: 'delivery' | 'pickup';
+  shipping?: OrderShipping | null;
+  phone?: string | null;
+  address?: OrderAddress | null;
+  display_currency?: string | null;
   items: { title: string; quantity: number; unit_price: number }[];
   total: number;
 }
@@ -213,7 +223,7 @@ export function sellerIdFromToken(token: string): string {
 const PUBLISHABLE_KEY: string = import.meta.env.VITE_MEDUSA_PUBLISHABLE_KEY ?? '';
 
 export interface PublicStore {
-  store: Pick<ApiSeller, 'id' | 'name' | 'handle' | 'category' | 'country_code' | 'currency_code' | 'sells_abroad' | 'theme' | 'accent' | 'font' | 'announcement' | 'design'> & { show_badge?: boolean; pickup?: unknown; accepts_payments?: boolean };
+  store: Pick<ApiSeller, 'id' | 'name' | 'handle' | 'category' | 'country_code' | 'currency_code' | 'sells_abroad' | 'theme' | 'accent' | 'font' | 'announcement' | 'design'> & { show_badge?: boolean; pickup?: unknown; accepts_payments?: boolean; shipping?: { ships_from: string | null; options: unknown[] } };
   products: ApiProduct[];
 }
 
@@ -239,6 +249,11 @@ export interface CheckoutRequest {
   fulfillment: 'delivery' | 'pickup';
   address?: string;
   city?: string;
+  region?: string;
+  postal_code?: string;
+  country?: string;
+  shipping_option_id?: string;
+  display_currency?: string;
   marketing_opt_in: boolean;
   return_url: string;
   items: { product_id: string; quantity: number }[];
@@ -247,7 +262,7 @@ export interface CheckoutRequest {
 export interface CheckoutLine { product_id: string; title: string; quantity: number; unit_price: number }
 
 export type PaymentResult =
-  | { status: 'paid'; order: { id: string; display_id: number }; checkout: { amount: number; currency_code: string; fulfillment: 'delivery' | 'pickup'; items: CheckoutLine[] } }
+  | { status: 'paid'; order: { id: string; display_id: number }; checkout: { amount: number; currency_code: string; fulfillment: 'delivery' | 'pickup'; items: CheckoutLine[]; shipping?: OrderShipping | null } }
   | { status: 'pending' | 'failed'; message: string; checkout: { amount: number; fulfillment: 'delivery' | 'pickup'; items: CheckoutLine[] } | null };
 
 /** POSTs to a public /store route; errors carry the backend's message (e.g. "Only 2 left of Kimono."). */
@@ -273,6 +288,18 @@ export const startCheckout = (handle: string, body: CheckoutRequest) =>
 
 /** After Paystack sends the buyer back: did the payment go through? */
 export const verifyPayment = (reference: string) => storePost<PaymentResult>('/store/payments/verify', { reference });
+
+/** Exchange rates (units per USD) for showing prices in buyers' currencies; null if unavailable. */
+export async function fetchRates(): Promise<Record<string, number> | null> {
+  try {
+    const res = await fetch(`${API_URL}/store/rates`, { headers: { 'x-publishable-api-key': PUBLISHABLE_KEY } });
+    if (!res.ok) return null;
+    const j = (await res.json()) as { rates?: Record<string, number> };
+    return j.rates ?? null;
+  } catch {
+    return null;
+  }
+}
 
 /** Which store a seller's own domain opens (null if none is connected). */
 export async function fetchHandleForDomain(host: string): Promise<string | null> {

@@ -38,6 +38,8 @@ export interface State {
   design: unknown;
   /** In-store pickup settings (see pickup.ts). null = never set up. */
   pickup: unknown;
+  /** Ship-from address and delivery options (see shipping.ts). null = never set up. */
+  shipping: unknown;
   /** Bank account sales are paid into (live: from the backend; demo: pretend). */
   payout: Payout | null;
   /** Live mode: the seller's plan, price and domain (GET /sellers/me/plan). */
@@ -94,6 +96,7 @@ export function initialState(settings: Settings): State {
     campaigns: [],
     design: null,
     pickup: null,
+    shipping: null,
     payout: null,
     plan: null,
     demoTrialEndsAt: null,

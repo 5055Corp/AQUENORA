@@ -16,6 +16,7 @@ export const SELLER_FIELDS = [
   "announcement",
   "design",
   "pickup",
+  "shipping",
   "onboarding_completed",
   "created_at",
 ]
@@ -34,6 +35,18 @@ export const PRODUCT_FIELDS = [
   "products.variants.prices.currency_code",
 ]
 
+/** Order fields for the seller's order list (adds the buyer's name, phone and delivery address). */
+export const SELLER_ORDER_ADDRESS_FIELDS = [
+  "orders.shipping_address.first_name",
+  "orders.shipping_address.last_name",
+  "orders.shipping_address.phone",
+  "orders.shipping_address.address_1",
+  "orders.shipping_address.city",
+  "orders.shipping_address.province",
+  "orders.shipping_address.postal_code",
+  "orders.shipping_address.country_code",
+]
+
 /** Turns an order from query.graph (ORDER_FIELDS) into what the seller app shows. */
 export function toSellerOrder(raw: unknown) {
   const o = raw as {
@@ -44,7 +57,16 @@ export function toSellerOrder(raw: unknown) {
     email: string | null
     currency_code: string
     metadata: Record<string, unknown> | null
-    shipping_address?: { first_name?: string | null; last_name?: string | null } | null
+    shipping_address?: {
+      first_name?: string | null
+      last_name?: string | null
+      phone?: string | null
+      address_1?: string | null
+      city?: string | null
+      province?: string | null
+      postal_code?: string | null
+      country_code?: string | null
+    } | null
     items?: ({ title: string; quantity: unknown; unit_price: unknown } | null)[] | null
   }
   const items = (o.items ?? []).filter(Boolean).map((i) => ({
@@ -66,8 +88,29 @@ export function toSellerOrder(raw: unknown) {
     international: o.metadata?.international === true,
     fulfillment: o.metadata?.fulfillment === "pickup" ? "pickup" : "delivery",
     items,
+    // Items only; shipping is shown separately.
     total: items.reduce((a, i) => a + i.quantity * i.unit_price, 0),
+    shipping: shippingOf(o.metadata),
+    phone: o.shipping_address?.phone ?? null,
+    address: o.shipping_address?.address_1
+      ? {
+          address: o.shipping_address.address_1,
+          city: o.shipping_address.city ?? "",
+          region: o.shipping_address.province ?? "",
+          postal_code: o.shipping_address.postal_code ?? "",
+          country: (o.shipping_address.country_code ?? "").toUpperCase(),
+        }
+      : null,
+    display_currency: typeof o.metadata?.display_currency === "string" ? o.metadata.display_currency : null,
   }
+}
+
+function shippingOf(meta: Record<string, unknown> | null) {
+  const s = meta?.shipping as { carrier?: unknown; name?: unknown; price?: unknown; days?: unknown } | undefined
+  if (!s || typeof s !== "object" || typeof s.name !== "string") {
+    return null
+  }
+  return { carrier: String(s.carrier ?? "other"), name: s.name, price: Number(s.price) || 0, days: typeof s.days === "string" ? s.days : "" }
 }
 
 type RawProduct = {

@@ -83,6 +83,7 @@ medusaIntegrationTestRunner({
       fulfillment: "delivery",
       address: "5 Allen Avenue",
       city: "Ikeja, Lagos",
+      country: "NG",
       marketing_opt_in: true,
       return_url: "https://adirehouse.aqenora.test/",
       items: [{ product_id, quantity }],

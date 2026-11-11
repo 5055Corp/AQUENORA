@@ -3,6 +3,7 @@ import { z } from "@medusajs/framework/zod"
 import { SELLER_COUNTRIES } from "../../modules/seller/currency"
 import { StoreDesignSchema } from "../../modules/seller/design"
 import { PickupSchema } from "../../modules/seller/pickup"
+import { ShippingSchema } from "../../modules/seller/shipping"
 
 const shopName = z.string().trim().min(1, "Shop name is required").max(80)
 const handle = z
@@ -35,6 +36,7 @@ export const UpdateSellerSchema = z
     onboarding_completed: z.boolean(),
     design: StoreDesignSchema,
     pickup: PickupSchema,
+    shipping: ShippingSchema,
   })
   .partial()
   .strict()
@@ -142,6 +144,14 @@ export const CheckoutSchema = z
     fulfillment: z.enum(["delivery", "pickup"]).default("delivery"),
     address: z.string().trim().max(200).optional(),
     city: z.string().trim().max(80).optional(),
+    /** Delivery country (ISO code, e.g. "CA"), state or province, and postcode. */
+    country: z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/, "Choose your country").optional(),
+    region: z.string().trim().max(80).optional(),
+    postal_code: z.string().trim().max(20).optional(),
+    /** The delivery option chosen (see the store's shipping options). */
+    shipping_option_id: z.string().max(24).optional(),
+    /** The currency prices were shown in (for the seller's information; payment is in the seller's currency). */
+    display_currency: z.string().trim().toUpperCase().regex(/^[A-Z]{3}$/).optional(),
     marketing_opt_in: z.boolean().default(false),
     /** Where Paystack sends the buyer back to (the store page). Only http(s). */
     return_url: z.string().url().max(500).refine((u) => /^https?:\/\//.test(u), "Invalid return address"),
@@ -151,8 +161,8 @@ export const CheckoutSchema = z
       .max(50),
   })
   .strict()
-  .refine((b) => b.fulfillment === "pickup" || (!!b.address && !!b.city), {
-    message: "Enter your delivery address and city",
+  .refine((b) => b.fulfillment === "pickup" || (!!b.address && !!b.city && !!b.country), {
+    message: "Enter your delivery address, city and country",
     path: ["address"],
   })
 export type CheckoutBody = z.infer<typeof CheckoutSchema>

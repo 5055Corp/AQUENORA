@@ -1,7 +1,7 @@
 import type { AuthenticatedMedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import { ORDER_FIELDS, type SellerWithOrders } from "../../../../lib/finance"
-import { newestFirst, toSellerOrder } from "../../fields"
+import { newestFirst, SELLER_ORDER_ADDRESS_FIELDS, toSellerOrder } from "../../fields"
 
 /** GET /sellers/me/orders: the signed-in seller's orders, newest first. */
 export async function GET(req: AuthenticatedMedusaRequest, res: MedusaResponse) {
@@ -9,7 +9,7 @@ export async function GET(req: AuthenticatedMedusaRequest, res: MedusaResponse) 
   const { data } = await query.graph(
     {
       entity: "seller",
-      fields: ["id", ...ORDER_FIELDS, "orders.shipping_address.first_name", "orders.shipping_address.last_name"],
+      fields: ["id", ...ORDER_FIELDS, ...SELLER_ORDER_ADDRESS_FIELDS],
       filters: { id: req.auth_context.actor_id },
     },
     { throwIfKeyNotFound: true }

@@ -19,6 +19,14 @@ export type CreateSellerOrderInput = {
   phone?: string
   address?: string
   city?: string
+  region?: string
+  postal_code?: string
+  /** Delivery country, ISO code (e.g. "CA"). */
+  country?: string
+  /** The delivery option the buyer chose (price in the seller's currency). */
+  shipping?: { id: string; carrier: string; name: string; price: number; days: string }
+  /** Currency the buyer saw prices in. */
+  display_currency?: string
   /** Set when Paystack took the payment: the real fees are recorded on the order. */
   payment?: {
     reference: string
@@ -155,6 +163,9 @@ export const createSellerOrderWorkflow = createWorkflow(
                   phone: input.phone,
                   address_1: input.fulfillment === "pickup" ? undefined : input.address,
                   city: input.fulfillment === "pickup" ? undefined : input.city,
+                  province: input.fulfillment === "pickup" ? undefined : input.region || undefined,
+                  postal_code: input.fulfillment === "pickup" ? undefined : input.postal_code || undefined,
+                  country_code: input.fulfillment === "pickup" || !input.country ? undefined : input.country.toLowerCase(),
                 }
               : undefined,
           metadata: {
@@ -163,6 +174,8 @@ export const createSellerOrderWorkflow = createWorkflow(
             marketing_opt_in: !!input.marketing_opt_in,
             commission_rate: commissionRate,
             fulfillment: input.fulfillment === "pickup" ? "pickup" : "delivery",
+            ...(input.shipping ? { shipping: input.shipping } : {}),
+            ...(input.display_currency ? { display_currency: input.display_currency } : {}),
             ...(input.payment
               ? {
                   paystack_reference: input.payment.reference,

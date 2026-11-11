@@ -27,6 +27,8 @@ import {
   type PaystackTransaction,
 } from "./paystack"
 import { resolvePlan } from "./plans"
+import { WORLD_BY_CODE } from "./countries"
+import { homeCountry, optionsFor, type Shipping } from "../modules/seller/shipping"
 
 type CheckoutSeller = {
   id: string
@@ -38,6 +40,8 @@ type CheckoutSeller = {
   custom_domain?: string | null
   paystack_subaccount_code?: string | null
   pickup?: { enabled?: boolean; address?: string; area?: string } | null
+  sells_abroad?: boolean
+  shipping?: Shipping | null
   trial_ends_at?: string | null
   pro_paid_until?: string | null
   products?: unknown[]
@@ -51,6 +55,11 @@ type CheckoutData = {
   fulfillment: "delivery" | "pickup"
   address?: string
   city?: string
+  region?: string
+  postal_code?: string
+  country?: string
+  shipping?: { id: string; carrier: string; name: string; price: number; days: string }
+  display_currency?: string
   marketing_opt_in: boolean
   items: { product_id: string; title: string; quantity: number; unit_price: number }[]
 }
@@ -85,6 +94,8 @@ async function sellerByHandle(container: MedusaContainer, handle: string): Promi
       "custom_domain",
       "paystack_subaccount_code",
       "pickup",
+      "sells_abroad",
+      "shipping",
       "trial_ends_at",
       "pro_paid_until",
       ...PRODUCT_FIELDS,
@@ -160,13 +171,16 @@ export async function startCheckout(container: MedusaContainer, handle: string, 
     items.push({ product_id: id, title: p.title, quantity, unit_price: p.price })
   }
 
-  const amount = round2(items.reduce((a, i) => a + i.quantity * i.unit_price, 0))
-  if (amount <= 0) {
+  const itemsTotal = round2(items.reduce((a, i) => a + i.quantity * i.unit_price, 0))
+  if (itemsTotal <= 0) {
     throw new MedusaError(MedusaError.Types.INVALID_DATA, "Your bag is empty.")
   }
+  const shipping = body.fulfillment === "delivery" ? chooseShipping(seller, body) : undefined
+  // The buyer pays for the items plus delivery; AQENORA's commission is on the items only.
+  const amount = round2(itemsTotal + (shipping?.price ?? 0))
   const plan = await resolvePlan(container, seller)
   const rate = plan.commission_percent / 100
-  const platformFee = round2(amount * rate)
+  const platformFee = round2(itemsTotal * rate)
   const currency = PAYSTACK_CURRENCY[seller.country_code]!
   const reference = newReference()
 
@@ -177,6 +191,11 @@ export async function startCheckout(container: MedusaContainer, handle: string, 
     fulfillment: body.fulfillment,
     address: body.fulfillment === "delivery" ? body.address : undefined,
     city: body.fulfillment === "delivery" ? body.city : undefined,
+    region: body.fulfillment === "delivery" ? body.region : undefined,
+    postal_code: body.fulfillment === "delivery" ? body.postal_code : undefined,
+    country: body.fulfillment === "delivery" ? body.country : undefined,
+    shipping,
+    display_currency: body.display_currency,
     marketing_opt_in: body.marketing_opt_in,
     items,
   }
@@ -214,6 +233,35 @@ export async function startCheckout(container: MedusaContainer, handle: string, 
   return { reference, authorization_url: page.authorization_url, amount, currency_code: seller.currency_code }
 }
 
+/**
+ * The delivery option for this buyer's country. A shop with no delivery options arranges
+ * delivery with the buyer in its own country only.
+ */
+function chooseShipping(seller: CheckoutSeller, body: CheckoutBody): CheckoutData["shipping"] {
+  const country = body.country!
+  const where = WORLD_BY_CODE.get(country)
+  if (!where) {
+    throw new MedusaError(MedusaError.Types.INVALID_DATA, "Choose your country from the list.")
+  }
+  const home = homeCountry(seller)
+  if (country !== home && seller.sells_abroad === false) {
+    const homeName = home ? WORLD_BY_CODE.get(home)?.name : null
+    throw new MedusaError(MedusaError.Types.NOT_ALLOWED, homeName ? `This shop only delivers within ${homeName}.` : "This shop doesn't deliver abroad.")
+  }
+  const options = optionsFor(seller, country)
+  if (!(seller.shipping?.options ?? []).length && country === home) {
+    return undefined
+  }
+  if (!options.length) {
+    throw new MedusaError(MedusaError.Types.NOT_ALLOWED, `This shop doesn't deliver to ${where.name} yet.`)
+  }
+  const chosen = options.find((o) => o.id === body.shipping_option_id)
+  if (!chosen) {
+    throw new MedusaError(MedusaError.Types.INVALID_DATA, "Choose a delivery option.")
+  }
+  return { id: chosen.id, carrier: chosen.carrier, name: chosen.name, price: chosen.price, days: chosen.days }
+}
+
 export type ConfirmResult =
   | { status: "paid"; order: { id: string; display_id: number }; checkout: CheckoutSummary }
   | { status: "pending" | "failed"; message: string; checkout: CheckoutSummary | null }
@@ -225,6 +273,7 @@ type CheckoutSummary = {
   currency_code: string
   fulfillment: "delivery" | "pickup"
   items: CheckoutData["items"]
+  shipping?: CheckoutData["shipping"]
 }
 
 /**
@@ -250,6 +299,7 @@ async function confirmLocked(container: MedusaContainer, reference: string): Pro
     currency_code: checkout.currency_code,
     fulfillment: data.fulfillment,
     items: data.items,
+    shipping: data.shipping,
   }
 
   if (checkout.status === "paid" && checkout.order_id) {
@@ -289,6 +339,11 @@ async function confirmLocked(container: MedusaContainer, reference: string): Pro
       phone: data.phone,
       address: data.address,
       city: data.city,
+      region: data.region,
+      postal_code: data.postal_code,
+      country: data.country,
+      shipping: data.shipping,
+      display_currency: data.display_currency,
       international,
       marketing_opt_in: data.marketing_opt_in,
       fulfillment: data.fulfillment,

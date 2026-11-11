@@ -2,7 +2,7 @@ import type { AuthenticatedMedusaRequest, MedusaResponse } from "@medusajs/frame
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import { ORDER_FIELDS } from "../../../../../lib/finance"
 import { updateSellerOrderStatusWorkflow } from "../../../../../workflows/update-seller-order-status"
-import { toSellerOrder } from "../../../fields"
+import { SELLER_ORDER_ADDRESS_FIELDS, toSellerOrder } from "../../../fields"
 import type { UpdateSellerOrderBody } from "../../../validators"
 
 /** POST /sellers/me/orders/:id: mark an order as shipped, then delivered. */
@@ -13,7 +13,7 @@ export async function POST(req: AuthenticatedMedusaRequest<UpdateSellerOrderBody
   const query = req.scope.resolve(ContainerRegistrationKeys.QUERY)
   const { data } = await query.graph({
     entity: "order",
-    fields: [...ORDER_FIELDS, "orders.shipping_address.first_name", "orders.shipping_address.last_name"].map((f) => f.replace(/^orders\./, "")),
+    fields: [...ORDER_FIELDS, ...SELLER_ORDER_ADDRESS_FIELDS].map((f) => f.replace(/^orders\./, "")),
     filters: { id: req.params.id },
   })
   res.json({ order: toSellerOrder(data[0]) })
