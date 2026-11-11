@@ -188,3 +188,34 @@ export const ProConfirmSchema = z.object({ reference: z.string().trim().regex(/^
 export type ProConfirmBody = z.infer<typeof ProConfirmSchema>
 export const AutoRenewSchema = z.object({ on: z.boolean() }).strict()
 export type AutoRenewBody = z.infer<typeof AutoRenewSchema>
+
+// ---- seller interview (market research) ----
+const answerText = z.string().max(3000).transform((s) => s.replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, " ").trim())
+export const SubmitInterviewSchema = z
+  .object({
+    version: z.string().max(20),
+    answers: z
+      .array(
+        z
+          .object({
+            id: z.string().regex(/^[a-z0-9_]{1,40}$/),
+            section: z.string().max(80),
+            question: z.string().max(300),
+            answer: z.union([answerText, z.array(z.string().max(200)).max(30)]),
+          })
+          .strict()
+      )
+      .min(3, "Please answer a few questions first")
+      .max(120),
+    name: z.string().trim().max(100).optional(),
+    email: z.string().trim().max(200).optional(),
+    phone: z.string().trim().max(30).optional(),
+    contact_ok: z.boolean().default(false),
+    wants_early_access: z.boolean().default(false),
+    country: z.string().trim().max(60).optional(),
+    source: z.string().trim().max(60).optional(),
+    // Left empty by people; bots fill every field.
+    website: z.string().max(200).optional(),
+  })
+  .strict()
+export type SubmitInterviewBody = z.infer<typeof SubmitInterviewSchema>

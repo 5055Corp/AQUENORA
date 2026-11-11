@@ -13,6 +13,7 @@ import {
   CreateSellerProductSchema,
   CreateSellerSchema,
   BillingSettingsSchema,
+  SubmitInterviewSchema,
   AutoRenewSchema,
   ProCheckoutSchema,
   ProConfirmSchema,
@@ -148,6 +149,12 @@ export default defineMiddlewares({
       methods: ["POST"],
       matcher: "/store/sellers/:handle/checkout",
       middlewares: [validateAndTransformBody(CheckoutSchema)],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/store/interviews",
+      bodyParser: { sizeLimit: "200kb" },
+      middlewares: [validateAndTransformBody(SubmitInterviewSchema)],
     },
     {
       methods: ["POST"],

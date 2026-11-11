@@ -61,6 +61,17 @@ npm run build    # type-check + production build into dist/
 - **Demo mode:** shows the demo store from the seller app in the same browser, so during an interview the seller can see "their" store.
 - **Live mode:** loads the store from the backend. It needs `VITE_MEDUSA_PUBLISHABLE_KEY` (see `.env.example`). A wrong address shows a "no store here" page.
 
+## Seller interview (market research)
+
+`interview.html`, served at **app.aquenora.com/interview**, is a short phone-first interview for potential sellers (`src/interview/`).
+- **Six parts:** you and your business, how you sell today, what makes selling hard, what would help (must-have / nice-to-have for 16 features), paying for it (preferred pricing model, fair and too-expensive monthly prices, acceptable fee per sale), and trust and support. An optional last step asks for contact details for early access.
+- **Answers:** saved through `POST /store/interviews` with each question's wording, so editing `questions.ts` later never mixes up old answers. Bump `VERSION` after big changes.
+- **Drafts:** a half-finished interview is kept on the seller's phone.
+- **Spam:** a hidden field catches bots, and the backend limits how many answers one address can send.
+- **Tracking where answers come from:** add `?ref=…` to the link (e.g. `app.aquenora.com/interview?ref=instagram`). The admin shows it per answer.
+- **Reading answers:** admin → **Seller interviews** shows a summary of the multiple-choice answers, each interview in full, and a spreadsheet (CSV) download.
+- **Demo mode:** the page works but doesn't save.
+
 ## Two modes: demo and live
 
 | Mode | When | What happens |

@@ -312,6 +312,15 @@ async function storePost<T>(path: string, body: unknown): Promise<T> {
   return data as T;
 }
 
+/** Sends a potential seller's interview answers (market research). */
+export const submitInterview = (body: {
+  version: string;
+  answers: { id: string; section: string; question: string; answer: string | string[] }[];
+  name?: string; phone?: string; email?: string;
+  contact_ok: boolean; wants_early_access: boolean;
+  country?: string; source?: string; website?: string;
+}) => storePost<{ ok: boolean }>('/store/interviews', body);
+
 /** Starts paying: returns Paystack's payment page to send the buyer to. */
 export const startCheckout = (handle: string, body: CheckoutRequest) =>
   storePost<{ reference: string; authorization_url: string }>(`/store/sellers/${encodeURIComponent(handle)}/checkout`, body);
