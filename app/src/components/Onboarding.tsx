@@ -1,6 +1,7 @@
 import { CATEGORIES, COUNTRIES, HELP, STEPS } from '../data';
 import { useStore } from '../store';
 import { Help } from './Help';
+import { Logo } from './Logo';
 
 const SELECTED = { borderColor: 'var(--ink)', background: '#fff' };
 const UNSELECTED = { borderColor: 'var(--line)', background: 'var(--tile)' };
@@ -32,7 +33,7 @@ export function Onboarding() {
   return (
     <>
       <div className="ob-top">
-        <div className="wordmark" style={{ fontSize: 20 }}>AQUENORA</div>
+        <Logo style={{ fontSize: 20 }} />
         <div className="ob-top-right">
           <div className="ob-step">Step {step + 1} of 5</div>
           {live && <button type="button" className="ob-logout" onClick={() => logOut()}>Log out</button>}

@@ -7,6 +7,7 @@ import { designFromLegacy, normalizeDesign, STORE_FONTS, type StoreDesign } from
 import type { CountryId } from '../data';
 import { StoreView, type StoreItem } from './StoreView';
 import { TAGLINE } from '../brand';
+import { Logo, Mark } from '../components/Logo';
 import { DAY_NAMES, DAYS, hoursText, isOpenNow, normalizePickup, shopNow, type Pickup } from '../pickup';
 import { homeCountry, normalizeShipping, optionsFor, type Shipping } from '../shipping';
 import { WORLD, WORLD_BY_CODE } from '../countries';
@@ -252,7 +253,7 @@ export function StorePage() {
   if (load.kind === 'ready') return <Store data={load.data} />;
   return (
     <div className="sp-msg">
-      <div className="wordmark">AQUENORA</div>
+      <Logo />
       {load.kind === 'loading' && <p role="status">Opening the store…</p>}
       {load.kind === 'missing' && (
         <>
@@ -491,7 +492,7 @@ function Store({ data }: { data: StoreData }) {
         {data.pickup && <span>Pickup available in {data.pickup.area}</span>}
         {data.showBadge && (
           <a className="sp-badge" href="https://aquenora.com" target="_blank" rel="noopener noreferrer" title={`AQUENORA: ${TAGLINE}`} style={{ color: ink }}>
-            Powered by <b>AQUENORA</b>
+            Powered by <Mark size="1.5em" /> <b>AQUENORA</b>
           </a>
         )}
       </footer>

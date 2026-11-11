@@ -1,6 +1,7 @@
 import type { FormEvent } from 'react';
 import { useStore } from '../store';
 import { TAGLINE } from '../brand';
+import { Logo } from './Logo';
 
 /** Sign up / log in (live mode only). Styled like the setup steps. */
 export function Auth() {
@@ -15,7 +16,7 @@ export function Auth() {
   return (
     <>
       <div className="ob-top">
-        <div className="wordmark" style={{ fontSize: 20 }}>AQUENORA</div>
+        <Logo style={{ fontSize: 20 }} />
       </div>
       <div className="ob-body" style={{ gridTemplateColumns: 'minmax(0,1fr)', padding: isMobile ? '24px 20px 32px' : '48px 40px' }}>
         <form className="ob-main auth" onSubmit={submit} noValidate>
@@ -73,7 +74,7 @@ export function Loading() {
   return (
     <>
       <div className="ob-top">
-        <div className="wordmark" style={{ fontSize: 20 }}>AQUENORA</div>
+        <Logo style={{ fontSize: 20 }} />
       </div>
       <div className="loading" role="status">
         {s.loadError ? (
