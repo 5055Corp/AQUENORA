@@ -64,8 +64,16 @@ You can start without the domain (Railway gives free `*.up.railway.app` addresse
 
    **Command-line way** (if you prefer): install the [Railway CLI](https://docs.railway.com/guides/cli), run `railway login`, `railway link`, then `railway ssh --service backend` and inside it: `npx medusa user -e you@yourcompany.com -p "a-strong-password"`.
 
-8. **Get the publishable key:** in the admin dashboard, go to **Settings → Publishable API Keys** and copy the key that starts with `pk_`. Part 3 needs it.
-9. **Set your plan prices:** in the admin dashboard, open **Plans & pricing**. Check the Pro price for each country, the commission and the trial length.
+8. **A place to keep sellers' pictures** (store logos and banner photos). Without this, pictures disappear every time Railway redeploys.
+   1. On the project screen, right-click the **backend** box → **Attach volume** (or press **Ctrl/Cmd + K** and type "volume").
+   2. **Mount path:** type `/server/static` and confirm.
+   3. Click the **backend** box → **Variables** → **+ New Variable**: name `RAILWAY_RUN_UID`, value `0`. (This lets the backend write to the volume.)
+   4. Deploy. In a seller's **Store design → Logo & banner photo**, upload a picture to check it works.
+
+   Later you can move pictures to Cloudflare R2 instead (Part 5e); the volume is fine to start.
+
+9. **Get the publishable key:** in the admin dashboard, go to **Settings → Publishable API Keys** and copy the key that starts with `pk_`. Part 3 needs it.
+10. **Set your plan prices:** in the admin dashboard, open **Plans & pricing**. Check the Pro price for each country, the commission and the trial length.
 
 ## Part 3: The web app (seller app + store pages)
 
@@ -141,6 +149,15 @@ Sellers point `www.theirshop.com` at `stores.aqenora.com` (the app shows them ho
 From then on, when a seller's domain is connected (their records point at `stores.aqenora.com`), AQENORA adds it to Cloudflare by itself; the seller sees "Securing your domain" for a few minutes, then it works with the padlock. Disconnecting a domain removes it again. Without the token you can still add each one by hand under **SSL/TLS → Custom Hostnames** (`www.theirshop.com`).
 
 **Check:** in your admin, **Plans & pricing** lists connected domains; in Cloudflare, **SSL/TLS → Custom Hostnames** shows them as **Active**; `https://www.theirshop.com` opens their store.
+
+**5e. (Optional) Store pictures on Cloudflare R2 instead of the Railway volume**
+R2 is Cloudflare's file storage: 10 GB free, and pictures load fast worldwide.
+1. Cloudflare → **R2 Object Storage → Create bucket**, name it `aqenora-uploads`.
+2. Open the bucket → **Settings → Public access**: connect a custom domain such as `files.aqenora.com` (or allow the `r2.dev` address).
+3. **R2 → Manage API tokens → Create API token**: permission **Object Read & Write**, only this bucket. Copy the **Access Key ID**, **Secret Access Key** and the **S3 endpoint** (`https://<account id>.r2.cloudflarestorage.com`).
+4. Railway → **backend → Variables**: `S3_BUCKET=aqenora-uploads`, `S3_ENDPOINT=<the endpoint>`, `S3_FILE_URL=https://files.aqenora.com`, `S3_ACCESS_KEY_ID=…`, `S3_SECRET_ACCESS_KEY=…`, `S3_REGION=auto`. Deploy.
+
+New uploads then go to R2. Pictures uploaded before stay on the volume and keep working; sellers can re-upload them any time.
 
 ## Part 6: Email and payments
 

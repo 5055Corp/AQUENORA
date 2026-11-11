@@ -19,6 +19,7 @@ npm run build    # type-check + production build into dist/
   - **Layout:** shop name left or centred, big/slim/no banner with the seller's own headline and subtext, 2/3/4 products per row, show or hide stock left, round/soft/square corners, pill/rounded/square buttons.
   - **Words and links:** announcement bar, About us, Instagram and WhatsApp links.
 
+  - **Logo & banner photo:** sellers upload a logo (shown instead of the shop name) and a banner photo (the headline sits on it, with a dark fade so it stays readable). Photos are shrunk in the browser first (logo 400px, banner 1800px, WebP where possible) and uploaded to `POST /sellers/me/uploads`, which checks they're real pictures. Stored on the backend's disk (a Railway volume) or Cloudflare R2; see DEPLOY.md.
   The design is saved on the backend (`seller.design`) and drawn by `src/storefront/StoreView.tsx` for both the preview and the real store page. Stores that were set up before this keep their old look, converted automatically (`src/design.ts`).
 
 ## Plan & domain page

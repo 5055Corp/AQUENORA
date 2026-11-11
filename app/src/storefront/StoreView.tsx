@@ -62,7 +62,11 @@ export function StoreView({ name, design: d, items, fmt, variant, narrow, bagCou
       {d.announcement.trim() && <div className="sf-announce" style={{ background: accent, color: onAccent }}>{d.announcement}</div>}
 
       <div className={'sf-head' + (center ? ' sf-head-center' : '')}>
-        <div className="sf-name" style={{ fontFamily: heading }}>{name}</div>
+        {d.logo ? (
+          <img className="sf-logo" src={d.logo} alt={name} />
+        ) : (
+          <div className="sf-name" style={{ fontFamily: heading }}>{name}</div>
+        )}
         {page ? (
           <button type="button" className="sf-bag" style={{ color: text, borderRadius: btnRadius }} onClick={onOpenBag}>
             Bag ({bagCount})
@@ -74,8 +78,16 @@ export function StoreView({ name, design: d, items, fmt, variant, narrow, bagCou
 
       {d.banner.style !== 'none' && (
         <div
-          className={'sf-hero' + (d.banner.style === 'slim' ? ' sf-hero-slim' : '') + (center ? ' sf-hero-center' : '')}
-          style={{ background: stripes(10), borderRadius: radius }}
+          className={'sf-hero' + (d.banner.style === 'slim' ? ' sf-hero-slim' : '') + (center ? ' sf-hero-center' : '') + (d.banner.image ? ' sf-hero-photo' : '')}
+          style={{
+            // A photo gets a dark fade so the headline stays readable on any picture.
+            background: d.banner.image
+              ? `linear-gradient(to top, rgba(0,0,0,0.62), rgba(0,0,0,0.18) 70%), center / cover no-repeat url("${d.banner.image}")`
+              : stripes(10),
+            borderRadius: radius,
+          }}
+          role={d.banner.image ? 'img' : undefined}
+          aria-label={d.banner.image ? (d.banner.headline.trim() || `${name} banner`) : undefined}
         >
           <div>
             {d.banner.headline.trim() && <div className="sf-hero-title" style={{ fontFamily: heading }}>{d.banner.headline}</div>}

@@ -169,3 +169,14 @@ export type CheckoutBody = z.infer<typeof CheckoutSchema>
 
 export const VerifyPaymentSchema = z.object({ reference: z.string().trim().min(4).max(100) }).strict()
 export type VerifyPaymentBody = z.infer<typeof VerifyPaymentSchema>
+
+/** A store image, already resized in the seller's browser. `data` is base64 (no data: prefix). */
+export const UploadImageSchema = z
+  .object({
+    kind: z.enum(["logo", "banner"]),
+    mime_type: z.enum(["image/webp", "image/jpeg", "image/png"]),
+    // About 2 MB of image at most once decoded.
+    data: z.string().min(16).max(2_800_000).regex(/^[A-Za-z0-9+/]+=*$/, "Not an image"),
+  })
+  .strict()
+export type UploadImageBody = z.infer<typeof UploadImageSchema>

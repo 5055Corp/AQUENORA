@@ -1,4 +1,5 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import type { ImageKind } from '../images';
 import { contrast, FONT_KEYS, loadFonts, PRESETS, readableOn, STORE_FONTS, SWATCHES, type FontKey, type StoreDesign } from '../design';
 import { useStore } from '../store';
 import { StoreView } from '../storefront/StoreView';
@@ -12,6 +13,43 @@ const COLOR_ROWS: { key: ColorKey; label: string; hint: string }[] = [
   { key: 'accent_text', label: 'Button text', hint: 'Words on your buttons' },
   { key: 'card', label: 'Product cards', hint: 'The box around each product' },
 ];
+
+/** Upload, change or remove the logo or banner photo. */
+function ImagePicker({ kind, label, hint, value, onRemove }: { kind: ImageKind; label: string; hint: string; value: string | null; onRemove: () => void }) {
+  const { uploadStoreImage } = useStore();
+  const input = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  const pick = async (file: File | undefined) => {
+    if (!file) return;
+    setBusy(true);
+    setError('');
+    setError(await uploadStoreImage(kind, file));
+    setBusy(false);
+    if (input.current) input.current.value = '';
+  };
+
+  return (
+    <div className="ctl img-pick">
+      <div className="ctl-label">{label}</div>
+      <div className="img-pick-row">
+        <div className={'img-pick-thumb' + (kind === 'logo' ? ' img-pick-logo' : '')}>
+          {value ? <img src={value} alt={`Your ${label.toLowerCase()}`} /> : <span>None yet</span>}
+        </div>
+        <div className="img-pick-actions">
+          <button type="button" className="btn-sm pickup-edit" disabled={busy} onClick={() => input.current?.click()}>
+            {busy ? 'Uploading…' : value ? 'Change' : `Upload ${label.toLowerCase()}`}
+          </button>
+          {value && !busy && <button type="button" className="ship-remove" onClick={onRemove}>Remove</button>}
+        </div>
+        <input ref={input} type="file" accept="image/jpeg,image/png,image/webp" hidden aria-label={`Choose a ${label.toLowerCase()}`}
+          onChange={e => pick(e.target.files?.[0])} />
+      </div>
+      {error ? <div className="form-error" role="alert">{error}</div> : <div className="ctl-note">{hint}</div>}
+    </div>
+  );
+}
 
 /** A row of choices (like Left / Centre). */
 function Seg<T extends string | number>({ label, value, options, onChange }: { label: string; value: T; options: [T, string][]; onChange: (v: T) => void }) {
@@ -93,7 +131,15 @@ export function ThemeEditor() {
             <div className="ctl-note">Pick one to start, then change anything below.</div>
           </Section>
 
-          <Section title="2. Colours" open>
+          <Section title="2. Logo & banner photo" open>
+            <ImagePicker kind="logo" label="Logo" hint="Square or round works best. Shown at the top of your store, instead of your shop name."
+              value={d.logo} onRemove={() => setDesign(x => ({ ...x, logo: null }))} />
+            <ImagePicker kind="banner" label="Banner photo" hint="A wide photo of your products or shop. Your headline sits on top of it."
+              value={d.banner.image} onRemove={() => setDesign(x => ({ ...x, banner: { ...x.banner, image: null } }))} />
+            <div className="ctl-note">Photos are shrunk automatically so your store stays fast. Tap "Publish changes" to show them to customers.</div>
+          </Section>
+
+          <Section title="3. Colours" open>
             {COLOR_ROWS.map(row => (
               <div className="color-row" key={row.key}>
                 <label className="color-main">
@@ -128,7 +174,7 @@ export function ThemeEditor() {
             ))}
           </Section>
 
-          <Section title="3. Fonts">
+          <Section title="4. Fonts">
             {(['heading', 'body'] as const).map(which => (
               <div className="ctl" key={which}>
                 <div className="ctl-label">{which === 'heading' ? 'Shop name & headlines' : 'Everything else'}</div>
@@ -152,7 +198,7 @@ export function ThemeEditor() {
             ))}
           </Section>
 
-          <Section title="4. Layout">
+          <Section title="5. Layout">
             <Seg label="Shop name" value={d.header.align} options={[['left', 'Left'], ['center', 'Centre']]} onChange={v => setDesign(x => ({ ...x, header: { align: v } }))} />
             <Seg label="Banner" value={d.banner.style} options={[['large', 'Big'], ['slim', 'Slim'], ['none', 'None']]} onChange={v => setDesign(x => ({ ...x, banner: { ...x.banner, style: v } }))} />
             {d.banner.style !== 'none' && (
@@ -171,7 +217,7 @@ export function ThemeEditor() {
             <Seg label="Buttons" value={d.shape.buttons} options={[['pill', 'Pill'], ['rounded', 'Rounded'], ['square', 'Square']]} onChange={v => setDesign(x => ({ ...x, shape: { ...x.shape, buttons: v } }))} />
           </Section>
 
-          <Section title="5. Words">
+          <Section title="6. Words">
             <label className="ctl-input">Announcement bar (leave empty to hide)
               <input className="field" maxLength={120} placeholder="e.g. Free delivery this week" value={d.announcement} onChange={e => setDesign(x => ({ ...x, announcement: e.target.value }))} />
             </label>
@@ -180,7 +226,7 @@ export function ThemeEditor() {
             </label>
           </Section>
 
-          <Section title="6. Social links">
+          <Section title="7. Social links">
             <label className="ctl-input">Instagram name
               <input className="field" maxLength={31} placeholder="e.g. adirehouse" value={d.social.instagram} onChange={e => setDesign(x => ({ ...x, social: { ...x.social, instagram: e.target.value.replace(/^@/, '').replace(/[^A-Za-z0-9._]/g, '') } }))} />
             </label>
@@ -189,7 +235,6 @@ export function ThemeEditor() {
             </label>
             <div className="ctl-note">Shown at the bottom of your store so customers can follow or message you.</div>
           </Section>
-          <div className="ctl-note">Logo and banner photos are coming soon.</div>
         </div>
 
         <div className="stage">

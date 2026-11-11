@@ -367,6 +367,9 @@ export const api = {
   verifyDomain: (token: string) => request<PlanResponse>('/sellers/me/domain/verify', { method: 'POST', token }),
   removeDomain: (token: string) => request<PlanResponse>('/sellers/me/domain', { method: 'DELETE', token }),
 
+  uploadImage: (token: string, body: { kind: 'logo' | 'banner'; mime_type: string; data: string }) =>
+    request<{ url: string }>('/sellers/me/uploads', { body, token }),
+
   banks: (token: string) => request<{ banks: Bank[] }>('/sellers/me/payouts/banks', { token }),
   setPayout: (token: string, body: { bank_code: string; account_number: string }) =>
     request<{ seller: ApiSeller }>('/sellers/me/payouts', { body, token }),

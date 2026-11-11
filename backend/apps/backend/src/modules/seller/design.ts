@@ -16,6 +16,14 @@ export const STORE_FONTS = [
   "josefin",
 ] as const
 
+// Uploaded image addresses (POST /sellers/me/uploads). Old designs without images stay valid.
+const imageUrl = z
+  .string()
+  .max(500)
+  .refine((u) => /^https?:\/\/[^\s"'<>()]+$/.test(u), "Images must be uploaded through AQENORA")
+  .nullable()
+  .optional()
+
 const hex = z.string().regex(/^#[0-9a-fA-F]{6}$/, "Colours must look like #1c1a17")
 const line = (max: number) => z.string().max(max).transform((s) => s.replace(/[\u0000-\u001f\u007f]/g, " ").trim())
 
@@ -33,11 +41,13 @@ export const StoreDesignSchema = z
       .strict(),
     fonts: z.object({ heading: z.enum(STORE_FONTS), body: z.enum(STORE_FONTS) }).strict(),
     header: z.object({ align: z.enum(["left", "center"]) }).strict(),
+    logo: imageUrl,
     banner: z
       .object({
         style: z.enum(["large", "slim", "none"]),
         headline: line(80),
         subtext: line(160),
+        image: imageUrl,
       })
       .strict(),
     products: z
