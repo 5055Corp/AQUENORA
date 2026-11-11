@@ -1,5 +1,6 @@
 import type { AuthenticatedMedusaRequest, MedusaResponse } from "@medusajs/framework/http"
-import { MedusaError } from "@medusajs/framework/utils"
+import { ContainerRegistrationKeys, MedusaError } from "@medusajs/framework/utils"
+import { ensureCustomHostname, type HttpsStatus } from "../../../../../lib/cloudflare"
 import { domainPointsHere } from "../../../../../lib/domains"
 import { getSellerRow, sellerPlanResponse } from "../../../../../lib/seller-plan-route"
 import { updateSellerWorkflow } from "../../../../../workflows/update-seller"
@@ -14,5 +15,15 @@ export async function POST(req: AuthenticatedMedusaRequest, res: MedusaResponse)
   if (connected && !seller.domain_verified_at) {
     await updateSellerWorkflow(req.scope).run({ input: { id: seller.id, data: { domain_verified_at: new Date() } } })
   }
-  res.json({ connected, ...(await sellerPlanResponse(req, seller.id)) })
+  // Connected: register it with Cloudflare so it gets an HTTPS certificate.
+  let https: HttpsStatus = "off"
+  if (connected) {
+    try {
+      https = await ensureCustomHostname(seller.custom_domain)
+    } catch (e) {
+      req.scope.resolve(ContainerRegistrationKeys.LOGGER).error(`Cloudflare hostname for ${seller.custom_domain}: ${(e as Error).message}`)
+      https = "error"
+    }
+  }
+  res.json({ connected, https, ...(await sellerPlanResponse(req, seller.id)) })
 }

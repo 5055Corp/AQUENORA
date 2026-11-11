@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ApiError, fetchHandleForDomain, fetchPublicStore, LIVE, RESERVED_SUBDOMAINS, startCheckout, STORE_DOMAIN, verifyPayment, type PaymentResult } from '../api';
+import { ApiError, isOwnDomain, fetchHandleForDomain, fetchPublicStore, LIVE, RESERVED_SUBDOMAINS, startCheckout, STORE_DOMAIN, verifyPayment, type PaymentResult } from '../api';
 import { COUNTRIES } from '../data';
 import * as persist from '../persist';
 import { ACCENT_KEYS, demoProducts, initialState, usdConverter } from '../state';
@@ -46,13 +46,6 @@ function shopHandle(loc: Location = window.location): string {
   if (!STORE_DOMAIN || !host.endsWith('.' + STORE_DOMAIN)) return '';
   const sub = host.slice(0, -(STORE_DOMAIN.length + 1));
   return /^[a-z0-9-]+$/.test(sub) && !RESERVED_SUBDOMAINS.includes(sub) ? sub : '';
-}
-
-/** True for a hostname that isn't AQENORA's own (or a dev/hosting address), i.e. a seller's domain. */
-function isOwnDomain(host: string): boolean {
-  const h = host.toLowerCase();
-  if (h === 'localhost' || /^[\d.]+$/.test(h) || h.endsWith('.github.io') || h.endsWith('.up.railway.app')) return false;
-  return !(STORE_DOMAIN && (h === STORE_DOMAIN || h.endsWith('.' + STORE_DOMAIN)));
 }
 
 /** Demo mode: the store from the demo seller app saved in this same browser. */

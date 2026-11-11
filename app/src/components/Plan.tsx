@@ -151,7 +151,11 @@ export function Plan() {
               </span>
             </div>
             {p.domain.connected ? (
-              <p className="plan-line">Customers can now visit your store at <strong>www.{p.domain.name}</strong>.</p>
+              <>
+                <p className="plan-line">Customers can now visit your store at <strong>www.{p.domain.name}</strong>.</p>
+                {p.https === 'pending' && <p className="ctl-note">Securing your domain (the padlock in the browser). This usually takes a few minutes.</p>}
+                {p.https === 'error' && <p className="ctl-note">We couldn't secure your domain yet. Our team has been told and will sort it out.</p>}
+              </>
             ) : (
               <>
                 <p className="plan-line">At the shop where you bought <strong>{p.domain.name}</strong>, open its <strong>DNS settings</strong> and add these records exactly. We check automatically; it can take up to a few hours to work.</p>

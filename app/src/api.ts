@@ -12,6 +12,22 @@ export const LIVE = API_URL !== '';
  */
 export const STORE_DOMAIN: string = (import.meta.env.VITE_STORE_DOMAIN ?? '').toLowerCase().replace(/^\.+|\.+$/g, '');
 
+/** True for a hostname that isn't AQENORA's own (or a dev/hosting address), i.e. a seller's domain. */
+export function isOwnDomain(host: string): boolean {
+  const h = host.toLowerCase();
+  if (h === 'localhost' || /^[\d.]+$/.test(h) || h.endsWith('.github.io') || h.endsWith('.up.railway.app')) return false;
+  return !(STORE_DOMAIN && (h === STORE_DOMAIN || h.endsWith('.' + STORE_DOMAIN)));
+}
+
+/**
+ * Where store pages send /store requests. On a seller's own domain (www.adirehouse.com) the
+ * Cloudflare Worker (cloudflare/store-worker.js) passes /store/* on to the backend, so requests
+ * stay on the same address and need no cross-site permission.
+ */
+function storeApi(): string {
+  return typeof window !== 'undefined' && LIVE && STORE_DOMAIN && isOwnDomain(window.location.hostname) ? window.location.origin : API_URL;
+}
+
 /** Subdomains that are never shops (keep in sync with RESERVED in server.mjs). */
 export const RESERVED_SUBDOMAINS = ['app', 'www', 'api', 'admin', 'mail', 'static', 'cdn', 'stores', 'store', 'shop', 'help', 'support', 'status', 'blog', 'docs', 'billing', 'pay', 'checkout', 'account', 'login', 'signup', 'aqenora'];
 
@@ -144,6 +160,8 @@ export interface PlanResponse {
   billing_contact: string | null;
   /** Only from the verify call. */
   connected?: boolean;
+  /** Only from the verify call: HTTPS certificate progress at Cloudflare ("off" = not automated). */
+  https?: 'active' | 'pending' | 'error' | 'off';
 }
 
 export interface Customer {
@@ -231,7 +249,7 @@ export interface PublicStore {
 export async function fetchPublicStore(handle: string): Promise<PublicStore> {
   let res: Response;
   try {
-    res = await fetch(`${API_URL}/store/sellers/${encodeURIComponent(handle)}`, {
+    res = await fetch(`${storeApi()}/store/sellers/${encodeURIComponent(handle)}`, {
       headers: { 'x-publishable-api-key': PUBLISHABLE_KEY },
     });
   } catch {
@@ -269,7 +287,7 @@ export type PaymentResult =
 async function storePost<T>(path: string, body: unknown): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(`${API_URL}${path}`, {
+    res = await fetch(`${storeApi()}${path}`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-publishable-api-key': PUBLISHABLE_KEY },
       body: JSON.stringify(body),
@@ -292,7 +310,7 @@ export const verifyPayment = (reference: string) => storePost<PaymentResult>('/s
 /** Exchange rates (units per USD) for showing prices in buyers' currencies; null if unavailable. */
 export async function fetchRates(): Promise<Record<string, number> | null> {
   try {
-    const res = await fetch(`${API_URL}/store/rates`, { headers: { 'x-publishable-api-key': PUBLISHABLE_KEY } });
+    const res = await fetch(`${storeApi()}/store/rates`, { headers: { 'x-publishable-api-key': PUBLISHABLE_KEY } });
     if (!res.ok) return null;
     const j = (await res.json()) as { rates?: Record<string, number> };
     return j.rates ?? null;
@@ -304,7 +322,7 @@ export async function fetchRates(): Promise<Record<string, number> | null> {
 /** Which store a seller's own domain opens (null if none is connected). */
 export async function fetchHandleForDomain(host: string): Promise<string | null> {
   try {
-    const res = await fetch(`${API_URL}/store/domains/${encodeURIComponent(host)}`, { headers: { 'x-publishable-api-key': PUBLISHABLE_KEY } });
+    const res = await fetch(`${storeApi()}/store/domains/${encodeURIComponent(host)}`, { headers: { 'x-publishable-api-key': PUBLISHABLE_KEY } });
     if (!res.ok) return null;
     return ((await res.json()) as { handle?: string }).handle ?? null;
   } catch {

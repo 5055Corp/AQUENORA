@@ -121,7 +121,8 @@ function allowedReturnUrl(url: string, seller: CheckoutSeller): boolean {
   if (storeDomain && (host === storeDomain || host.endsWith("." + storeDomain))) {
     return true
   }
-  if (seller.custom_domain && host === seller.custom_domain.toLowerCase()) {
+  const own = seller.custom_domain?.toLowerCase()
+  if (own && (host === own || host === `www.${own}`)) {
     return true
   }
   const origins = (process.env.STORE_CORS || "").split(",").map((o) => o.trim()).filter(Boolean)

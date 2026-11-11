@@ -1,5 +1,6 @@
 import type { AuthenticatedMedusaRequest, MedusaResponse } from "@medusajs/framework/http"
-import { MedusaError } from "@medusajs/framework/utils"
+import { ContainerRegistrationKeys, MedusaError } from "@medusajs/framework/utils"
+import { removeCustomHostname } from "../../../../lib/cloudflare"
 import { normalizeDomain } from "../../../../lib/domains"
 import { resolvePlan } from "../../../../lib/plans"
 import { getSellerRow, sellerPlanResponse } from "../../../../lib/seller-plan-route"
@@ -24,12 +25,21 @@ export async function POST(req: AuthenticatedMedusaRequest<SetDomainBody>, res: 
   if (taken && taken.id !== seller.id) {
     throw new MedusaError(MedusaError.Types.DUPLICATE_ERROR, `${domain} is already connected to another AQENORA store.`)
   }
+  if (seller.custom_domain && seller.custom_domain !== domain) {
+    await removeCustomHostname(seller.custom_domain).catch(() => undefined)
+  }
   await updateSellerWorkflow(req.scope).run({ input: { id: seller.id, data: { custom_domain: domain, domain_verified_at: null } } })
   res.json(await sellerPlanResponse(req, seller.id))
 }
 
 /** DELETE /sellers/me/domain: disconnect the domain. */
 export async function DELETE(req: AuthenticatedMedusaRequest, res: MedusaResponse) {
+  const current = await getSellerRow(req, req.auth_context.actor_id)
+  if (current.custom_domain) {
+    await removeCustomHostname(current.custom_domain).catch((e) =>
+      req.scope.resolve(ContainerRegistrationKeys.LOGGER).error(`Cloudflare remove ${current.custom_domain}: ${(e as Error).message}`)
+    )
+  }
   await updateSellerWorkflow(req.scope).run({
     input: { id: req.auth_context.actor_id, data: { custom_domain: null, domain_verified_at: null } },
   })
