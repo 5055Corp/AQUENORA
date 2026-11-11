@@ -1,16 +1,15 @@
 # AQUENORA brand
 
-**Mark:** a geometric "A" with a star at its peak (*illuminating possibilities*) and an orbit ring as its crossbar (*connecting the world*). The ring passes behind the A at the back and in front at the front.
+**Mark:** a simple geometric "A" with a star of light at its peak (*illuminating possibilities*) and one thin orbit ring as its crossbar (*connecting the world*). The ring passes behind the A at the back and in front at the front, so it reads as 3D with flat shapes only. No glows or gradients.
 
-**Colours**
+**Colours (Midnight)**
 
 | Name | Hex | Use |
 | --- | --- | --- |
-| Ink | `#0A0612` | Near-black backgrounds and text on light |
-| Deep purple | `#2A0B52` | App icon background, mark on light |
-| Royal purple | `#5B21B6` | Accents, tagline on light |
-| Glow | `#A78BFA` | Glow, tagline on dark |
-| White | `#FFFFFF` | Mark and text on dark |
+| Midnight | `#120A1F` | App icon and dark backgrounds; the A and text on light backgrounds |
+| White | `#FFFFFF` | The A, star and text on dark backgrounds |
+| Silver lilac | `#CFC8DA` | Orbit ring and tagline on dark |
+| Dusk | `#6B6378` | Orbit ring and tagline on light |
 
 **Type:** wordmark in Michroma (Google Fonts, SIL Open Font License), widely tracked, converted to outlines so it looks the same everywhere.
 
