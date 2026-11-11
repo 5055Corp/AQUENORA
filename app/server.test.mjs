@@ -55,6 +55,9 @@ test('serves the seller app and store pages by address', async () => {
   const viaWorker = await get('/', 'web-production-1234.up.railway.app', { 'x-aquenora-shop-domain': 'www.adirehouse.com' });
   assert.match(viaWorker.body, /<title>AQUENORA store<\/title>/);
   assert.match((await get('/', 'web-production-1234.up.railway.app')).body, /<title>AQUENORA: Seller<\/title>/);
+  // The seller interview lives on the app's address, never on a shop.
+  assert.match((await get('/interview', 'app.aquenora.com')).body, /<title>AQUENORA seller interview<\/title>/);
+  assert.match((await get('/interview', 'adirehouse.aquenora.com')).body, /<title>AQUENORA store<\/title>/);
 });
 
 test('assets, 404s, health, compression, HTTPS header and path tricks', async () => {

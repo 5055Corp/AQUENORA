@@ -118,7 +118,9 @@ export const server = createServer(async (req, res) => {
     // Sellers' own domains arrive through the Cloudflare Worker (cloudflare/store-worker.js),
     // which says which domain was visited. It only ever chooses the store page over the app.
     const shop = pageForHost(req.headers.host) === 'store' || !!req.headers['x-aquenora-shop-domain'];
-    const page = join(DIST, shop ? 'store.html' : 'index.html');
+    // app.aquenora.com/interview: the seller interview (market research).
+    const interview = !shop && /^\/interview\/?$/.test(url.pathname);
+    const page = join(DIST, shop ? 'store.html' : interview ? 'interview.html' : 'index.html');
 
     // On a shop subdomain every page path shows the store; real files (assets) are still served.
     const file = await fileFor(url.pathname === '/' ? '/__none__' : url.pathname);

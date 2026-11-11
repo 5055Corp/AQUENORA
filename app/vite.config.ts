@@ -13,6 +13,8 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
         store: resolve(__dirname, 'store.html'),
+        // The seller interview (market research): app.aquenora.com/interview
+        interview: resolve(__dirname, 'interview.html'),
       },
     },
   },

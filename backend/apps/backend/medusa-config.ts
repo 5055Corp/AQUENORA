@@ -135,6 +135,7 @@ module.exports = defineConfig({
     { resolve: "./src/modules/seller" },
     { resolve: "./src/modules/marketing" },
     { resolve: "./src/modules/billing" },
+    { resolve: "./src/modules/research" },
     notificationModule,
     fileModule,
     ...redisModules,
