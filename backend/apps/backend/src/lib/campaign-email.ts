@@ -27,6 +27,12 @@ export function renderCampaignEmail(input: {
     .join("")
   const shop = escape(input.shopName)
   const brand = "Sent with AQUENORA. Illuminating possibilities. Connecting the world."
+  // AQUENORA's small logo, served by the seller app (app.<STORE_DOMAIN>/brand/...). Left out
+  // until the domain is live; email apps that block images show the alt text instead.
+  const domain = (process.env.STORE_DOMAIN ?? "").replace(/^\.+|\.+$/g, "")
+  const logo = domain
+    ? `<br><img src="https://app.${escape(domain)}/brand/aquenora-logo-horizontal-light.png" width="120" alt="AQUENORA" style="display:inline-block;margin-top:10px;border:0;height:auto;">`
+    : ""
   const footer = `You're getting this because you bought from ${input.shopName} and said yes to their news and offers.`
 
   const html = `<!doctype html><html><body style="margin:0;background:#f6f3ee;font-family:Arial,Helvetica,sans-serif;color:#1c1a17;">
@@ -36,7 +42,7 @@ export function renderCampaignEmail(input: {
 <tr><td style="padding:8px 28px 8px;font-size:16px;">${paragraphs}</td></tr>
 ${input.storeUrl ? `<tr><td style="padding:0 28px 28px;"><a href="${escape(input.storeUrl)}" style="display:inline-block;background:#1c1a17;color:#ffffff;text-decoration:none;font-weight:bold;padding:13px 22px;border-radius:999px;">Visit the shop</a></td></tr>` : ""}
 </table>
-<p style="max-width:560px;font-size:12px;line-height:1.5;color:#6b645a;margin:16px auto 0;">${escape(footer)}<br><a href="${escape(input.unsubscribeUrl)}" style="color:#6b645a;">Unsubscribe</a> <br><em>${escape(brand)}</em></p>
+<p style="max-width:560px;font-size:12px;line-height:1.5;color:#6b645a;margin:16px auto 0;">${escape(footer)}<br><a href="${escape(input.unsubscribeUrl)}" style="color:#6b645a;">Unsubscribe</a> <br><em>${escape(brand)}</em>${logo}</p>
 </td></tr></table></body></html>`
 
   const text = `${message}\n\n${input.storeUrl ? `Visit the shop: ${input.storeUrl}\n\n` : ""}--\n${footer}\nUnsubscribe: ${input.unsubscribeUrl}\n${brand}`

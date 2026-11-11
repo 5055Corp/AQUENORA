@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { LIVE, submitInterview } from '../api';
 import { TAGLINE } from '../brand';
+import { Logo } from '../components/Logo';
 import { ALL_QUESTIONS, CURRENCY, SECTIONS, VERSION, type Answer, type Answers, type Question } from './questions';
 
 const DRAFT_KEY = 'aquenora-interview-draft';
@@ -249,7 +250,7 @@ export function Interview() {
   return (
     <div className="iv">
       <header className="iv-top" ref={top}>
-        <div className="wordmark">AQUENORA</div>
+        <Logo />
         {step > 0 && step < doneStep && (
           <div className="iv-progress" role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100} aria-label="Progress">
             <div style={{ width: `${progress}%` }} />

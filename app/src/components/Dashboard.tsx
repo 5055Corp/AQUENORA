@@ -8,6 +8,7 @@ import { ThemeEditor } from './ThemeEditor';
 import { Money } from './Money';
 import { Customers } from './Customers';
 import { Plan } from './Plan';
+import { Logo } from './Logo';
 
 export function Dashboard() {
   const { s, set, isMobile, shopNameShown, slug } = useStore();
@@ -19,7 +20,7 @@ export function Dashboard() {
       {!isMobile && (
         <aside className="sidebar">
           <div className="sb-brand">
-            <div className="wordmark">AQUENORA</div>
+            <Logo />
             <div className="sb-tagline">{TAGLINE}</div>
           </div>
           <div className="sb-shop">
@@ -57,7 +58,7 @@ export function Dashboard() {
               <div>{shopNameShown}</div>
               <div>{slug}.aquenora.com</div>
             </div>
-            <div className="wordmark">AQUENORA</div>
+            <Logo />
           </div>
         )}
 
