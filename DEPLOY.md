@@ -117,7 +117,13 @@ Cloudflare runs your domain's DNS (free), and in Part 5 it also gives sellers' o
 4. Wait until Railway shows each domain as active (a few minutes).
 5. **Update the variables:**
    - **Web:** `VITE_STORE_DOMAIN=aquenora.com`, `ROOT_DOMAIN=aquenora.com`, `VITE_API_URL=https://api.aquenora.com`.
-   - **Backend:** `MEDUSA_BACKEND_URL` and `ADMIN_CORS` = `https://api.aquenora.com`; `STORE_CORS`, `AUTH_CORS` and `SELLER_CORS` = `https://app.aquenora.com,https://*.aquenora.com`; `STORE_DOMAIN=aquenora.com`; `STORE_CNAME_TARGET=stores.aquenora.com`.
+   - **Backend:**
+     - `MEDUSA_BACKEND_URL` and `ADMIN_CORS` = `https://api.aquenora.com`
+     - `STORE_CORS` = `https://app.aquenora.com,/^https:\/\/[a-z0-9-]+\.aquenora\.com$/` (the part between `/ /` is a pattern that lets every shop address in; a plain `https://*.aquenora.com` does **not** work)
+     - `AUTH_CORS` = `https://app.aquenora.com,https://api.aquenora.com`
+     - `SELLER_CORS` = `https://app.aquenora.com`
+     - `STORE_DOMAIN=aquenora.com`, `STORE_CNAME_TARGET=stores.aquenora.com`
+     - `STORE_PAGE_URL` can be deleted (store links now use `STORE_DOMAIN`).
 
    Redeploy both.
 6. **Check:** `app.aquenora.com` opens the seller app, `<shop>.aquenora.com` opens that shop, and `api.aquenora.com/app` opens your admin login.
