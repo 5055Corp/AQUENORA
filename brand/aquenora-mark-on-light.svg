@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512"><defs>
+    <linearGradient id="mk-leg" x1="0" y1="140" x2="0" y2="420" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0A0612"/>
+      <stop offset="1" stop-color="#2A0B52"/>
+    </linearGradient>
+    <linearGradient id="mk-ring" x1="56" y1="0" x2="456" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5B21B6" stop-opacity="0.7"/>
+      <stop offset="0.5" stop-color="#2A0B52"/>
+      <stop offset="1" stop-color="#5B21B6" stop-opacity="0.8"/>
+    </linearGradient>
+    <radialGradient id="mk-glow" cx="256" cy="104" r="120" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#A78BFA" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#A78BFA" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="mk-back"><rect x="26" y="228" width="460" height="90"/></clipPath>
+    <clipPath id="mk-front"><rect x="26" y="318" width="460" height="90"/></clipPath>
+    <filter id="mk-soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6"/></filter>
+    </defs>
+    <circle cx="256" cy="104" r="120" fill="url(#mk-glow)"/>
+    <g transform="rotate(-14 256 318)" clip-path="url(#mk-back)"><ellipse cx="256" cy="318" rx="200" ry="60" fill="none" stroke="#A78BFA" stroke-width="15" opacity="0.9"/></g>
+    <path d="M96 420 L144 420 L246 150 L214 150 Z" fill="url(#mk-leg)"/>
+    <path d="M416 420 L368 420 L266 150 L298 150 Z" fill="url(#mk-leg)"/>
+    <g transform="rotate(-14 256 318)" clip-path="url(#mk-front)"><ellipse cx="256" cy="318" rx="200" ry="60" fill="none" stroke="url(#mk-ring)" stroke-width="15" opacity="1"/></g>
+    <circle cx="417.9" cy="315.7" r="15" fill="#A78BFA" opacity="0.55" filter="url(#mk-soft)"/>
+    <circle cx="417.9" cy="315.7" r="9" fill="#2A0B52"/>
+    <path d="M256 66.5 Q260 100 286 104 Q260 108 256 141.5 Q252 108 226 104 Q252 100 256 66.5 Z" fill="#2A0B52"/>
+    </svg>
