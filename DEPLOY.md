@@ -119,7 +119,7 @@ Cloudflare runs your domain's DNS (free), and in Part 5 it also gives sellers' o
    - **Web:** `VITE_STORE_DOMAIN=aquenora.com`, `ROOT_DOMAIN=aquenora.com`, `VITE_API_URL=https://api.aquenora.com`.
    - **Backend:**
      - `MEDUSA_BACKEND_URL` and `ADMIN_CORS` = `https://api.aquenora.com`
-     - `STORE_CORS` = `https://app.aquenora.com,/^https:\/\/[a-z0-9-]+\.aquenora\.com$/` (the part between `/ /` is a pattern that lets every shop address in; a plain `https://*.aquenora.com` does **not** work)
+     - `STORE_CORS` = `https://app.aquenora.com,/^https://[a-z0-9-]+[.]aquenora[.]com$/` (the part between the first and last `/` is a pattern that lets every shop address in; a plain `https://*.aquenora.com` does **not** work. It has no backslashes, so it pastes safely into Railway's editor)
      - `AUTH_CORS` = `https://app.aquenora.com,https://api.aquenora.com`
      - `SELLER_CORS` = `https://app.aquenora.com`
      - `STORE_DOMAIN=aquenora.com`, `STORE_CNAME_TARGET=stores.aquenora.com`
