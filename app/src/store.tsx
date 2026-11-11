@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { COUNTRIES, nextStep, type Order, type Product } from './data';
 import { DAY_NAMES, DAYS, normalizePickup, type Pickup } from './pickup';
 import { normalizeShipping, type Shipping } from './shipping';
+import { prepareImage, type ImageKind } from './images';
 import type { Settings } from './settings';
 import * as persist from './persist';
 import { api, ApiError, LIVE, sellerIdFromToken, storeLink, type ApiOrder, type ApiProduct, type ApiSeller, type PlanResponse } from './api';
@@ -504,7 +505,26 @@ function useStoreValue(settings: Settings) {
     }
   };
 
+  /**
+   * Shrinks and uploads a logo or banner photo and puts it in the design (seen after "Publish").
+   * Returns an error message to show, or ''.
+   */
+  const uploadStoreImage = async (kind: ImageKind, file: File): Promise<string> => {
+    try {
+      const img = await prepareImage(file, kind);
+      let url = img.dataUrl;
+      if (LIVE) {
+        url = (await api.uploadImage(s.token, { kind, mime_type: img.mimeType, data: img.base64 })).url;
+      }
+      setDesign(d => (kind === 'logo' ? { ...d, logo: url } : { ...d, banner: { ...d.banner, image: url, style: d.banner.style === 'none' ? 'large' : d.banner.style } }));
+      return '';
+    } catch (e) {
+      return e instanceof Error ? e.message : 'Could not upload the picture. Please try again.';
+    }
+  };
+
   return {
+    uploadStoreImage,
     shipping, saveShipping,
     pickup, savePickup, savePayout,
     s, set, settings, toast, flash, isMobile, framed, country, fmt, fromUsd, slug, shopNameShown, storeUrl,

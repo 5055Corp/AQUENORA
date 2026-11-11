@@ -620,3 +620,18 @@ button:disabled { cursor: default; }
   body.printing-sheet .sheet { position: absolute; left: 0; top: 0; max-width: none; padding: 0; border-radius: 0; }
   .no-print { display: none !important; }
 }
+
+/* ---------- logo & banner photo ---------- */
+.sf-logo { display: block; max-height: 48px; max-width: 160px; width: auto; height: auto; object-fit: contain; }
+.sf-head-center .sf-logo { grid-column: 2; justify-self: center; }
+.sf-page .sf-logo { max-height: 64px; max-width: 220px; }
+.sf-hero-photo { color: #fff; min-height: 200px; }
+.sf-hero-photo.sf-hero-slim { min-height: 0; }
+.sf-hero-photo .sf-hero-sub { opacity: 0.92; }
+.sf-hero-photo .sf-hero-title, .sf-hero-photo .sf-hero-sub { text-shadow: 0 1px 12px rgba(0, 0, 0, 0.35); }
+.img-pick-row { display: flex; align-items: center; gap: 12px; }
+.img-pick-thumb { width: 120px; height: 68px; flex-shrink: 0; border-radius: 10px; border: 1.5px dashed var(--dash); background: var(--tile); display: grid; place-items: center; overflow: hidden; font-size: 12px; color: var(--muted); }
+.img-pick-logo { width: 68px; }
+.img-pick-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.img-pick-logo img { object-fit: contain; }
+.img-pick-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }

@@ -63,6 +63,42 @@ const notificationModule = {
   },
 }
 
+/**
+ * Uploaded files (store logos and banner photos).
+ * - S3_BUCKET set: an S3-compatible bucket, e.g. Cloudflare R2 (S3_ENDPOINT, S3_FILE_URL = the
+ *   bucket's public address, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY; S3_REGION "auto" for R2).
+ * - Otherwise: saved on the server's disk in ./static and served at <MEDUSA_BACKEND_URL>/static.
+ *   On Railway, attach a volume at /server/static so files survive redeploys.
+ */
+const fileModule = {
+  resolve: "@medusajs/medusa/file",
+  options: {
+    providers: process.env.S3_BUCKET
+      ? [
+          {
+            resolve: "@medusajs/medusa/file-s3",
+            id: "s3",
+            options: {
+              file_url: process.env.S3_FILE_URL,
+              access_key_id: process.env.S3_ACCESS_KEY_ID,
+              secret_access_key: process.env.S3_SECRET_ACCESS_KEY,
+              region: process.env.S3_REGION || "auto",
+              bucket: process.env.S3_BUCKET,
+              endpoint: process.env.S3_ENDPOINT,
+              prefix: "uploads/",
+            },
+          },
+        ]
+      : [
+          {
+            resolve: "@medusajs/medusa/file-local",
+            id: "local",
+            options: { backend_url: `${(process.env.MEDUSA_BACKEND_URL || "http://localhost:9000").replace(/\/+$/, "")}/static` },
+          },
+        ],
+  },
+}
+
 module.exports = defineConfig({
   projectConfig: {
     databaseUrl: process.env.DATABASE_URL,
@@ -100,6 +136,7 @@ module.exports = defineConfig({
     { resolve: "./src/modules/marketing" },
     { resolve: "./src/modules/billing" },
     notificationModule,
+    fileModule,
     ...redisModules,
   ],
 })

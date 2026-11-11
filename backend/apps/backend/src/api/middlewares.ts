@@ -13,6 +13,7 @@ import {
   CreateSellerProductSchema,
   CreateSellerSchema,
   BillingSettingsSchema,
+  UploadImageSchema,
   CheckoutSchema,
   SetPayoutSchema,
   VerifyPaymentSchema,
@@ -112,6 +113,13 @@ export default defineMiddlewares({
       methods: ["DELETE"],
       matcher: "/sellers/me/domain",
       middlewares: [sellerAuth],
+    },
+    {
+      // Store logo / banner photo, sent as base64 JSON (resized by the app first).
+      methods: ["POST"],
+      matcher: "/sellers/me/uploads",
+      bodyParser: { sizeLimit: "3mb" },
+      middlewares: [sellerAuth, validateAndTransformBody(UploadImageSchema)],
     },
     {
       methods: ["POST"],

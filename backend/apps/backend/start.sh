@@ -6,6 +6,16 @@ set -e
 # is skipped and must be run by hand with `npx medusa db:migrate` after a backup.
 npx medusa db:migrate --execute-safe-links --execute-safe-search --all-or-nothing
 
+# Store logos and banner photos are saved in ./static unless an S3/R2 bucket is set (S3_BUCKET).
+if [ -z "$S3_BUCKET" ]; then
+  mkdir -p static 2>/dev/null || true
+  if ! touch static/.write-test 2>/dev/null; then
+    echo "WARNING: can't save uploaded pictures in ./static. On Railway, add the variable RAILWAY_RUN_UID=0 (see DEPLOY.md)."
+  else
+    rm -f static/.write-test
+  fi
+fi
+
 # First admin login: set ADMIN_EMAIL and ADMIN_PASSWORD on the backend service, deploy once,
 # log in at /app, then delete ADMIN_PASSWORD. If that admin already exists, nothing changes.
 if [ -n "$ADMIN_EMAIL" ] && [ -n "$ADMIN_PASSWORD" ]; then

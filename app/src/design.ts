@@ -1,6 +1,7 @@
 // A store's design: what the seller picks in "Your store's look" and what buyers see.
 // Same shape as the backend's StoreDesignSchema (backend/apps/backend/src/modules/seller/design.ts).
 
+import { isImageUrl } from './images';
 import { ACCENTS, FONTS as LEGACY_FONTS, THEMES, type FontId, type ThemeId } from './data';
 
 export type FontKey =
@@ -13,7 +14,10 @@ export interface StoreDesign {
   colors: { background: string; text: string; accent: string; accent_text: string; card: string };
   fonts: { heading: FontKey; body: FontKey };
   header: { align: 'left' | 'center' };
-  banner: { style: 'large' | 'slim' | 'none'; headline: string; subtext: string };
+  /** Uploaded logo address, or null to show the shop name in text. */
+  logo: string | null;
+  /** image: uploaded banner photo, or null for the plain pattern. */
+  banner: { style: 'large' | 'slim' | 'none'; headline: string; subtext: string; image: string | null };
   products: { columns: 2 | 3 | 4; show_stock: boolean };
   shape: { corners: 'round' | 'soft' | 'square'; buttons: 'pill' | 'rounded' | 'square' };
   announcement: string;
@@ -98,7 +102,8 @@ export function defaultDesign(country = 'Nigeria'): StoreDesign {
     colors: { ...PRESETS[0].colors },
     fonts: { ...PRESETS[0].fonts },
     header: { align: 'left' },
-    banner: { style: 'large', headline: `New season, made in ${country}`, subtext: '' },
+    logo: null,
+    banner: { style: 'large', headline: `New season, made in ${country}`, subtext: '', image: null },
     products: { columns: 4, show_stock: false },
     shape: { corners: 'round', buttons: 'pill' },
     announcement: '',
@@ -146,10 +151,12 @@ export function normalizeDesign(raw: unknown, fallback: StoreDesign): StoreDesig
       body: pick(r.fonts?.body, v => FONT_KEYS.includes(v as FontKey), fallback.fonts.body),
     },
     header: { align: pick(r.header?.align, oneOf('left', 'center'), fallback.header.align) },
+    logo: isImageUrl(r.logo) ? r.logo : null,
     banner: {
       style: pick(r.banner?.style, oneOf('large', 'slim', 'none'), fallback.banner.style),
       headline: pick(r.banner?.headline, str(80), fallback.banner.headline),
       subtext: pick(r.banner?.subtext, str(160), fallback.banner.subtext),
+      image: isImageUrl(r.banner?.image) ? r.banner.image : null,
     },
     products: {
       columns: pick(r.products?.columns, oneOf(2, 3, 4), fallback.products.columns),

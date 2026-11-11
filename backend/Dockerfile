@@ -22,6 +22,8 @@ ENV NODE_ENV=production \
 WORKDIR /server
 COPY --from=build /repo/apps/backend/.medusa/server ./
 COPY apps/backend/start.sh ./start.sh
+# Uploaded store logos and banners (served at /static). On Railway, attach a volume here.
+RUN mkdir -p /server/static && chown node:node /server/static
 USER node
 EXPOSE 9000
 CMD ["sh", "./start.sh"]
