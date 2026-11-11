@@ -1,5 +1,4 @@
 import { useId, type CSSProperties } from 'react';
-import { WORDMARK_CAP, WORDMARK_PATH, WORDMARK_WIDTH } from '../brandWordmark';
 
 // The AQUENORA symbol: an A with a star of light at its peak and an orbit ring as its crossbar.
 // Drawn in the current text colour, so it suits any background (a seller's store colours too).
@@ -37,21 +36,15 @@ export function Mark({ size = '1em', ringColor, title, style }: { size?: string 
   );
 }
 
-/** The name alone, as outlines, in the current text colour. `height` is the capital height. */
-export function Wordmark({ height = '0.72em' }: { height?: string | number }) {
-  return (
-    <svg viewBox={`0 ${-WORDMARK_CAP} ${WORDMARK_WIDTH} ${WORDMARK_CAP}`} height={height} aria-hidden="true" style={{ display: 'block', flexShrink: 0, overflow: 'visible' }}>
-      <path d={WORDMARK_PATH} fill="currentColor" />
-    </svg>
-  );
-}
-
-/** Symbol + name. Sized by the font size of where it's placed (e.g. the .wordmark class). */
+/**
+ * Symbol + name. The name is the original AQUENORA wordmark (Bricolage Grotesque Bold, set by the
+ * .wordmark class), at the same size as before; the symbol is sized to fit the same height.
+ */
 export function Logo({ className = 'wordmark', ringColor, style }: { className?: string; ringColor?: string; style?: CSSProperties }) {
   return (
-    <div className={`logo ${className}`} role="img" aria-label="AQUENORA" style={style}>
-      <Mark size="1.9em" ringColor={ringColor} />
-      <Wordmark />
+    <div className={`logo ${className}`} aria-label="AQUENORA" style={style}>
+      <Mark size="1.25em" ringColor={ringColor} />
+      <span aria-hidden="true">AQUENORA</span>
     </div>
   );
 }

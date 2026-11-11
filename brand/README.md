@@ -11,7 +11,7 @@
 | Silver lilac | `#CFC8DA` | Orbit ring and tagline on dark |
 | Dusk | `#6B6378` | Orbit ring and tagline on light |
 
-**Type:** wordmark in Michroma (Google Fonts, SIL Open Font License), widely tracked, converted to outlines so it looks the same everywhere.
+**Type:** the name in **Bricolage Grotesque Bold** (Google Fonts, SIL Open Font License), with its distinctive Q, letter-spaced (+8%). It's the same font the app uses for "AQUENORA". The tagline is in Bricolage Grotesque Medium, letter-spaced (+14%). In the logo files the letters are turned into shapes, so they look the same everywhere.
 
 **Files**
 - `aquenora-app-icon.svg` / `-1024.png`: App Store / Google Play icon (square; the stores round the corners themselves). Also `-512.png` and `-180.png` (iPhone home screen).
