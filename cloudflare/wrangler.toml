@@ -1,0 +1,12 @@
+# Deploy with: npx wrangler deploy  (from this folder, after `npx wrangler login`)
+name = "aqenora-stores"
+main = "store-worker.js"
+compatibility_date = "2026-10-01"
+
+# Runs for sellers' own domains (custom hostnames) that reach the aqenora.com zone.
+routes = [{ pattern = "*/*", zone_name = "aqenora.com" }]
+
+[vars]
+BACKEND_ORIGIN = "https://api.aqenora.com"
+# Set to the web service's Railway address (Settings -> Networking in Railway).
+WEB_ORIGIN = ""

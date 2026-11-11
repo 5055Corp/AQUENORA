@@ -115,7 +115,9 @@ export const server = createServer(async (req, res) => {
       return res.end();
     }
 
-    const shop = pageForHost(req.headers.host) === 'store';
+    // Sellers' own domains arrive through the Cloudflare Worker (cloudflare/store-worker.js),
+    // which says which domain was visited. It only ever chooses the store page over the app.
+    const shop = pageForHost(req.headers.host) === 'store' || !!req.headers['x-aqenora-shop-domain'];
     const page = join(DIST, shop ? 'store.html' : 'index.html');
 
     // On a shop subdomain every page path shows the store; real files (assets) are still served.

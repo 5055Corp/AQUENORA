@@ -51,6 +51,10 @@ test('serves the seller app and store pages by address', async () => {
   // A shop address never serves the seller app, even when asked for index.html directly.
   const sneaky = await get('/index.html', 'adirehouse.aqenora.com');
   assert.match(sneaky.body, /<title>AQENORA store<\/title>/);
+  // Through the Cloudflare Worker: Railway's own address, but a seller's domain was visited.
+  const viaWorker = await get('/', 'web-production-1234.up.railway.app', { 'x-aqenora-shop-domain': 'www.adirehouse.com' });
+  assert.match(viaWorker.body, /<title>AQENORA store<\/title>/);
+  assert.match((await get('/', 'web-production-1234.up.railway.app')).body, /<title>AQENORA: Seller<\/title>/);
 });
 
 test('assets, 404s, health, compression, HTTPS header and path tricks', async () => {
