@@ -140,10 +140,9 @@ Sellers point `www.theirshop.com` at `stores.aquenora.com` (the app shows them h
 2. **Fallback Origin:** enter `stores.aquenora.com`, click **Add Fallback Origin**, wait until it shows **Active**.
 
 **5c. Deploy the Worker**
-1. On your computer, in this repo's `cloudflare` folder: set `WEB_ORIGIN` in `wrangler.toml` to your **web** service's Railway address (Railway → web → **Settings → Networking**, the `….up.railway.app` one, with `https://`).
-2. Run `npx wrangler login`, then `npx wrangler deploy`. This creates the `aquenora-stores` Worker with the route `*/*` on `aquenora.com`.
+1. On your computer, in this repo's `cloudflare` folder, run `npx wrangler login`, then `npx wrangler deploy`. This creates the `aquenora-stores` Worker with the route `*/*` on `aquenora.com`.
 
-   No command line? In Cloudflare go to **Workers & Pages → Create → Worker**, paste the contents of `cloudflare/store-worker.js`, deploy, then under **Settings → Variables** add `BACKEND_ORIGIN=https://api.aquenora.com` and `WEB_ORIGIN=<web Railway address>`, and under **Settings → Domains & Routes → Add route** use `*/*` on zone `aquenora.com`.
+   No command line? In Cloudflare go to **Workers & Pages → Create → Worker**, paste the contents of `cloudflare/store-worker.js`, deploy, then under **Settings → Variables** add `BACKEND_ORIGIN=https://api.aquenora.com` and `WEB_ORIGIN=https://app.aquenora.com` (tick **Production**), and under **Settings → Domains & Routes → Add route** use `*/*` on zone `aquenora.com`.
 
    The route only affects proxied (orange cloud) traffic. `app`, `api` and `*.aquenora.com` are grey cloud (4b), so they go straight to Railway and aren't touched.
 
