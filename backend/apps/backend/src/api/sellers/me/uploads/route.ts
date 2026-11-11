@@ -1,6 +1,7 @@
 import crypto from "node:crypto"
 import type { AuthenticatedMedusaRequest, MedusaResponse } from "@medusajs/framework/http"
-import { MedusaError, Modules } from "@medusajs/framework/utils"
+import { MedusaError } from "@medusajs/framework/utils"
+import { uploadFilesWorkflow } from "@medusajs/medusa/core-flows"
 import type { UploadImageBody } from "../../validators"
 
 const EXT: Record<UploadImageBody["mime_type"], string> = { "image/webp": "webp", "image/jpeg": "jpg", "image/png": "png" }
@@ -30,9 +31,11 @@ export async function POST(req: AuthenticatedMedusaRequest<UploadImageBody>, res
   if (!looksLike(buf, mime_type)) {
     throw new MedusaError(MedusaError.Types.INVALID_DATA, "That file isn't a picture we can use. Try a JPG, PNG or WebP photo.")
   }
-  const files = req.scope.resolve(Modules.FILE)
   // A new name each time, so browsers and caches never show the old picture.
   const name = `${req.auth_context.actor_id}-${kind}-${crypto.randomBytes(4).toString("hex")}.${EXT[mime_type]}`
-  const [file] = await files.createFiles([{ filename: name, mimeType: mime_type, content: data, access: "public" }])
+  const { result } = await uploadFilesWorkflow(req.scope).run({
+    input: { files: [{ filename: name, mimeType: mime_type, content: data, access: "public" }] },
+  })
+  const [file] = result
   res.json({ url: file.url })
 }

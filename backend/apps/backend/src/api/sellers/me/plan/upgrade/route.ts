@@ -4,7 +4,7 @@ import { sellerPlanResponse } from "../../../../../lib/seller-plan-route"
 /**
  * POST /sellers/me/plan/upgrade
  * Paying online needs Paystack subscriptions (not switched on yet). Until then this answers with
- * how to pay by transfer; the AQENORA team then marks the shop as paid in the admin dashboard.
+ * how to pay by transfer; the AQUENORA team then marks the shop as paid in the admin dashboard.
  */
 export async function POST(req: AuthenticatedMedusaRequest, res: MedusaResponse) {
   const info = await sellerPlanResponse(req, req.auth_context.actor_id)

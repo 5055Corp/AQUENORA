@@ -1,4 +1,4 @@
-// Static content for the AQENORA seller app. Values match the Claude Design prototype.
+// Static content for the AQUENORA seller app. Values match the Claude Design prototype.
 
 import type { OrderAddress, OrderShipping } from './api';
 
@@ -166,7 +166,7 @@ export interface Product {
 
 export const HELP = {
   url: 'This is the link customers type or tap to visit your shop. You can send it on WhatsApp or put it in your Instagram bio. You can switch to your own address (like adirehouse.com) later on the Pro plan.',
-  pay: "Paystack moves money from your customer's card or bank into your bank account, usually the next working day. Setup is free; Paystack keeps a small fee from each sale. AQENORA never holds your money.",
+  pay: "Paystack moves money from your customer's card or bank into your bank account, usually the next working day. Setup is free; Paystack keeps a small fee from each sale. AQUENORA never holds your money.",
   checklistPay: "Paystack moves money from your customer's card or bank into your bank account. Setup is free. It keeps a small fee from each sale.",
   checklistShare: 'Most first sales come from people who already know you. Post your link on your WhatsApp status and Instagram bio.',
 };

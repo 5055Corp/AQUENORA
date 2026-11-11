@@ -19,7 +19,7 @@ interface StoreData {
   design: StoreDesign;
   items: StoreItem[];
   sellsAbroad: boolean;
-  /** "Powered by AQENORA" shows unless the seller pays for Pro. */
+  /** "Powered by AQUENORA" shows unless the seller pays for Pro. */
   showBadge: boolean;
   /** In-store pickup, when the seller offers it. */
   pickup: Pickup | null;
@@ -252,12 +252,12 @@ export function StorePage() {
   if (load.kind === 'ready') return <Store data={load.data} />;
   return (
     <div className="sp-msg">
-      <div className="wordmark">AQENORA</div>
+      <div className="wordmark">AQUENORA</div>
       {load.kind === 'loading' && <p role="status">Opening the store…</p>}
       {load.kind === 'missing' && (
         <>
-          <h1>{load.handle ? `There's no store at ${load.handle}.${STORE_DOMAIN || 'aqenora.com'}` : 'Which store are you looking for?'}</h1>
-          <p>Check the link the seller sent you. Store links look like adirehouse.aqenora.com.</p>
+          <h1>{load.handle ? `There's no store at ${load.handle}.${STORE_DOMAIN || 'aquenora.com'}` : 'Which store are you looking for?'}</h1>
+          <p>Check the link the seller sent you. Store links look like adirehouse.aquenora.com.</p>
         </>
       )}
       {load.kind === 'error' && (
@@ -490,8 +490,8 @@ function Store({ data }: { data: StoreData }) {
         {data.sellsAbroad && <span>Ships worldwide</span>}
         {data.pickup && <span>Pickup available in {data.pickup.area}</span>}
         {data.showBadge && (
-          <a className="sp-badge" href="https://aqenora.com" target="_blank" rel="noopener noreferrer" title={`AQENORA: ${TAGLINE}`} style={{ color: ink }}>
-            Powered by <b>AQENORA</b>
+          <a className="sp-badge" href="https://aquenora.com" target="_blank" rel="noopener noreferrer" title={`AQUENORA: ${TAGLINE}`} style={{ color: ink }}>
+            Powered by <b>AQUENORA</b>
           </a>
         )}
       </footer>

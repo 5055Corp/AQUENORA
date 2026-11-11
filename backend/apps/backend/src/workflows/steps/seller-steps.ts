@@ -32,12 +32,12 @@ export type UpdateSellerData = Partial<Omit<CreateSellerData, "email">> & {
 }
 
 /**
- * Web addresses (<name>.aqenora.com) shops can't have, because AQENORA uses them itself.
+ * Web addresses (<name>.aquenora.com) shops can't have, because AQUENORA uses them itself.
  * Keep in sync with RESERVED in app/server.mjs and RESERVED_SUBDOMAINS in app/src/api.ts.
  */
 export const RESERVED_HANDLES = new Set([
   "app", "www", "api", "admin", "mail", "static", "cdn", "stores", "store", "shop", "help", "support",
-  "status", "blog", "docs", "billing", "pay", "checkout", "account", "login", "signup", "aqenora",
+  "status", "blog", "docs", "billing", "pay", "checkout", "account", "login", "signup", "aquenora", "aqenora",
 ])
 
 /** Fails with a clear message if the web address is reserved or another seller already uses it. */
@@ -50,7 +50,7 @@ export const ensureSellerHandleAvailableStep = createStep(
     if (RESERVED_HANDLES.has(input.handle)) {
       throw new MedusaError(
         MedusaError.Types.DUPLICATE_ERROR,
-        `The web address ${input.handle}.aqenora.com is reserved for AQENORA. Try another shop name or address.`
+        `The web address ${input.handle}.aquenora.com is reserved for AQUENORA. Try another shop name or address.`
       )
     }
     const sellers: SellerModuleService = container.resolve(SELLER_MODULE)
@@ -58,7 +58,7 @@ export const ensureSellerHandleAvailableStep = createStep(
     if (existing && existing.id !== input.seller_id) {
       throw new MedusaError(
         MedusaError.Types.DUPLICATE_ERROR,
-        `The web address ${input.handle}.aqenora.com is already taken. Try another shop name or address.`
+        `The web address ${input.handle}.aquenora.com is already taken. Try another shop name or address.`
       )
     }
     return new StepResponse(true)

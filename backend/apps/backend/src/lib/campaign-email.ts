@@ -26,7 +26,7 @@ export function renderCampaignEmail(input: {
     .map((p) => `<p style="margin:0 0 16px;line-height:1.6;">${escape(p).replace(/\n/g, "<br>")}</p>`)
     .join("")
   const shop = escape(input.shopName)
-  const brand = "Sent with AQENORA. Illuminating possibilities. Connecting the world."
+  const brand = "Sent with AQUENORA. Illuminating possibilities. Connecting the world."
   const footer = `You're getting this because you bought from ${input.shopName} and said yes to their news and offers.`
 
   const html = `<!doctype html><html><body style="margin:0;background:#f6f3ee;font-family:Arial,Helvetica,sans-serif;color:#1c1a17;">

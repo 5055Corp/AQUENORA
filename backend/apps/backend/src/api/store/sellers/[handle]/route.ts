@@ -7,7 +7,7 @@ import { newestFirst, PRODUCT_FIELDS, toSellerProduct } from "../../../sellers/f
 
 /**
  * GET /store/sellers/:handle
- * Public data for a seller's storefront (adirehouse.aqenora.com): shop name, look and published products.
+ * Public data for a seller's storefront (adirehouse.aquenora.com): shop name, look and published products.
  * Like all /store routes, it needs an x-publishable-api-key header.
  */
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
@@ -39,7 +39,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
   const seller = data[0]
   if (!seller) {
-    throw new MedusaError(MedusaError.Types.NOT_FOUND, `No store at ${req.params.handle}.aqenora.com`)
+    throw new MedusaError(MedusaError.Types.NOT_FOUND, `No store at ${req.params.handle}.aquenora.com`)
   }
 
   const { products, trial_ends_at, pro_paid_until, paystack_subaccount_code, shipping, ...store } = seller as typeof seller & {

@@ -1,10 +1,12 @@
 // Cloudflare for SaaS: makes sellers' own domains (www.adirehouse.com) load over HTTPS.
-// When a seller's domain points at AQENORA, it is added as a "custom hostname" on the aqenora.com
+// When a seller's domain points at AQUENORA, it is added as a "custom hostname" on the aquenora.com
 // zone; Cloudflare then issues its certificate and sends its traffic to the fallback origin
-// (stores.aqenora.com). Without CLOUDFLARE_API_TOKEN and CLOUDFLARE_ZONE_ID this does nothing,
+// (stores.aquenora.com). Without CLOUDFLARE_API_TOKEN and CLOUDFLARE_ZONE_ID this does nothing,
 // and hostnames can be added by hand in the Cloudflare dashboard.
 //
-// The API token needs one permission: Zone -> SSL and Certificates -> Edit, for aqenora.com.
+// The API token needs one permission: Zone -> SSL and Certificates -> Edit, for aquenora.com.
+
+import { MedusaError } from "@medusajs/framework/utils"
 
 const apiUrl = () => (process.env.CLOUDFLARE_API_URL || "https://api.cloudflare.com/client/v4").replace(/\/$/, "")
 const token = () => process.env.CLOUDFLARE_API_TOKEN || ""
@@ -32,7 +34,7 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<Cf
   })
   const json = (await res.json().catch(() => null)) as CfResponse<T> | null
   if (!json) {
-    throw new Error(`Cloudflare answered ${res.status}`)
+    throw new MedusaError(MedusaError.Types.UNEXPECTED_STATE, `Cloudflare answered ${res.status}`)
   }
   return json
 }
@@ -64,7 +66,7 @@ export async function ensureCustomHostname(domain: string): Promise<HttpsStatus>
     ssl: { method: "http", type: "dv", settings: { min_tls_version: "1.2" } },
   })
   if (!r.success) {
-    throw new Error(r.errors?.map((e) => e.message).join("; ") || "Cloudflare refused the hostname")
+    throw new MedusaError(MedusaError.Types.UNEXPECTED_STATE, r.errors?.map((e) => e.message).join("; ") || "Cloudflare refused the hostname")
   }
   return statusOf(r.result)
 }

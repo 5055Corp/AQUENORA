@@ -1,6 +1,6 @@
-# AQENORA seller app
+# AQUENORA seller app
 
-React + TypeScript + Vite implementation of `project/AQENORA Prototype.dc.html` (the Claude Design handoff).
+React + TypeScript + Vite implementation of `project/AQUENORA Prototype.dc.html` (the Claude Design handoff).
 
 ```sh
 npm install
@@ -29,7 +29,7 @@ npm run build    # type-check + production build into dist/
 - **Upgrade prompts:**
   - On the Free plan, Financials shows totals and replaces the chart and product table with an upgrade card.
   - Home shows a plan banner. On phones this banner is how sellers reach the Plan page; it's in the sidebar on computers.
-- **Store page:** shows "Powered by AQENORA" unless the seller pays for Pro, and opens on a seller's own domain via `/store/domains/:host`.
+- **Store page:** shows "Powered by AQUENORA" unless the seller pays for Pro, and opens on a seller's own domain via `/store/domains/:host`.
 - **Demo mode:** the trial and domain are pretend (`src/plan.ts`).
 
 ## Financials and Customers pages
@@ -49,14 +49,14 @@ npm run build    # type-check + production build into dist/
 
 `store.html` is the public store page: the seller's chosen look, their products, and a bag. It's drawn by the same component as the theme editor's preview (`src/storefront/StoreView.tsx`), so the preview always matches the real page.
 
-- **Which store:** `store.html?shop=<handle>`, e.g. `store.html?shop=adirehouse`. Once the domain and hosting are set up, `<handle>.aqenora.com` works too: the page reads the subdomain.
+- **Which store:** `store.html?shop=<handle>`, e.g. `store.html?shop=adirehouse`. Once the domain and hosting are set up, `<handle>.aquenora.com` works too: the page reads the subdomain.
 - **Opening it:** the seller dashboard's "View my store" button opens the seller's own page.
 - **Products:** sold-out items show "Sold out". Buyers can't add more than the stock.
 - **Bag:** kept in the buyer's browser, one per store.
-- **Checkout (Paystack):** the buyer enters name, email, phone and (for delivery) address, then pays on Paystack's page (card, transfer, USSD) and comes back to a "Thank you, order #… is paid" screen. Each payment is **split by Paystack**: the sale goes to the seller's Paystack subaccount (their bank account), AQENORA's commission (3% Free / 1% Pro) goes to AQENORA's account, and Paystack's fee comes out of the seller's share. The order is created only after the backend confirms the payment with Paystack. Checkout is off until the seller connects a bank account (Financials → Get paid) and the backend has `PAYSTACK_SECRET_KEY`. Demo mode pretends to pay.
+- **Checkout (Paystack):** the buyer enters name, email, phone and (for delivery) address, then pays on Paystack's page (card, transfer, USSD) and comes back to a "Thank you, order #… is paid" screen. Each payment is **split by Paystack**: the sale goes to the seller's Paystack subaccount (their bank account), AQUENORA's commission (3% Free / 1% Pro) goes to AQUENORA's account, and Paystack's fee comes out of the seller's share. The order is created only after the backend confirms the payment with Paystack. Checkout is off until the seller connects a bank account (Financials → Get paid) and the backend has `PAYSTACK_SECRET_KEY`. Demo mode pretends to pay.
 - **In-store pickup:** sellers with a physical shop switch it on under Orders → "In-store pickup", with the shop address, the area, opening hours per day and optional instructions (`src/pickup.ts`, `src/components/PickupSettings.tsx`, saved as `seller.pickup`). The store page then shows "Pick up from our shop" with the week's hours (today highlighted, open now or closed in the shop's own time zone), and the bag offers **Delivery** or **Pick up in store (free)**. The buyer's choice is kept in their browser for checkout. Pickup orders go "Paid, ready to pack" → "Ready for pickup" → "Picked up" and carry a Pickup tag in Orders.
 - **Selling abroad, in buyers' currencies:** buyers see prices in their own currency (guessed from their browser, e.g. Canadian dollars for en-CA, and changeable in the footer). Rates come from the backend (`GET /store/rates`, refreshed every 12 hours, with built-in fallbacks). Paystack can only charge in the seller's currency (or USD where the seller has it), so checkout says what is charged ("₦73,000, about CA$64.99") and the buyer's bank converts it.
-- **Delivery & shipping:** on Orders → "Delivery & shipping" the seller adds a ship-from address and delivery options: DHL, FedEx, UPS, Aramex, post office, a local courier or other, each with **their own flat rate**, delivery time, and where it goes (within their country, or chosen continents). At checkout the buyer gives their full address and country and picks one of the options that ship there; the price is added to the payment (AQENORA's commission stays on the items only). Shops without options deliver at home only, arranged with the buyer.
+- **Delivery & shipping:** on Orders → "Delivery & shipping" the seller adds a ship-from address and delivery options: DHL, FedEx, UPS, Aramex, post office, a local courier or other, each with **their own flat rate**, delivery time, and where it goes (within their country, or chosen continents). At checkout the buyer gives their full address and country and picks one of the options that ship there; the price is added to the payment (AQUENORA's commission stays on the items only). Shops without options deliver at home only, arranged with the buyer.
 - **Shipment form:** every delivery order has a "Shipping form" button: a printable page (or "Save as PDF") with sender, recipient, phone and email, contents with declared values for customs, the chosen service, and blanks for packages, weight, size, HS codes and the waybill number, to hand to a DHL / FedEx / UPS agent.
 - **Demo mode:** shows the demo store from the seller app in the same browser, so during an interview the seller can see "their" store.
 - **Live mode:** loads the store from the backend. It needs `VITE_MEDUSA_PUBLISHABLE_KEY` (see `.env.example`). A wrong address shows a "no store here" page.
@@ -75,7 +75,7 @@ cp .env.example .env.local     # contains VITE_API_URL=http://localhost:9000
 npm run dev
 ```
 
-Demo seller login (after running the backend's seed script): `demo@aqenora.com` / `aqenora-demo`.
+Demo seller login (after running the backend's seed script): `demo@aquenora.com` / `aquenora-demo`.
 
 **How live mode works:**
 - **Sign up:** creates a login. Setup then saves the store when you tap "Open my store dashboard" (or "Skip setup for now"), adds the first product and marks setup as done. If the web address is taken, you're sent back to the shop-name step with the reason.

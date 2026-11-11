@@ -55,7 +55,7 @@ export function Money() {
     <section className="card money-card upsell">
       <div className="eyebrow">Pro</div>
       <h2 className="card-title">See how your shop is growing</h2>
-      <p>Unlock your sales and profit chart over time and see which products really make you money. Pro also gives you your own domain and lowers AQENORA's fee to {planInfo?.settings.pro_commission_percent ?? 1}% per sale.</p>
+      <p>Unlock your sales and profit chart over time and see which products really make you money. Pro also gives you your own domain and lowers AQUENORA's fee to {planInfo?.settings.pro_commission_percent ?? 1}% per sale.</p>
       <div className="share-btns">
         {!planInfo?.plan.trial_used && (
           <button type="button" className="btn-dark btn-sm" onClick={() => startTrial()}>Try Pro free for {planInfo?.settings.trial_days ?? 14} days</button>
@@ -120,7 +120,7 @@ export function Money() {
             <div className="card stat">
               <div>Fees</div>
               <div style={{ fontSize: isMobile ? 21 : 26 }}>{money(data.totals.payment_fees + data.totals.platform_fees)}</div>
-              <span className="kpi-sub">Paystack + AQENORA</span>
+              <span className="kpi-sub">Paystack + AQUENORA</span>
             </div>
           </div>
 
@@ -165,12 +165,12 @@ export function Money() {
                     <dt>Paystack fees{data.fee_basis === 'estimate' ? ' (estimated)' : ''}</dt>
                     <dd>−{fmt(data.totals.payment_fees)}</dd>
                   </div>
-                  <div><dt>AQENORA fee</dt><dd>−{fmt(data.totals.platform_fees)}</dd></div>
+                  <div><dt>AQUENORA fee</dt><dd>−{fmt(data.totals.platform_fees)}</dd></div>
                   <div className="breakdown-total"><dt>Profit</dt><dd>{money(data.totals.profit)}</dd></div>
                 </dl>
                 <Help
                   id="profit"
-                  text="Profit is what you keep: sales minus what the products cost you, Paystack's fee for taking the payment, and AQENORA's fee. Delivery and other costs aren't included yet. Paystack fees are estimated from their published rates until payments go through AQENORA."
+                  text="Profit is what you keep: sales minus what the products cost you, Paystack's fee for taking the payment, and AQUENORA's fee. Delivery and other costs aren't included yet. Paystack fees are estimated from their published rates until payments go through AQUENORA."
                 />
               </section>
 

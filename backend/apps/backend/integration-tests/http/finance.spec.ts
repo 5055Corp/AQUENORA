@@ -17,10 +17,10 @@ medusaIntegrationTestRunner({
     }
 
     async function adminHeaders() {
-      const reg = await api.post("/auth/user/emailpass/register", { email: "owner@aqenora.com", password })
+      const reg = await api.post("/auth/user/emailpass/register", { email: "owner@aquenora.com", password })
       const authIdentityId = JSON.parse(Buffer.from(reg.data.token.split(".")[1], "base64").toString()).auth_identity_id
-      await createUserAccountWorkflow(getContainer()).run({ input: { authIdentityId, userData: { email: "owner@aqenora.com" } } })
-      const login = await api.post("/auth/user/emailpass", { email: "owner@aqenora.com", password })
+      await createUserAccountWorkflow(getContainer()).run({ input: { authIdentityId, userData: { email: "owner@aquenora.com" } } })
+      const login = await api.post("/auth/user/emailpass", { email: "owner@aquenora.com", password })
       return { authorization: `Bearer ${login.data.token}` }
     }
 
@@ -48,7 +48,7 @@ medusaIntegrationTestRunner({
         expect(money.totals).toEqual(
           expect.objectContaining({ orders: 2, items_sold: 3, revenue: 66000, cost_of_goods: 30000, payment_fees: 1190, platform_fees: 1980, items_missing_cost: 1 })
         )
-        // Free plan: AQENORA keeps 3% of each sale.
+        // Free plan: AQUENORA keeps 3% of each sale.
         expect(money.totals.profit).toEqual(66000 - 30000 - 1190 - 1980)
 
         // Adding the tote's cost price later fills in the gap for its earlier sale.
@@ -114,7 +114,7 @@ medusaIntegrationTestRunner({
     })
 
     describe("owner page", () => {
-      it("shows every seller with totals kept per currency, for the AQENORA team only", async () => {
+      it("shows every seller with totals kept per currency, for the AQUENORA team only", async () => {
         const ng = await signUpSeller("n@example.com", { name: "Naija Shop", country_code: "NG" })
         const za = await signUpSeller("z@example.com", { name: "Cape Shop", country_code: "ZA" })
         const pn = (await api.post("/sellers/me/products", { title: "Ankara", price: 20000, cost_price: 8000 }, { headers: ng.headers })).data.product

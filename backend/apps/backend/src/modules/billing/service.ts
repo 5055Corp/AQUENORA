@@ -8,7 +8,7 @@ export const DEFAULT_SETTINGS: Settings = { free_commission_percent: 3, pro_comm
 
 /**
  * Starting Pro prices: about USD 25 a month, rounded to friendly local amounts (Nov 2026 rates).
- * The AQENORA team changes them in the admin dashboard ("Plans & pricing").
+ * The AQUENORA team changes them in the admin dashboard ("Plans & pricing").
  */
 export const DEFAULT_PRICES: Record<string, { currency_code: string; monthly_price: number }> = {
   NG: { currency_code: "ngn", monthly_price: 38500 },

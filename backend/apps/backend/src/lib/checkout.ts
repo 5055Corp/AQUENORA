@@ -2,7 +2,7 @@
 //
 //   1. startCheckout: checks the bag against the seller's products and stock, saves a "pending"
 //      checkout, and asks Paystack for a payment page. The payment is split by Paystack:
-//      seller's subaccount gets the sale minus AQENORA's commission (transaction_charge) and minus
+//      seller's subaccount gets the sale minus AQUENORA's commission (transaction_charge) and minus
 //      Paystack's fee (bearer: subaccount).
 //   2. The buyer pays on Paystack's page and comes back to the store (callback_url ?reference=...).
 //   3. confirmPayment runs from the return page (POST /store/payments/verify) and from Paystack's
@@ -177,7 +177,7 @@ export async function startCheckout(container: MedusaContainer, handle: string, 
     throw new MedusaError(MedusaError.Types.INVALID_DATA, "Your bag is empty.")
   }
   const shipping = body.fulfillment === "delivery" ? chooseShipping(seller, body) : undefined
-  // The buyer pays for the items plus delivery; AQENORA's commission is on the items only.
+  // The buyer pays for the items plus delivery; AQUENORA's commission is on the items only.
   const amount = round2(itemsTotal + (shipping?.price ?? 0))
   const plan = await resolvePlan(container, seller)
   const rate = plan.commission_percent / 100

@@ -20,7 +20,7 @@ export const STORE_FONTS = [
 const imageUrl = z
   .string()
   .max(500)
-  .refine((u) => /^https?:\/\/[^\s"'<>()]+$/.test(u), "Images must be uploaded through AQENORA")
+  .refine((u) => /^https?:\/\/[^\s"'<>()]+$/.test(u), "Images must be uploaded through AQUENORA")
   .nullable()
   .optional()
 

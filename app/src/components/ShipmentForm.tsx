@@ -142,7 +142,7 @@ export function ShipmentForm({ order, onClose }: { order: Order; onClose: () => 
             <div><span>Name</span></div>
             <div><span>Date</span></div>
           </div>
-          <p className="sheet-small">Prepared with AQENORA for {s.shopName || 'this shop'}.</p>
+          <p className="sheet-small">Prepared with AQUENORA for {s.shopName || 'this shop'}.</p>
         </footer>
       </article>
     </div>

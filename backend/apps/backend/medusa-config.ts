@@ -55,7 +55,7 @@ const notificationModule = {
             options: {
               channels: ["email"],
               api_key: process.env.RESEND_API_KEY,
-              from: process.env.EMAIL_FROM || "AQENORA <news@aqenora.com>",
+              from: process.env.EMAIL_FROM || "AQUENORA <news@aquenora.com>",
             },
           },
         ]
@@ -127,7 +127,7 @@ module.exports = defineConfig({
     },
   },
   admin: {
-    // The admin dashboard (/app) is for the AQENORA team, not sellers.
+    // The admin dashboard (/app) is for the AQUENORA team, not sellers.
     disable: process.env.DISABLE_MEDUSA_ADMIN === "true",
     backendUrl: process.env.MEDUSA_BACKEND_URL,
   },

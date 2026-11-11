@@ -1,11 +1,11 @@
 // Paystack API client: banks, subaccounts (one per seller) and split payments.
 //
-// How money is split on every sale (Paystack does it; AQENORA never holds sellers' money):
+// How money is split on every sale (Paystack does it; AQUENORA never holds sellers' money):
 //   - `subaccount`         the seller's subaccount: the sale settles to the seller's bank account.
-//   - `transaction_charge` AQENORA's commission (3% Free / 1% Pro) as a flat amount, settled to the
-//                          AQENORA (main) Paystack account.
+//   - `transaction_charge` AQUENORA's commission (3% Free / 1% Pro) as a flat amount, settled to the
+//                          AQUENORA (main) Paystack account.
 //   - `bearer: subaccount` Paystack's own fee comes out of the seller's share.
-// So the seller receives: total - AQENORA commission - Paystack fee.
+// So the seller receives: total - AQUENORA commission - Paystack fee.
 //
 // Settings (environment): PAYSTACK_SECRET_KEY (sk_test_... or sk_live_...). PAYSTACK_API_URL is only
 // for tests (a fake Paystack server).
@@ -104,7 +104,7 @@ export type InitializeInput = {
   reference: string
   callback_url: string
   subaccount: string
-  /** AQENORA's commission, subunits. */
+  /** AQUENORA's commission, subunits. */
   transaction_charge: number
   metadata: Record<string, unknown>
 }

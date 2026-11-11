@@ -1,8 +1,8 @@
-# AQENORA backend
+# AQUENORA backend
 
-The server behind the AQENORA seller app. It stores sellers, their shops and their products in a database, and handles seller login. It's built on [Medusa](https://docs.medusajs.com) 2.22, a free, open-source e-commerce engine. Medusa's ready-made admin dashboard is at `/app`.
+The server behind the AQUENORA seller app. It stores sellers, their shops and their products in a database, and handles seller login. It's built on [Medusa](https://docs.medusajs.com) 2.22, a free, open-source e-commerce engine. Medusa's ready-made admin dashboard is at `/app`.
 
-This folder is a Medusa "DTC starter" workspace. The Medusa app itself is in `apps/backend/`. The Next.js storefront was not installed. AQENORA's storefront comes in a later step.
+This folder is a Medusa "DTC starter" workspace. The Medusa app itself is in `apps/backend/`. The Next.js storefront was not installed. AQUENORA's storefront comes in a later step.
 
 ## What's in it so far
 
@@ -15,7 +15,7 @@ This folder is a Medusa "DTC starter" workspace. The Medusa app itself is in `ap
 | Seller API | `apps/backend/src/api/sellers/` | The routes the seller app will call (below) |
 | Public store API | `apps/backend/src/api/store/sellers/[handle]/` | Shop details and products for a storefront page |
 | Tests | `apps/backend/integration-tests/http/sellers.spec.ts` | 8 tests covering sign-up, duplicate addresses, login required, design updates, validation, products per seller, the country lock and the public store |
-| Demo data | `apps/backend/src/scripts/seed-aqenora-demo.ts` | Creates "Adire House" (Nigeria) with 4 products, cost prices and 5 sample orders |
+| Demo data | `apps/backend/src/scripts/seed-aquenora-demo.ts` | Creates "Adire House" (Nigeria) with 4 products, cost prices and 5 sample orders |
 
 Currency follows the seller's country: NG to `ngn`, GH to `ghs`, ZA to `zar`, CI/SN to `xof`, abroad (DI) to `usd`. Once a seller has products, their country can't change, because the prices are in that currency.
 
@@ -35,12 +35,12 @@ All `/sellers/me...` routes need a seller login token: `Authorization: Bearer <t
 | `POST /sellers/me/products/:id` | any of `title, price, stock, cost_price` (`null` clears the cost) | `{ product }` |
 | `GET /sellers/me/orders` | | `{ orders }`, newest first, with customer, items, total and status (`new`, `shipped`, `delivered`, `canceled`) |
 | `POST /sellers/me/orders/:id` | `{ status: "shipped" \| "delivered" }`, one step at a time | `{ order }` |
-| `GET /sellers/me/finance?period=7d\|30d\|all` | | sales, product costs, Paystack fees, AQENORA fee, profit, a daily (or monthly) series and profit by product |
+| `GET /sellers/me/finance?period=7d\|30d\|all` | | sales, product costs, Paystack fees, AQUENORA fee, profit, a daily (or monthly) series and profit by product |
 | `GET /sellers/me/customers` | | past buyers with orders, total spent and email permission, plus group sizes |
 | `GET /sellers/me/campaigns` | | sent emails |
 | `POST /sellers/me/campaigns` | `{ audience: "all" \| "repeat" \| "lapsed", subject, message }`, where `{name}` becomes each buyer's first name | `{ campaign }`. At most `CAMPAIGNS_PER_DAY` (default 1) per shop per 24 hours |
 | `GET/POST /marketing/unsubscribe/:token` | public | the unsubscribe page (GET shows a button; POST unsubscribes, also used by Gmail's one-click button) |
-| `GET /admin/finance/sellers?period=` | admin login | every seller's numbers for the AQENORA team, totals per currency, plus each seller's plan |
+| `GET /admin/finance/sellers?period=` | admin login | every seller's numbers for the AQUENORA team, totals per currency, plus each seller's plan |
 | `GET /sellers/me/plan` | | plan (free / trial / paid), features, commission, the Pro price in the seller's currency, domain status and DNS records |
 | `POST /sellers/me/plan/trial` | | starts the free Pro trial (once per shop) |
 | `POST /sellers/me/plan/upgrade` | | `202` with how to pay by transfer (`BILLING_CONTACT`) until Paystack subscriptions are switched on |
@@ -59,12 +59,12 @@ Errors: 401 means not logged in. 400 means a bad value (for example an unknown t
 
 | | Free | Pro (about USD 25 / month) |
 | --- | --- | --- |
-| Shop at `<shop>.aqenora.com` | yes | yes |
+| Shop at `<shop>.aquenora.com` | yes | yes |
 | Own domain | no | yes |
-| "Powered by AQENORA" on the store | shown | removed (still shown during the trial) |
+| "Powered by AQUENORA" on the store | shown | removed (still shown during the trial) |
 | Financials | totals | totals, charts, profit per product |
 | Email campaigns | 1 a week | 1 a day |
-| AQENORA fee per sale | 3% | 1% |
+| AQUENORA fee per sale | 3% | 1% |
 
 - **Trial:** new shops can try Pro free for 14 days, once. The badge stays until they pay.
 - **Where the rules live:** `src/lib/plans.ts`.
@@ -79,17 +79,17 @@ Errors: 401 means not logged in. 400 means a bad value (for example an unknown t
 **Paying online.** Charging the monthly price automatically needs Paystack subscriptions (Paystack keys). Until then, "Upgrade" tells the seller how to pay by transfer (`BILLING_CONTACT`), and the team marks them paid.
 
 **Own domains.**
-1. The seller buys a domain anywhere. The app's "Find a domain" opens Namecheap with their shop name already searched, so AQENORA never resells or renews domains.
+1. The seller buys a domain anywhere. The app's "Find a domain" opens Namecheap with their shop name already searched, so AQUENORA never resells or renews domains.
 2. They type the domain into the app, which shows the DNS records to add.
-3. AQENORA checks DNS every 30 seconds until the domain points at `STORE_CNAME_TARGET`.
+3. AQUENORA checks DNS every 30 seconds until the domain points at `STORE_CNAME_TARGET`.
 
 Serving the store on that domain needs hosting with custom domains, and HTTPS for each seller's domain (for example Cloudflare for SaaS or Railway custom domains). That's part of launch.
 
 ## Profit and email campaigns
 
-**Profit.** Each order is linked to its seller, and each line keeps the price and the product's cost price at the moment of sale, so later changes don't rewrite past profit. Profit = sales − product costs − Paystack fee − AQENORA commission (`AQENORA_COMMISSION_PERCENT`, default 2). Paystack fees are **estimates** from Paystack's published rates per country (`src/lib/finance.ts`) until checkout records the real fee on each order (`metadata.payment_fee`). Cancelled orders don't count. Items sold before a product had a cost price use its current cost; if there is none, the seller sees a warning.
+**Profit.** Each order is linked to its seller, and each line keeps the price and the product's cost price at the moment of sale, so later changes don't rewrite past profit. Profit = sales − product costs − Paystack fee − AQUENORA commission (set in the admin under Plans & pricing: 3% Free, 1% Pro by default). Paystack fees are **estimates** from Paystack's published rates per country (`src/lib/finance.ts`) until checkout records the real fee on each order (`metadata.payment_fee`). Cancelled orders don't count. Items sold before a product had a cost price use its current cost; if there is none, the seller sees a warning.
 
-**Owner page.** In the admin dashboard (`/app`), "Seller finances" lists every seller's sales, costs, fees, AQENORA's earnings and the seller's profit (`src/admin/routes/seller-finance`).
+**Owner page.** In the admin dashboard (`/app`), "Seller finances" lists every seller's sales, costs, fees, AQUENORA's earnings and the seller's profit (`src/admin/routes/seller-finance`).
 
 **Email campaigns.**
 - **Who gets them:** only buyers who said yes at checkout. The checkout tick box arrives with Paystack checkout; until then, sample orders set it.
@@ -115,12 +115,12 @@ cp .env.template .env
 createdb aqenora                     # create the empty database
 
 npx medusa db:migrate                # create the tables
-npx medusa exec ./src/scripts/seed-aqenora-demo.ts   # optional demo store; also prints the publishable key for the store page
+npx medusa exec ./src/scripts/seed-aquenora-demo.ts   # optional demo store; also prints the publishable key for the store page
 npx medusa user -e you@example.com -p choose-a-password   # optional: admin dashboard login
 npm run dev                          # server at http://localhost:9000, admin at /app
 ```
 
-Demo seller login: `demo@aqenora.com` / `aqenora-demo`. Change or delete it before going live.
+Demo seller login: `demo@aquenora.com` / `aquenora-demo`. Change or delete it before going live.
 
 **Run the tests** with `REDIS_URL=` so they don't need Redis (needs Postgres running; they use their own throwaway database). There are 25 integration tests, plus unit tests for the fee maths (`npm run test:unit`):
 
@@ -155,6 +155,6 @@ The seller app and the public store page (`app/`) are connected: set `VITE_API_U
 1. **Paystack.** Connect a seller's Paystack account (subaccount) and split each payment between seller and platform.
 2. **Orders.** Buyer checkout, and orders showing up in the seller's dashboard.
 3. **Stock.** Currently a number on each product (`metadata.stock`). It moves to Medusa's inventory system when orders arrive.
-4. **Hosting.** For example Railway or Render for this server plus a managed Postgres database, and pointing `*.aqenora.com` at the store page so each store gets its own address.
+4. **Hosting.** For example Railway or Render for this server plus a managed Postgres database, and pointing `*.aquenora.com` at the store page so each store gets its own address.
 
 For coding agents: see [`AGENTS.md`](./AGENTS.md) for commands, conventions and off-limits paths.

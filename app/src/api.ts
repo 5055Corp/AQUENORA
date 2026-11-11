@@ -1,4 +1,4 @@
-// Talks to the AQENORA backend (backend/ in this repo). Only used when VITE_API_URL is set;
+// Talks to the AQUENORA backend (backend/ in this repo). Only used when VITE_API_URL is set;
 // without it the app runs as the browser-only demo.
 
 import type { CountryId, FontId, ThemeId } from './data';
@@ -7,12 +7,12 @@ export const API_URL: string = (import.meta.env.VITE_API_URL ?? '').replace(/\/+
 export const LIVE = API_URL !== '';
 
 /**
- * The domain shops live under, e.g. "aqenora.com" → adirehouse.aqenora.com. Leave unset until
+ * The domain shops live under, e.g. "aquenora.com" → adirehouse.aquenora.com. Leave unset until
  * the domain points at the web server; store links then use store.html?shop=<handle> instead.
  */
 export const STORE_DOMAIN: string = (import.meta.env.VITE_STORE_DOMAIN ?? '').toLowerCase().replace(/^\.+|\.+$/g, '');
 
-/** True for a hostname that isn't AQENORA's own (or a dev/hosting address), i.e. a seller's domain. */
+/** True for a hostname that isn't AQUENORA's own (or a dev/hosting address), i.e. a seller's domain. */
 export function isOwnDomain(host: string): boolean {
   const h = host.toLowerCase();
   if (h === 'localhost' || /^[\d.]+$/.test(h) || h.endsWith('.github.io') || h.endsWith('.up.railway.app')) return false;
@@ -29,7 +29,7 @@ function storeApi(): string {
 }
 
 /** Subdomains that are never shops (keep in sync with RESERVED in server.mjs). */
-export const RESERVED_SUBDOMAINS = ['app', 'www', 'api', 'admin', 'mail', 'static', 'cdn', 'stores', 'store', 'shop', 'help', 'support', 'status', 'blog', 'docs', 'billing', 'pay', 'checkout', 'account', 'login', 'signup', 'aqenora'];
+export const RESERVED_SUBDOMAINS = ['app', 'www', 'api', 'admin', 'mail', 'static', 'cdn', 'stores', 'store', 'shop', 'help', 'support', 'status', 'blog', 'docs', 'billing', 'pay', 'checkout', 'account', 'login', 'signup', 'aquenora', 'aqenora'];
 
 /** A working link to a shop's store page. */
 export function storeLink(handle: string): string {
@@ -206,7 +206,7 @@ async function request<T>(path: string, init: { method?: string; body?: unknown;
       body: init.body ? JSON.stringify(init.body) : undefined,
     });
   } catch {
-    throw new ApiError(0, "Can't reach AQENORA right now. Check your internet connection and try again.");
+    throw new ApiError(0, "Can't reach AQUENORA right now. Check your internet connection and try again.");
   }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {

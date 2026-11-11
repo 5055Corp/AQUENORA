@@ -7,8 +7,8 @@ import { currentCostPrices, ORDER_FIELDS, summarizeSeller, toFinanceOrder, type 
 import { parseFinanceQuery } from "../../../sellers/validators"
 
 /**
- * GET /admin/finance/sellers?period=7d|30d|all  (AQENORA team only: admin login)
- * Every seller's revenue, profit and the commission AQENORA earned from them, plus totals per
+ * GET /admin/finance/sellers?period=7d|30d|all  (AQUENORA team only: admin login)
+ * Every seller's revenue, profit and the commission AQUENORA earned from them, plus totals per
  * currency (naira, cedis, rand... can't be added together).
  */
 export async function GET(req: AuthenticatedMedusaRequest, res: MedusaResponse) {

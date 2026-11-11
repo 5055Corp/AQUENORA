@@ -259,7 +259,7 @@ function useStoreValue(settings: Settings) {
         await api.updateMe(token, { onboarding_completed: true });
       }
       await loadStore(token);
-      if (!skip) flash('Your store is live at ' + slug + '.aqenora.com');
+      if (!skip) flash('Your store is live at ' + slug + '.aquenora.com');
     } catch (e) {
       set({ busy: false });
       if (e instanceof ApiError && e.status === 422) set({ step: 1, nameError: e.message });

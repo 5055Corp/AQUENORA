@@ -21,7 +21,7 @@ class ResendNotificationService extends AbstractNotificationProviderService {
 
   static validateOptions(options: Record<string, unknown>) {
     if (!options.api_key || !options.from) {
-      throw new MedusaError(MedusaError.Types.INVALID_DATA, "Resend needs api_key and from (e.g. AQENORA <news@aqenora.com>).")
+      throw new MedusaError(MedusaError.Types.INVALID_DATA, "Resend needs api_key and from (e.g. AQUENORA <news@aquenora.com>).")
     }
   }
 

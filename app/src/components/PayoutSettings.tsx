@@ -20,7 +20,7 @@ const EXAMPLE_USD = 20;
 
 /**
  * "Get paid": the seller's bank account. Paystack pays each sale straight into it, after taking
- * its own fee and AQENORA's commission.
+ * its own fee and AQUENORA's commission.
  */
 export function PayoutSettings({ id }: { id?: string }) {
   const { s, live, savePayout, planInfo, country, fmt, fromUsd } = useStore();
@@ -48,7 +48,7 @@ export function PayoutSettings({ id }: { id?: string }) {
     if (!msg) { setEditing(false); setAccount(''); }
   };
 
-  // How one sale is split: AQENORA's commission, Paystack's fee, and what the seller gets.
+  // How one sale is split: AQUENORA's commission, Paystack's fee, and what the seller gets.
   const pct = planInfo?.plan.commission_percent ?? 3;
   const sale = Math.round(fromUsd(EXAMPLE_USD) / 100) * 100 || EXAMPLE_USD;
   const ours = Math.round(sale * pct) / 100;
@@ -66,7 +66,7 @@ export function PayoutSettings({ id }: { id?: string }) {
               {s.payout.account_name ? ` (${s.payout.account_name})` : ''}, usually the next working day.
             </p>
           ) : (
-            <p className="pickup-sub">Connect the bank account your sales should go into. Paystack pays you directly. AQENORA never holds your money.</p>
+            <p className="pickup-sub">Connect the bank account your sales should go into. Paystack pays you directly. AQUENORA never holds your money.</p>
           )}
         </div>
         {s.payout && (
@@ -106,7 +106,7 @@ export function PayoutSettings({ id }: { id?: string }) {
 
       <dl className="split" aria-label={`How a ${fmt(sale)} sale is split`}>
         <div className="split-head">On a {fmt(sale)} sale</div>
-        <div><dt>AQENORA ({pct}%)</dt><dd>{fmt(ours)}</dd></div>
+        <div><dt>AQUENORA ({pct}%)</dt><dd>{fmt(ours)}</dd></div>
         <div><dt>Paystack fee (about)</dt><dd>{fmt(paystackFee)}</dd></div>
         <div className="split-you"><dt>Paid to you</dt><dd>{fmt(yours)}</dd></div>
       </dl>

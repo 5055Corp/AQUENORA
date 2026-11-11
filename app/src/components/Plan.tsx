@@ -3,9 +3,9 @@ import { daysLeft, formatPrice } from '../plan';
 import { useStore } from '../store';
 
 const FEATURES: [string, string, string][] = [
-  ['Your shop at yourshop.aqenora.com', '✓', '✓'],
+  ['Your shop at yourshop.aquenora.com', '✓', '✓'],
   ['Your own domain, like yourshop.com', '–', '✓'],
-  ['"Powered by AQENORA" on your store', 'Shown', 'Removed'],
+  ['"Powered by AQUENORA" on your store', 'Shown', 'Removed'],
   ['Financials: totals', '✓', '✓'],
   ['Financials: charts and profit per product', '–', '✓'],
   ['Email campaigns to past buyers', '1 a week', '1 a day'],
@@ -66,17 +66,17 @@ export function Plan() {
             <div className="plan-name">{plan.plan === 'pro' ? 'Pro' : 'Free'}{plan.status === 'trial' ? ' (free trial)' : ''}</div>
           </div>
           <span className="pill" style={plan.plan === 'pro' ? { background: 'var(--go-soft)', color: 'var(--go-ink)' } : { background: 'var(--chip)', color: 'var(--muted-2)' }}>
-            AQENORA fee: {plan.commission_percent}% per sale
+            AQUENORA fee: {plan.commission_percent}% per sale
           </span>
         </div>
         {plan.status === 'trial' && (
           <p className="plan-line">
-            <strong>{daysLeft(plan.trial_ends_at)} days left</strong> of your trial (until {longDate(plan.trial_ends_at)}). "Powered by AQENORA" stays on your store until you upgrade.
+            <strong>{daysLeft(plan.trial_ends_at)} days left</strong> of your trial (until {longDate(plan.trial_ends_at)}). "Powered by AQUENORA" stays on your store until you upgrade.
           </p>
         )}
         {plan.status === 'paid' && <p className="plan-line">Pro is paid until <strong>{longDate(plan.pro_paid_until)}</strong>.</p>}
         {plan.status === 'free' && (
-          <p className="plan-line">You sell for free and AQENORA keeps {p.settings.free_commission_percent}% of each sale. Pro lowers that to {p.settings.pro_commission_percent}%.</p>
+          <p className="plan-line">You sell for free and AQUENORA keeps {p.settings.free_commission_percent}% of each sale. Pro lowers that to {p.settings.pro_commission_percent}%.</p>
         )}
       </section>
 
@@ -91,7 +91,7 @@ export function Plan() {
               {FEATURES.map(([what, free, pro]) => (
                 <tr key={what}><th scope="row">{what}</th><td>{free}</td><td>{pro}</td></tr>
               ))}
-              <tr><th scope="row">AQENORA fee per sale</th><td>{p.settings.free_commission_percent}%</td><td>{p.settings.pro_commission_percent}%</td></tr>
+              <tr><th scope="row">AQUENORA fee per sale</th><td>{p.settings.free_commission_percent}%</td><td>{p.settings.pro_commission_percent}%</td></tr>
               <tr className="plan-price-row"><th scope="row">Monthly price</th><td>Free</td><td>{priceText} a month</td></tr>
             </tbody>
           </table>
@@ -123,7 +123,7 @@ export function Plan() {
         <h2 className="card-title">Your own domain</h2>
         {!plan.features.custom_domain ? (
           <>
-            <p className="plan-line">Give your store its own address, like <strong>yourshop.com</strong>, still powered by AQENORA. This is part of Pro, and you can try it free.</p>
+            <p className="plan-line">Give your store its own address, like <strong>yourshop.com</strong>, still powered by AQUENORA. This is part of Pro, and you can try it free.</p>
             {!plan.trial_used && <button type="button" className="btn-dark btn-sm plan-inline" onClick={() => startTrial()}>Start free trial</button>}
           </>
         ) : !p.domain ? (

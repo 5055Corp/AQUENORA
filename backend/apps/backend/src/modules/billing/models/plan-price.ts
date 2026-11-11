@@ -1,6 +1,6 @@
 import { model } from "@medusajs/framework/utils"
 
-/** The Pro plan's monthly price in one country, set by the AQENORA team in the admin dashboard. */
+/** The Pro plan's monthly price in one country, set by the AQUENORA team in the admin dashboard. */
 const PlanPrice = model.define("plan_price", {
   id: model.id({ prefix: "pprice" }).primaryKey(),
   country_code: model.text().unique(),

@@ -5,7 +5,7 @@ import { domainPointsHere } from "../../../../../lib/domains"
 import { getSellerRow, sellerPlanResponse } from "../../../../../lib/seller-plan-route"
 import { updateSellerWorkflow } from "../../../../../workflows/update-seller"
 
-/** POST /sellers/me/domain/verify: check whether the domain's records point at AQENORA yet. */
+/** POST /sellers/me/domain/verify: check whether the domain's records point at AQUENORA yet. */
 export async function POST(req: AuthenticatedMedusaRequest, res: MedusaResponse) {
   const seller = await getSellerRow(req, req.auth_context.actor_id)
   if (!seller.custom_domain) {

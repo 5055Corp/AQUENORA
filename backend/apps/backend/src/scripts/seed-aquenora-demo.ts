@@ -8,16 +8,16 @@ import { createSellerProductWorkflow } from "../workflows/create-seller-product"
 
 /**
  * Creates the demo seller from the prototype ("Adire House", Nigeria) with a login and four products.
- * Run: npx medusa exec ./src/scripts/seed-aqenora-demo.ts
+ * Run: npx medusa exec ./src/scripts/seed-aquenora-demo.ts
  * Safe to run twice: it stops if the store already exists.
  */
-export default async function seedAqenoraDemo({ container }: ExecArgs) {
+export default async function seedAquenoraDemo({ container }: ExecArgs) {
   const logger = container.resolve(ContainerRegistrationKeys.LOGGER)
   const sellers: SellerModuleService = container.resolve(SELLER_MODULE)
   const auth = container.resolve(Modules.AUTH)
 
-  const email = "demo@aqenora.com"
-  const password = "aqenora-demo"
+  const email = "demo@aquenora.com"
+  const password = "aquenora-demo"
 
   // The store page (app/store.html) needs this key in VITE_MEDUSA_PUBLISHABLE_KEY.
   const apiKeys = container.resolve(Modules.API_KEY)
@@ -61,7 +61,7 @@ export default async function seedAqenoraDemo({ container }: ExecArgs) {
   }
   await addSampleOrders(container, seller.id)
 
-  logger.info(`Demo store ready: ${seller.handle}.aqenora.com (login ${email} / ${password})`)
+  logger.info(`Demo store ready: ${seller.handle}.aquenora.com (login ${email} / ${password})`)
 }
 
 /**

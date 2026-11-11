@@ -15,7 +15,7 @@ export function Auth() {
   return (
     <>
       <div className="ob-top">
-        <div className="wordmark" style={{ fontSize: 20 }}>AQENORA</div>
+        <div className="wordmark" style={{ fontSize: 20 }}>AQUENORA</div>
       </div>
       <div className="ob-body" style={{ gridTemplateColumns: 'minmax(0,1fr)', padding: isMobile ? '24px 20px 32px' : '48px 40px' }}>
         <form className="ob-main auth" onSubmit={submit} noValidate>
@@ -58,7 +58,7 @@ export function Auth() {
             className="ob-skip"
             onClick={() => set({ authMode: signup ? 'login' : 'signup', authError: '', password: '' })}
           >
-            {signup ? 'Already have a store? Log in' : 'New to AQENORA? Create a store'}
+            {signup ? 'Already have a store? Log in' : 'New to AQUENORA? Create a store'}
           </button>
           <p className="brand-line">{TAGLINE}</p>
         </form>
@@ -73,7 +73,7 @@ export function Loading() {
   return (
     <>
       <div className="ob-top">
-        <div className="wordmark" style={{ fontSize: 20 }}>AQENORA</div>
+        <div className="wordmark" style={{ fontSize: 20 }}>AQUENORA</div>
       </div>
       <div className="loading" role="status">
         {s.loadError ? (

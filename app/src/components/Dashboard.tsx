@@ -19,12 +19,12 @@ export function Dashboard() {
       {!isMobile && (
         <aside className="sidebar">
           <div className="sb-brand">
-            <div className="wordmark">AQENORA</div>
+            <div className="wordmark">AQUENORA</div>
             <div className="sb-tagline">{TAGLINE}</div>
           </div>
           <div className="sb-shop">
             <div>{shopNameShown}</div>
-            <div>{slug}.aqenora.com</div>
+            <div>{slug}.aquenora.com</div>
           </div>
           <nav className="sb-nav" aria-label="Main">
             {NAV.map(n => {
@@ -55,9 +55,9 @@ export function Dashboard() {
           <div className="m-top">
             <div className="m-top-shop">
               <div>{shopNameShown}</div>
-              <div>{slug}.aqenora.com</div>
+              <div>{slug}.aquenora.com</div>
             </div>
-            <div className="wordmark">AQENORA</div>
+            <div className="wordmark">AQUENORA</div>
           </div>
         )}
 

@@ -32,7 +32,7 @@ export type CreateSellerOrderInput = {
     reference: string
     /** Paystack's fee, whole units. */
     fee: number | null
-    /** AQENORA's commission actually charged, whole units. */
+    /** AQUENORA's commission actually charged, whole units. */
     platform_fee: number
     /** Commission rate fixed at checkout (wins over the seller's current plan). */
     commission_rate: number
@@ -53,7 +53,7 @@ type SellerWithProducts = {
 }
 
 /** Every item must be one of this seller's own products. */
-/** AQENORA's commission on the seller's plan right now; stored on the order so later plan changes don't rewrite it. */
+/** AQUENORA's commission on the seller's plan right now; stored on the order so later plan changes don't rewrite it. */
 const sellerCommissionRateStep = createStep(
   "seller-commission-rate",
   async (input: { seller: PlanSeller }, { container }) => {
