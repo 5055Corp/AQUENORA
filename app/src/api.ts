@@ -145,6 +145,17 @@ export interface PlanInfo {
   features: { custom_domain: boolean; full_financials: boolean; campaign_interval_days: number };
 }
 
+export interface ProBilling {
+  card_payments: boolean;
+  /** What the card is charged each month (may be converted to AQUENORA's Paystack currency). */
+  charge: { amount: number; currency_code: string } | null;
+  card: { brand: string | null; last4: string | null; exp_month: string | null; exp_year: string | null } | null;
+  auto_renew: boolean;
+  next_charge_at: string | null;
+  failures: number;
+  last_error: string | null;
+}
+
 export interface DomainInfo {
   name: string;
   connected: boolean;
@@ -157,7 +168,8 @@ export interface PlanResponse {
   settings: { free_commission_percent: number; pro_commission_percent: number; trial_days: number };
   domain: DomainInfo | null;
   buy_domain_url: string;
-  billing_contact: string | null;
+  /** Pro is paid by card through Paystack and renews monthly. */
+  billing: ProBilling;
   /** Only from the verify call. */
   connected?: boolean;
   /** Only from the verify call: HTTPS certificate progress at Cloudflare ("off" = not automated). */
@@ -361,8 +373,12 @@ export const api = {
   campaigns: (token: string) => request<{ campaigns: Campaign[] }>('/sellers/me/campaigns', { token }),
   plan: (token: string) => request<PlanResponse>('/sellers/me/plan', { token }),
   startTrial: (token: string) => request<PlanResponse>('/sellers/me/plan/trial', { method: 'POST', token }),
-  upgrade: (token: string) =>
-    request<{ payment: string; message: string; billing_contact: string | null }>('/sellers/me/plan/upgrade', { method: 'POST', token }),
+  /** Starts paying for Pro by card: returns Paystack's payment page. */
+  upgrade: (token: string, return_url: string) =>
+    request<{ reference: string; authorization_url: string; amount: number; currency_code: string }>('/sellers/me/plan/upgrade', { body: { return_url }, token }),
+  confirmPro: (token: string, reference: string) =>
+    request<PlanResponse & { status: 'paid' | 'pending' | 'failed'; message?: string }>('/sellers/me/plan/confirm', { body: { reference }, token }),
+  autoRenew: (token: string, on: boolean) => request<PlanResponse>('/sellers/me/plan/auto-renew', { body: { on }, token }),
   setDomain: (token: string, domain: string) => request<PlanResponse>('/sellers/me/domain', { body: { domain }, token }),
   verifyDomain: (token: string) => request<PlanResponse>('/sellers/me/domain/verify', { method: 'POST', token }),
   removeDomain: (token: string) => request<PlanResponse>('/sellers/me/domain', { method: 'DELETE', token }),

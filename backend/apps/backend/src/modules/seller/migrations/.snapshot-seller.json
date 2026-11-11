@@ -637,6 +637,22 @@
           "enumItems": [],
           "mappedType": "datetime"
         },
+        "pro_billing": {
+          "name": "pro_billing",
+          "type": "jsonb",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "json"
+        },
         "custom_domain": {
           "name": "custom_domain",
           "type": "text",

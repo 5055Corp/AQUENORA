@@ -43,7 +43,9 @@ All `/sellers/me...` routes need a seller login token: `Authorization: Bearer <t
 | `GET /admin/finance/sellers?period=` | admin login | every seller's numbers for the AQUENORA team, totals per currency, plus each seller's plan |
 | `GET /sellers/me/plan` | | plan (free / trial / paid), features, commission, the Pro price in the seller's currency, domain status and DNS records |
 | `POST /sellers/me/plan/trial` | | starts the free Pro trial (once per shop) |
-| `POST /sellers/me/plan/upgrade` | | `202` with how to pay by transfer (`BILLING_CONTACT`) until Paystack subscriptions are switched on |
+| `POST /sellers/me/plan/upgrade` | `{ return_url }` | Starts paying for Pro by card: returns Paystack's payment page |
+| `POST /sellers/me/plan/confirm` | `{ reference }` | After Paystack sends the seller back: confirms the payment, extends Pro by a month, saves the card |
+| `POST /sellers/me/plan/auto-renew` | `{ on }` | Stops or restarts the monthly card charge |
 | `POST /sellers/me/domain` | `{ domain }` | connects an own domain (Pro or trial); returns the DNS records to add |
 | `POST /sellers/me/domain/verify` | | checks DNS (CNAME of www to `STORE_CNAME_TARGET`, or A record to `STORE_IP`) and marks it connected |
 | `DELETE /sellers/me/domain` | | disconnects it |
@@ -76,7 +78,7 @@ Errors: 401 means not logged in. 400 means a bad value (for example an unknown t
 - To record a bank-transfer payment, press "1 month" or "12 months" next to the seller.
 - Prices and settings are stored in the `billing` module (`src/modules/billing`).
 
-**Paying online.** Charging the monthly price automatically needs Paystack subscriptions (Paystack keys). Until then, "Upgrade" tells the seller how to pay by transfer (`BILLING_CONTACT`), and the team marks them paid.
+**Paying for Pro: by card, monthly** (`src/lib/pro-billing.ts`). The seller pays the first month on Paystack's card page (card only, no split: it all goes to AQUENORA). Paystack returns a reusable card token, which is saved (never the card number). The `renew-pro` job runs hourly and, about a day before Pro runs out, charges that card for the next month at the seller's current price. A failed charge is retried daily, three times in all; after that renewal stops and Pro ends with the paid month. Each payment is a `pro_payment` row with a unique reference, so a payment confirmed twice (return page and webhook) extends Pro once. AQUENORA's Paystack account charges only in its own currencies (`PAYSTACK_ACCOUNT_CURRENCIES`, default `NGN`); other countries' prices are converted at the day's rate and rounded up. The admin's "mark as paid" stays for free months (e.g. launch partners).
 
 **Own domains.**
 1. The seller buys a domain anywhere. The app's "Find a domain" opens Namecheap with their shop name already searched, so AQUENORA never resells or renews domains.
@@ -142,7 +144,7 @@ The tests and the seed script log "Search index product has no active version ye
 | `STORE_CORS` | Web addresses allowed to call `/store` (the public store page): local dev and `https://5055corp.github.io` |
 | `ADMIN_CORS` | Medusa default for the admin dashboard |
 | `REDIS_URL` | Optional locally; recommended in production |
-| `BILLING_CONTACT` | How sellers pay for Pro by transfer until card payments open (e.g. a WhatsApp number) |
+| `PAYSTACK_ACCOUNT_CURRENCIES` | Currencies AQUENORA's Paystack account can charge, e.g. `NGN` or `NGN,USD` (default `NGN`). Pro prices in other currencies are converted to the first one |
 | `STORE_CNAME_TARGET`, `STORE_IP` | What sellers point their own domain at (the web server's hostname / IP) |
 | `RESEND_API_KEY`, `EMAIL_FROM` | Sending campaign emails (resend.com). Empty = emails only logged |
 | `STORE_DOMAIN`, `STORE_PAGE_URL` | The shop link in emails: `https://<shop>.<STORE_DOMAIN>` once the domain works, else `STORE_PAGE_URL?shop=<shop>` |

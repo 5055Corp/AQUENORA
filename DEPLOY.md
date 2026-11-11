@@ -41,7 +41,6 @@ You can start without the domain (Railway gives free `*.up.railway.app` addresse
    | `MEDUSA_BACKEND_URL` | the backend's public address, from step 5 (e.g. `https://backend-production-1234.up.railway.app`) |
    | `ADMIN_CORS` | the same address as `MEDUSA_BACKEND_URL` |
    | `STORE_CORS`, `AUTH_CORS`, `SELLER_CORS` | the web service's address, from Part 3 (you'll come back to these) |
-   | `BILLING_CONTACT` | your WhatsApp number for Pro payments by transfer, e.g. `+234 801 234 5678` |
    | `STORE_PAGE_URL` | the web service's address + `/store.html` (from Part 3) |
 
    **Random strings:** use a password manager's generator, at least 40 characters, letters and numbers. Never share them or put them in GitHub.
@@ -178,7 +177,9 @@ New uploads then go to R2. Pictures uploaded before stay on the volume and keep 
   3. In the same Paystack page, set the **Webhook URL** to `https://<your-backend>/paystack/webhook`. It records orders even if a buyer closes the page before coming back.
   4. Make sure `STORE_DOMAIN` is set (e.g. `aquenora.com`), so Paystack may send buyers back to `<shop>.aquenora.com`.
 
-  Then each seller adds their bank account in the app (Financials → Get paid). Every sale is split by Paystack: the seller's share goes to their bank, AQUENORA's commission to your Paystack account, and Paystack's fee comes out of the seller's share. Automatic Pro billing is still to come.
+  Then each seller adds their bank account in the app (Financials → Get paid). Every sale is split by Paystack: the seller's share goes to their bank, AQUENORA's commission to your Paystack account, and Paystack's fee comes out of the seller's share.
+
+  **Pro plan by card:** sellers pay for Pro on Paystack's card page, and the same card is charged automatically each month (about a day before their month ends) at the price set in **Plans & pricing**. All of it goes to your Paystack account. Failed charges are retried for 3 days, then Pro simply ends. If your Paystack account can also charge US dollars, set `PAYSTACK_ACCOUNT_CURRENCIES=NGN,USD`; otherwise prices in other currencies are converted to Naira.
 
 ## Keeping it safe
 

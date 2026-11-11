@@ -42,7 +42,7 @@ export function demoPlan(country: CountryId, trialEndsAt: string | null, domain:
         }
       : null,
     buy_domain_url: `https://www.namecheap.com/domains/registration/results/?domain=${encodeURIComponent(handle)}`,
-    billing_contact: null,
+    billing: { card_payments: true, charge: DEMO_PRICES[country] ? { amount: DEMO_PRICES[country].monthly_price, currency_code: DEMO_PRICES[country].currency_code } : null, card: null, auto_renew: false, next_charge_at: null, failures: 0, last_error: null },
   };
 }
 

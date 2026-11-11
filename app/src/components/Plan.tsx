@@ -17,8 +17,7 @@ function longDate(iso: string | null) {
 
 /** "Plan & domain": Free vs Pro, the free trial, upgrading, and connecting an own domain. */
 export function Plan() {
-  const { planInfo: p, h1Size, live, startTrial, requestUpgrade, connectDomain, checkDomain, removeDomain, refreshPlan } = useStore();
-  const [upgradeNote, setUpgradeNote] = useState<{ message: string; contact: string | null } | null>(null);
+  const { s, planInfo: p, h1Size, live, startTrial, requestUpgrade, setAutoRenew, connectDomain, checkDomain, removeDomain, refreshPlan } = useStore();
   const [domainInput, setDomainInput] = useState('');
   const [checking, setChecking] = useState(false);
   const [checkResult, setCheckResult] = useState<'' | 'waiting' | 'connected'>('');
@@ -40,7 +39,9 @@ export function Plan() {
   const { plan, price } = p;
   const priceText = formatPrice(price);
 
-  const upgrade = async () => setUpgradeNote(await requestUpgrade());
+  const b = p.billing;
+  // What the card is charged, when it differs from the price (e.g. converted to Naira).
+  const chargeText = b.charge && price && b.charge.currency_code !== price.currency_code ? formatPrice({ currency_code: b.charge.currency_code, monthly_price: b.charge.amount }) : '';
   const addDomain = async (e: FormEvent) => {
     e.preventDefault();
     if (domainInput.trim() && (await connectDomain(domainInput))) setDomainInput('');
@@ -74,7 +75,12 @@ export function Plan() {
             <strong>{daysLeft(plan.trial_ends_at)} days left</strong> of your trial (until {longDate(plan.trial_ends_at)}). "Powered by AQUENORA" stays on your store until you upgrade.
           </p>
         )}
-        {plan.status === 'paid' && <p className="plan-line">Pro is paid until <strong>{longDate(plan.pro_paid_until)}</strong>.</p>}
+        {plan.status === 'paid' && (
+          <p className="plan-line">
+            Pro is paid until <strong>{longDate(plan.pro_paid_until)}</strong>.
+            {b.auto_renew && b.next_charge_at ? <> It renews automatically on <strong>{longDate(b.next_charge_at)}</strong>.</> : ' It will not renew automatically.'}
+          </p>
+        )}
         {plan.status === 'free' && (
           <p className="plan-line">You sell for free and AQUENORA keeps {p.settings.free_commission_percent}% of each sale. Pro lowers that to {p.settings.pro_commission_percent}%.</p>
         )}
@@ -98,26 +104,58 @@ export function Plan() {
         </div>
 
         {plan.status !== 'paid' && (
-          <div className="ob-actions plan-actions">
-            {!plan.trial_used && (
-              <button type="button" className="btn-dark ob-next" onClick={() => startTrial()}>
-                Try Pro free for {p.settings.trial_days} days
+          <>
+            <div className="ob-actions plan-actions">
+              {!plan.trial_used && (
+                <button type="button" className="btn-dark ob-next" onClick={() => startTrial()}>
+                  Try Pro free for {p.settings.trial_days} days
+                </button>
+              )}
+              <button type="button" className={plan.trial_used ? 'btn-dark ob-next' : 'ob-back'} disabled={s.busy || !b.card_payments} onClick={() => requestUpgrade()}>
+                {s.busy ? 'Opening Paystack…' : `Upgrade to Pro · ${priceText}/month`}
               </button>
-            )}
-            <button type="button" className={plan.trial_used ? 'btn-dark ob-next' : 'ob-back'} onClick={upgrade}>
-              Upgrade to Pro · {priceText}/month
-            </button>
-          </div>
-        )}
-        {upgradeNote && (
-          <div className="notice" role="status">
-            <span>
-              {upgradeNote.message}
-              {upgradeNote.contact && <> Message us on WhatsApp: <a href={`https://wa.me/${upgradeNote.contact.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer">{upgradeNote.contact}</a>.</>}
-            </span>
-          </div>
+            </div>
+            <p className="ctl-note plan-pay-note">
+              {b.card_payments
+                ? <>Pay securely by card with Paystack. Your card is charged each month{chargeText ? ` (${chargeText}, charged in ${b.charge!.currency_code.toUpperCase()})` : ''} and you can stop renewal any time.</>
+                : 'Card payments for Pro open soon.'}
+            </p>
+          </>
         )}
       </section>
+
+      {(b.card || plan.status === 'paid') && (
+        <section className="card money-card" aria-labelledby="billing-title">
+          <h2 id="billing-title" className="card-title">Billing</h2>
+          {b.card ? (
+            <p className="plan-line">
+              Card: <strong>{(b.card.brand ?? 'Card').toUpperCase()} ••••{b.card.last4}</strong>
+              {b.card.exp_month && b.card.exp_year ? `, expires ${b.card.exp_month}/${String(b.card.exp_year).slice(-2)}` : ''}
+            </p>
+          ) : (
+            <p className="plan-line">No card saved for automatic renewal.</p>
+          )}
+          {b.failures > 0 && (
+            <div className="notice notice-warn" role="alert">
+              <span>
+                We couldn't charge your card{b.last_error ? ` (${b.last_error})` : ''}.
+                {b.auto_renew ? " We'll try again tomorrow." : ' Automatic renewal has stopped.'} You can pay now with another card.
+              </span>
+            </div>
+          )}
+          <div className="ob-actions plan-actions">
+            {b.card && (
+              <button type="button" className="ob-back" disabled={s.busy} onClick={() => setAutoRenew(!b.auto_renew)}>
+                {b.auto_renew ? 'Stop automatic renewal' : 'Turn automatic renewal on'}
+              </button>
+            )}
+            <button type="button" className="btn-dark ob-next" disabled={s.busy || !b.card_payments} onClick={() => requestUpgrade()}>
+              {b.card ? 'Pay a month now (new card)' : 'Pay by card'}
+            </button>
+          </div>
+          <p className="ctl-note">Paying now adds a month to the end of your current one. The card you pay with becomes your renewal card.</p>
+        </section>
+      )}
 
       <section className="card money-card">
         <h2 className="card-title">Your own domain</h2>

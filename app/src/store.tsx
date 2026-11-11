@@ -345,17 +345,57 @@ function useStoreValue(settings: Settings) {
     }
   };
 
-  /** Asks to upgrade; returns how to pay (online card payment opens with Paystack). */
-  const requestUpgrade = async (): Promise<{ message: string; contact: string | null } | null> => {
-    if (!LIVE) return { message: 'Demo: in the real app, sellers pay here. Online card payment opens with Paystack.', contact: null };
+  /** Upgrade to Pro: opens Paystack's card page. The card is then charged each month. */
+  const requestUpgrade = async (): Promise<void> => {
+    if (!LIVE) {
+      flash("Demo: in the real app, Paystack's card page opens here");
+      return;
+    }
+    set({ busy: true });
     try {
-      const r = await api.upgrade(s.token);
-      return { message: r.message, contact: r.billing_contact };
+      const back = new URL(window.location.href);
+      back.search = '';
+      back.hash = '';
+      const { authorization_url } = await api.upgrade(s.token, back.toString());
+      window.location.assign(authorization_url);
     } catch (e) {
+      set({ busy: false });
       fail(e);
-      return null;
     }
   };
+
+  /** Stop or restart the monthly card charge. */
+  const setAutoRenew = async (on: boolean) => {
+    if (!LIVE) return;
+    set({ busy: true });
+    try {
+      set({ plan: await api.autoRenew(s.token, on), busy: false });
+      flash(on ? 'Pro will renew automatically each month' : "Automatic renewal is off. Pro stays on until your paid month ends");
+    } catch (e) {
+      set({ busy: false });
+      fail(e);
+    }
+  };
+
+  // Back from Paystack after paying for Pro (?pro_reference=...): confirm it and show the plan.
+  const proChecked = useRef(false);
+  useEffect(() => {
+    const ref = new URLSearchParams(window.location.search).get('pro_reference');
+    if (!LIVE || !ref || proChecked.current || !s.token || s.screen !== 'app') return;
+    proChecked.current = true;
+    const url = new URL(window.location.href);
+    url.searchParams.delete('pro_reference');
+    url.searchParams.delete('reference');
+    url.searchParams.delete('trxref');
+    window.history.replaceState(null, '', url.toString());
+    api.confirmPro(s.token, ref)
+      .then(r => {
+        set({ plan: r, tab: 'plan' });
+        flash(r.status === 'paid' ? "You're on Pro. Thank you!" : r.message || "Your payment hasn't gone through yet.");
+      })
+      .catch(fail);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [s.token, s.screen]);
 
   const connectDomain = async (domain: string): Promise<boolean> => {
     if (!LIVE) {
@@ -529,7 +569,7 @@ function useStoreValue(settings: Settings) {
     pickup, savePickup, savePayout,
     s, set, settings, toast, flash, isMobile, framed, country, fmt, fromUsd, slug, shopNameShown, storeUrl,
     products, toggleHelp, advanceOrder, copyLink, shareWhatsApp, startOver,
-    design, setDesign, planInfo, refreshPlan, startTrial, requestUpgrade, connectDomain, checkDomain, removeDomain, live: LIVE, submitAuth, finishOnboarding, addProduct, setProductCost, publishDesign, logOut, retryLoad,
+    design, setDesign, planInfo, refreshPlan, startTrial, requestUpgrade, setAutoRenew, connectDomain, checkDomain, removeDomain, live: LIVE, submitAuth, finishOnboarding, addProduct, setProductCost, publishDesign, logOut, retryLoad,
     showHints: settings.showHelpHints,
     h1Size: isMobile ? '30px' : '40px',
   };

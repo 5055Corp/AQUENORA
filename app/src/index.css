@@ -635,3 +635,5 @@ button:disabled { cursor: default; }
 .img-pick-thumb img { width: 100%; height: 100%; object-fit: cover; }
 .img-pick-logo img { object-fit: contain; }
 .img-pick-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.notice-warn { background: oklch(0.95 0.04 60); color: oklch(0.38 0.1 50); }
+.plan-pay-note { margin-top: 8px; }

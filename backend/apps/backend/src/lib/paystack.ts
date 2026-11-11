@@ -116,6 +116,36 @@ export async function initializeTransaction(input: InitializeInput) {
   })
 }
 
+/** A payment that goes wholly to AQUENORA (Pro plan): card only, no split. */
+export async function initializePlatformCardPayment(input: {
+  email: string
+  amount: number
+  currency: string
+  reference: string
+  callback_url: string
+  metadata: Record<string, unknown>
+}) {
+  return call<{ authorization_url: string; access_code: string; reference: string }>("POST", "/transaction/initialize", {
+    ...input,
+    channels: ["card"],
+  })
+}
+
+/**
+ * Charges a saved card (a reusable authorization from an earlier card payment) without the
+ * buyer present. Paystack answers with the transaction; status "success" means paid.
+ */
+export async function chargeAuthorization(input: {
+  authorization_code: string
+  email: string
+  amount: number
+  currency: string
+  reference: string
+  metadata: Record<string, unknown>
+}): Promise<PaystackTransaction> {
+  return call("POST", "/transaction/charge_authorization", input)
+}
+
 export type PaystackTransaction = {
   id: number
   status: string
@@ -126,7 +156,17 @@ export type PaystackTransaction = {
   /** Paystack's fee, subunits. */
   fees: number | null
   customer?: { email?: string }
-  authorization?: { country_code?: string | null }
+  authorization?: {
+    country_code?: string | null
+    authorization_code?: string
+    reusable?: boolean
+    channel?: string
+    last4?: string
+    brand?: string
+    exp_month?: string
+    exp_year?: string
+    signature?: string
+  }
   subaccount?: { subaccount_code?: string } | null
   metadata: unknown
 }
