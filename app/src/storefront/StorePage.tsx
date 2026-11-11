@@ -8,6 +8,9 @@ import type { CountryId } from '../data';
 import { StoreView, type StoreItem } from './StoreView';
 import { TAGLINE } from '../brand';
 import { DAY_NAMES, DAYS, hoursText, isOpenNow, normalizePickup, shopNow, type Pickup } from '../pickup';
+import { homeCountry, normalizeShipping, optionsFor, type Shipping } from '../shipping';
+import { WORLD, WORLD_BY_CODE } from '../countries';
+import { convert, currencyChoices, formatMoney, guessBuyerCountry, loadCurrency, saveCurrency, sellerCurrency, useRates } from './currency';
 
 interface StoreData {
   handle: string;
@@ -22,6 +25,9 @@ interface StoreData {
   pickup: Pickup | null;
   /** The Checkout button works: Paystack is on and the seller has connected a bank account. */
   acceptsPayments: boolean;
+  /** Delivery options (DHL, local courier...) and the country the shop ships from. */
+  shipping: Shipping;
+  shipsFrom: string | null;
 }
 
 type Load =
@@ -66,6 +72,8 @@ function demoStore(): StoreData {
     showBadge: true,
     pickup: offered(s.pickup),
     acceptsPayments: true,
+    shipping: normalizeShipping(s.shipping),
+    shipsFrom: homeCountry(s.country, normalizeShipping(s.shipping)),
   };
 }
 
@@ -101,8 +109,12 @@ async function liveStore(handle: string): Promise<StoreData> {
     showBadge: store.show_badge !== false,
     pickup: offered(store.pickup),
     acceptsPayments: store.accepts_payments === true,
+    shipping: normalizeShipping({ from: null, options: store.shipping?.options ?? [] }),
+    shipsFrom: store.shipping?.ships_from ?? (store.country_code === 'DI' ? null : store.country_code),
   };
 }
+
+const COUNTRY_LIST = [...WORLD].sort((a, b) => a.name.localeCompare(b.name));
 
 // ---- bag, kept per store in this browser ----
 
@@ -147,9 +159,14 @@ function saveBag(handle: string, bag: Bag) {
 
 // ---- buyer's details, remembered in this browser for next time ----
 
-export interface Buyer { name: string; email: string; phone: string; address: string; city: string; optIn: boolean }
+export interface Buyer {
+  name: string; email: string; phone: string; address: string; city: string; region: string; postalCode: string;
+  /** ISO country code, e.g. "CA". */
+  country: string;
+  optIn: boolean;
+}
 const BUYER_KEY = 'aqenora-buyer';
-const emptyBuyer: Buyer = { name: '', email: '', phone: '', address: '', city: '', optIn: false };
+const emptyBuyer: Buyer = { name: '', email: '', phone: '', address: '', city: '', region: '', postalCode: '', country: '', optIn: false };
 
 function loadBuyer(): Buyer {
   try {
@@ -176,13 +193,14 @@ function checkBuyer(b: Buyer, pickup: boolean): Partial<Record<keyof Buyer, stri
   if (!/^\+?[0-9 ()-]{7,20}$/.test(b.phone.trim())) e.phone = 'Enter a valid phone number';
   if (!pickup && !b.address.trim()) e.address = 'Enter your delivery address';
   if (!pickup && !b.city.trim()) e.city = 'Enter your city or town';
+  if (!pickup && !WORLD_BY_CODE.has(b.country)) e.country = 'Choose your country';
   return e;
 }
 
 /** What happened to a payment, after Paystack sent the buyer back (?reference=...). */
 type Paid =
   | { kind: 'checking' }
-  | { kind: 'paid'; orderNo: number | string; total: number; pickup: boolean; items: { title: string; quantity: number }[] }
+  | { kind: 'paid'; orderNo: number | string; total: number; pickup: boolean; items: { title: string; quantity: number }[]; shipping?: { name: string; price: number } | null }
   | { kind: 'pending' | 'failed' | 'error'; message: string; reference: string };
 
 function useWidth() {
@@ -262,7 +280,22 @@ export function StorePage() {
 function Store({ data }: { data: StoreData }) {
   const width = useWidth();
   const country = COUNTRIES.find(c => c.id === data.country) ?? COUNTRIES[0];
+  /** In the seller's currency: what Paystack charges. */
   const fmt = (n: number) => country.sym + Math.round(Number(n) || 0).toLocaleString();
+  // Buyers can see prices in their own currency (display only).
+  const rates = useRates();
+  const homeCur = sellerCurrency(data.country);
+  const [cur, setCur] = useState<string>(() => {
+    const saved = loadCurrency();
+    if (saved) return saved;
+    const guess = guessBuyerCountry();
+    return (guess && WORLD_BY_CODE.get(guess)?.currency) || homeCur;
+  });
+  const showCur = cur === homeCur || convert(1, homeCur, cur, rates) != null ? cur : homeCur;
+  const foreign = showCur !== homeCur;
+  /** Prices as the buyer sees them. */
+  const show = (n: number) => (foreign ? formatMoney(convert(Number(n) || 0, homeCur, showCur, rates)!, showCur) : fmt(n));
+  const pickCurrency = (code: string) => { setCur(code); saveCurrency(code); };
   const d = data.design;
   const ink = d.colors.text;
 
@@ -286,7 +319,11 @@ function Store({ data }: { data: StoreData }) {
 
   // Checkout: the bag, then the buyer's details, then Paystack's payment page.
   const [stage, setStage] = useState<'bag' | 'details'>('bag');
-  const [buyer, setBuyer] = useState<Buyer>(loadBuyer);
+  const [buyer, setBuyer] = useState<Buyer>(() => {
+    const b = loadBuyer();
+    return b.country ? b : { ...b, country: guessBuyerCountry() ?? data.shipsFrom ?? '' };
+  });
+  const [shipId, setShipId] = useState('');
   const [showErrors, setShowErrors] = useState(false);
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState('');
@@ -297,7 +334,7 @@ function Store({ data }: { data: StoreData }) {
     verifyPayment(reference)
       .then((r: PaymentResult) => {
         if (r.status === 'paid') {
-          setPaid({ kind: 'paid', orderNo: r.order.display_id, total: r.checkout.amount, pickup: r.checkout.fulfillment === 'pickup', items: r.checkout.items });
+          setPaid({ kind: 'paid', orderNo: r.order.display_id, total: r.checkout.amount, pickup: r.checkout.fulfillment === 'pickup', items: r.checkout.items, shipping: r.checkout.shipping ?? null });
           setBag({});
           const url = new URL(window.location.href);
           url.searchParams.delete('reference');
@@ -359,6 +396,16 @@ function Store({ data }: { data: StoreData }) {
     setOpen(false);
     setStage('bag');
   }
+  // Delivery options for the buyer's country. No options at all: the shop arranges delivery at home.
+  const delivering = fulfillment === 'delivery';
+  const abroad = !!buyer.country && buyer.country !== data.shipsFrom;
+  const shipOptions = delivering && buyer.country ? optionsFor(data.shipping, data.shipsFrom, buyer.country) : [];
+  const arranged = delivering && !abroad && data.shipping.options.length === 0;
+  const blocked = delivering && !!buyer.country && (abroad && !data.sellsAbroad ? 'abroad-off' : !arranged && shipOptions.length === 0 ? 'no-option' : '');
+  const chosen = shipOptions.find(o => o.id === shipId) ?? (shipOptions.length === 1 ? shipOptions[0] : undefined);
+  const shippingPrice = delivering ? chosen?.price ?? 0 : 0;
+  const total = subtotal + shippingPrice;
+  const countryLabel = WORLD_BY_CODE.get(buyer.country)?.name ?? 'your country';
   const errors = checkBuyer(buyer, fulfillment === 'pickup');
   const editBuyer = (patch: Partial<Buyer>) => {
     setBuyer(b => ({ ...b, ...patch }));
@@ -370,13 +417,19 @@ function Store({ data }: { data: StoreData }) {
       setShowErrors(true);
       return;
     }
+    if (blocked) return;
+    if (delivering && !arranged && !chosen) {
+      setShowErrors(true);
+      setPayError('Choose a delivery option.');
+      return;
+    }
     saveBuyer(buyer);
     setPaying(true);
     setPayError('');
     if (!LIVE) {
       // Demo: no real payment. Show what the buyer would see afterwards.
       window.setTimeout(() => {
-        setPaid({ kind: 'paid', orderNo: 1044, total: subtotal, pickup: fulfillment === 'pickup', items: lines.map(l => ({ title: l.item.name, quantity: l.qty })) });
+        setPaid({ kind: 'paid', orderNo: 1044, total, pickup: fulfillment === 'pickup', items: lines.map(l => ({ title: l.item.name, quantity: l.qty })), shipping: chosen ? { name: chosen.name, price: chosen.price } : null });
         setBag({});
         setOpen(false);
         setPaying(false);
@@ -394,7 +447,17 @@ function Store({ data }: { data: StoreData }) {
         name: buyer.name.trim(),
         phone: buyer.phone.trim(),
         fulfillment,
-        ...(fulfillment === 'delivery' ? { address: buyer.address.trim(), city: buyer.city.trim() } : {}),
+        ...(fulfillment === 'delivery'
+          ? {
+              address: buyer.address.trim(),
+              city: buyer.city.trim(),
+              region: buyer.region.trim() || undefined,
+              postal_code: buyer.postalCode.trim() || undefined,
+              country: buyer.country,
+              shipping_option_id: chosen?.id,
+            }
+          : {}),
+        ...(foreign ? { display_currency: showCur } : {}),
         marketing_opt_in: buyer.optIn,
         return_url: back.toString(),
         items: lines.map(l => ({ product_id: l.item.key, quantity: l.qty })),
@@ -415,7 +478,7 @@ function Store({ data }: { data: StoreData }) {
         design={d}
         narrow={width < 600}
         items={data.items}
-        fmt={fmt}
+        fmt={show}
         bagCount={count}
         onAdd={add}
         onOpenBag={() => setOpen(true)}
@@ -424,7 +487,13 @@ function Store({ data }: { data: StoreData }) {
       {data.pickup && <ShopVisit pickup={data.pickup} country={data.country} ink={ink} card={d.colors.card} />}
 
       <footer className="sp-foot">
-        <span>Prices in {country.curName}</span>
+        <label className="sp-cur">
+          <span>Prices in</span>
+          <select value={showCur} onChange={e => pickCurrency(e.target.value)} style={{ color: ink, borderColor: ink + '40', background: d.colors.card }}>
+            {currencyChoices(rates, homeCur).map(c => <option key={c.code} value={c.code}>{c.label}</option>)}
+          </select>
+        </label>
+        {foreign && <span>About; you pay in {country.curName}</span>}
         {data.sellsAbroad && <span>Ships worldwide</span>}
         {data.pickup && <span>Pickup available in {data.pickup.area}</span>}
         {data.showBadge && (
@@ -447,6 +516,7 @@ function Store({ data }: { data: StoreData }) {
                 <ul className="sp-receipt-items">
                   {paid.items.map((i, n) => <li key={n}>{i.title}{i.quantity > 1 ? ` ×${i.quantity}` : ''}</li>)}
                 </ul>
+                {paid.shipping && <div className="sp-total sp-total-sub"><span>{paid.shipping.name}</span><span>{fmt(paid.shipping.price)}</span></div>}
                 <div className="sp-total"><span>Paid</span><span>{fmt(paid.total)}</span></div>
                 {paid.pickup && data.pickup ? (
                   <div className="sp-pick">
@@ -454,7 +524,9 @@ function Store({ data }: { data: StoreData }) {
                     <PickupDetails pickup={data.pickup} country={data.country} />
                   </div>
                 ) : (
-                  <p className="sp-pick-note">{data.name} will contact you about delivery. A receipt from Paystack is in your email.</p>
+                  <p className="sp-pick-note">
+                    {paid.shipping ? `${data.name} will send your order with ${paid.shipping.name} and share the tracking number.` : `${data.name} will contact you about delivery.`} A receipt from Paystack is in your email.
+                  </p>
                 )}
                 <button type="button" className="sp-checkout" style={{ background: d.colors.accent, color: d.colors.accent_text, opacity: 1 }} onClick={() => setPaid(null)}>
                   Keep shopping
@@ -499,7 +571,7 @@ function Store({ data }: { data: StoreData }) {
                   <li key={item.key}>
                     <div className="sp-line-name">
                       <span>{item.name}</span>
-                      <span>{fmt(item.price * qty)}</span>
+                      <span>{show(item.price * qty)}</span>
                     </div>
                     <div className="sp-qty" style={{ borderColor: ink + '33' }}>
                       <button type="button" style={{ color: ink }} onClick={() => setQty(item.key, qty - 1)} aria-label={`One less ${item.name}`}>−</button>
@@ -538,8 +610,14 @@ function Store({ data }: { data: StoreData }) {
             )}
             <div className="sp-total">
               <span>Subtotal</span>
-              <span>{fmt(subtotal)}</span>
+              <span>{show(subtotal)}</span>
             </div>
+            {stage === 'details' && delivering && chosen && (
+              <div className="sp-total sp-total-sub">
+                <span>Delivery: {chosen.name}</span>
+                <span>{chosen.price ? show(chosen.price) : 'Free'}</span>
+              </div>
+            )}
             {fulfillment === 'pickup' && lines.length > 0 && (
               <div className="sp-total sp-total-sub">
                 <span>Pickup</span>
@@ -557,10 +635,46 @@ function Store({ data }: { data: StoreData }) {
                   onChange={v => editBuyer({ phone: v })} />
                 {fulfillment === 'delivery' && (
                   <>
+                    <label className="sp-field">
+                      <span>Country</span>
+                      <select value={buyer.country} autoComplete="country" aria-invalid={!!fieldError('country')}
+                        style={{ color: ink, borderColor: fieldError('country') ? 'oklch(0.55 0.18 30)' : ink + '33', background: d.colors.card }}
+                        onChange={e => { editBuyer({ country: e.target.value }); setShipId(''); }}>
+                        <option value="">Choose…</option>
+                        {COUNTRY_LIST.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
+                      </select>
+                      {fieldError('country') && <small className="sp-field-error">{fieldError('country')}</small>}
+                    </label>
                     <BuyerField label="Delivery address" value={buyer.address} error={fieldError('address')} autoComplete="street-address" ink={ink}
                       onChange={v => editBuyer({ address: v })} />
                     <BuyerField label="City or town" value={buyer.city} error={fieldError('city')} autoComplete="address-level2" ink={ink}
                       onChange={v => editBuyer({ city: v })} />
+                    <div className="sp-two">
+                      <BuyerField label="State / province" value={buyer.region} error="" autoComplete="address-level1" ink={ink}
+                        onChange={v => editBuyer({ region: v })} />
+                      <BuyerField label="Postcode" value={buyer.postalCode} error="" autoComplete="postal-code" ink={ink}
+                        onChange={v => editBuyer({ postalCode: v })} />
+                    </div>
+                    {blocked === 'abroad-off' && <div className="sp-pay-error" role="alert">This shop only delivers within {WORLD_BY_CODE.get(data.shipsFrom ?? '')?.name ?? 'its own country'}.</div>}
+                    {blocked === 'no-option' && <div className="sp-pay-error" role="alert">This shop doesn't deliver to {countryLabel} yet. Message the shop to ask.</div>}
+                    {shipOptions.length > 0 && (
+                      <fieldset className="sp-ful">
+                        <legend>Delivery to {countryLabel}</legend>
+                        {shipOptions.map(o => {
+                          const on = chosen?.id === o.id;
+                          return (
+                            <label key={o.id} className="sp-ful-opt" style={{ borderColor: on ? d.colors.accent : ink + '33' }}>
+                              <input type="radio" name="ship" checked={on} onChange={() => { setShipId(o.id); setPayError(''); }} style={{ accentColor: d.colors.accent }} />
+                              <span>
+                                <b>{o.name} · {o.price ? show(o.price) : 'Free'}</b>
+                                {o.days && <small>{o.days}</small>}
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </fieldset>
+                    )}
+                    {arranged && <p className="sp-soon">The shop will contact you to arrange delivery.</p>}
                   </>
                 )}
                 <label className="sp-optin">
@@ -568,12 +682,12 @@ function Store({ data }: { data: StoreData }) {
                   <span>Send me news and offers from {data.name}</span>
                 </label>
                 {payError && <div className="sp-pay-error" role="alert">{payError}</div>}
-                <button type="submit" className="sp-checkout sp-pay" disabled={paying} style={{ background: d.colors.accent, color: d.colors.accent_text }}>
-                  {paying ? 'Opening Paystack…' : `Pay ${fmt(subtotal)}`}
+                <button type="submit" className="sp-checkout sp-pay" disabled={paying || !!blocked} style={{ background: d.colors.accent, color: d.colors.accent_text }}>
+                  {paying ? 'Opening Paystack…' : `Pay ${fmt(total)}`}
                 </button>
                 <p className="sp-soon">
                   {LIVE ? 'You pay securely on Paystack: card, bank transfer or USSD.' : 'Demo store: no real payment is taken.'}
-                  {fulfillment === 'delivery' ? ' The shop will contact you about delivery.' : ''}
+                  {foreign ? ` You're charged in ${country.curName} (${fmt(total)}, about ${show(total)}); your bank converts it.` : ''}
                 </p>
                 <button type="button" className="sp-back" style={{ color: ink }} onClick={() => setStage('bag')}>← Back to bag</button>
               </form>

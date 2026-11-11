@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { COUNTRIES, nextStep, type Order, type Product } from './data';
 import { DAY_NAMES, DAYS, normalizePickup, type Pickup } from './pickup';
+import { normalizeShipping, type Shipping } from './shipping';
 import type { Settings } from './settings';
 import * as persist from './persist';
 import { api, ApiError, LIVE, sellerIdFromToken, storeLink, type ApiOrder, type ApiProduct, type ApiSeller, type PlanResponse } from './api';
@@ -22,6 +23,12 @@ const toOrder = (o: ApiOrder): Order => ({
   status: o.status,
   created_at: o.created_at,
   fulfillment: o.fulfillment === 'pickup' ? 'pickup' : 'delivery',
+  shipping: o.shipping ?? null,
+  phone: o.phone ?? null,
+  address: o.address ?? null,
+  email: o.email,
+  displayCurrency: o.display_currency ?? null,
+  items: o.items,
 });
 
 const toProduct = (p: ApiProduct): Product => ({ id: p.id, name: p.title, price: p.price, stock: p.stock, cost: p.cost_price });
@@ -40,6 +47,7 @@ function fromSeller(se: ApiSeller): Partial<State> {
     announce: se.announcement ?? '',
     design: se.design ?? null,
     pickup: se.pickup ?? null,
+    shipping: se.shipping ?? null,
     payout: se.payout ?? null,
     paystack: !!se.paystack_subaccount_code,
   };
@@ -465,7 +473,39 @@ function useStoreValue(settings: Settings) {
     }
   };
 
+  /** Ship-from address and delivery options. */
+  const shipping: Shipping = normalizeShipping(s.shipping);
+
+  /** Saves shipping settings. Returns an error message to show by the form, or '' when saved. */
+  const saveShipping = async (next: Shipping): Promise<string> => {
+    for (const o of next.options) {
+      if (!o.name.trim()) return 'Give each delivery option a name.';
+      if (!(o.price >= 0)) return `Enter a price for ${o.name}.`;
+      if (o.zone === 'international' && o.continents.length === 0) return `Choose where ${o.name} ships to.`;
+    }
+    const clean: Shipping = {
+      from: next.from && { ...next.from, name: next.from.name.trim(), address: next.from.address.trim(), city: next.from.city.trim(), region: next.from.region.trim(), postal_code: next.from.postal_code.trim(), phone: next.from.phone.trim() },
+      options: next.options.map(o => ({ ...o, name: o.name.trim(), days: o.days.trim(), continents: o.zone === 'domestic' ? [] : o.continents })),
+    };
+    if (!LIVE) {
+      set({ shipping: clean });
+      flash('Saved. Buyers see these delivery options at checkout');
+      return '';
+    }
+    set({ busy: true });
+    try {
+      const { seller } = await api.updateMe(s.token, { shipping: clean });
+      set({ shipping: seller.shipping, busy: false });
+      flash('Saved. Buyers see these delivery options at checkout');
+      return '';
+    } catch (e) {
+      set({ busy: false });
+      return e instanceof Error ? e.message : 'Could not save. Please try again.';
+    }
+  };
+
   return {
+    shipping, saveShipping,
     pickup, savePickup, savePayout,
     s, set, settings, toast, flash, isMobile, framed, country, fmt, fromUsd, slug, shopNameShown, storeUrl,
     products, toggleHelp, advanceOrder, copyLink, shareWhatsApp, startOver,

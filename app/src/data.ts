@@ -1,5 +1,7 @@
 // Static content for the AQENORA seller app. Values match the Claude Design prototype.
 
+import type { OrderAddress, OrderShipping } from './api';
+
 export type CountryId = 'NG' | 'GH' | 'ZA' | 'CI' | 'SN' | 'DI';
 
 export interface Country {
@@ -89,12 +91,26 @@ export interface Order {
   created_at?: string;
   /** "pickup" = the customer collects from the seller's shop. */
   fulfillment?: 'delivery' | 'pickup';
+  /** Delivery details (live orders and the demo's international order). */
+  shipping?: OrderShipping | null;
+  phone?: string | null;
+  address?: OrderAddress | null;
+  email?: string | null;
+  /** Currency the buyer saw prices in, e.g. "CAD". */
+  displayCurrency?: string | null;
+  items?: { title: string; quantity: number; unit_price: number }[];
 }
 
 export const ORDERS: Order[] = [
   { id: '1043', name: 'Tunde Adeyemi', place: 'Lekki, Lagos', item: 'Silk head wrap', usd: 6, status: 'new', fulfillment: 'pickup' },
   { id: '1042', name: 'Adaeze Okafor', place: 'Lagos', item: 'Indigo adire kimono', usd: 18, status: 'new' },
-  { id: '1041', name: 'Kwame Mensah', place: 'London, UK', item: 'Adire tote bag', usd: 24, intl: true, status: 'new' },
+  {
+    id: '1041', name: 'Kwame Mensah', place: 'London, UK', item: 'Adire tote bag', usd: 24, intl: true, status: 'new',
+    email: 'kwame@example.co.uk', phone: '+44 7700 900123', displayCurrency: 'GBP',
+    address: { address: '14 Brixton Hill, Flat 3', city: 'London', region: '', postal_code: 'SW2 1QA', country: 'GB' },
+    shipping: { carrier: 'dhl', name: 'DHL Express Worldwide', price: 45000, days: '3-5 working days' },
+    items: [{ title: 'Adire tote bag', quantity: 1, unit_price: 37200 }],
+  },
   { id: '1040', name: 'Ifeoma Bello', place: 'Abuja', item: 'Silk head wrap ×2', usd: 12, status: 'shipped' },
   { id: '1039', name: 'Amara Diallo', place: 'Paris, France', item: 'Indigo adire kimono', usd: 36, intl: true, status: 'delivered' },
 ];

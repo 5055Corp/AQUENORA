@@ -128,3 +128,12 @@
 .sp-tick { width: 48px; height: 48px; border-radius: 24px; display: grid; place-items: center; font-size: 24px; font-weight: 700; }
 .sp-receipt-items { margin: 0; padding-left: 18px; font-size: 14.5px; line-height: 1.6; }
 @media (max-width: 520px) { .sp-center { align-items: center; } }
+
+/* buyer's currency and worldwide delivery */
+.sp-cur { display: inline-flex; align-items: center; gap: 8px; }
+.sp-cur select { font: inherit; font-size: 12.5px; font-weight: 600; border: 1px solid; border-radius: 8px; padding: 6px 8px; min-height: 36px; max-width: 220px; }
+.sp-field select { font: inherit; font-size: 15px; font-weight: 400; padding: 11px 12px; border: 1.5px solid; border-radius: 10px; min-height: 44px; }
+.sp-two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.sp-foot { align-items: center; }
+.sp-two > * { min-width: 0; }
+.sp-field input, .sp-field select { width: 100%; }
