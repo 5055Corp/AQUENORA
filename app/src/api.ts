@@ -86,6 +86,10 @@ export interface ApiProduct {
   /** What one item costs the seller; null until they enter it. */
   cost_price: number | null;
   status: string;
+  /** Photo addresses; the first is the main photo. */
+  images?: string[];
+  thumbnail?: string | null;
+  description?: string | null;
 }
 
 export type SellerOrderStatus = 'new' | 'shipped' | 'delivered' | 'ready' | 'collected' | 'canceled';
@@ -367,9 +371,9 @@ export const api = {
     request<{ seller: ApiSeller }>('/sellers/me', { body, token }),
 
   products: (token: string) => request<{ products: ApiProduct[] }>('/sellers/me/products', { token }),
-  addProduct: (token: string, body: { title: string; price: number; stock?: number; cost_price?: number }) =>
+  addProduct: (token: string, body: { title: string; price: number; stock?: number; cost_price?: number; images?: string[] }) =>
     request<{ product: ApiProduct }>('/sellers/me/products', { body, token }),
-  updateProduct: (token: string, id: string, body: { title?: string; price?: number; stock?: number; cost_price?: number | null }) =>
+  updateProduct: (token: string, id: string, body: { title?: string; price?: number; stock?: number; cost_price?: number | null; images?: string[] }) =>
     request<{ product: ApiProduct }>(`/sellers/me/products/${encodeURIComponent(id)}`, { body, token }),
 
   orders: (token: string) => request<{ orders: ApiOrder[] }>('/sellers/me/orders', { token }),
@@ -393,7 +397,7 @@ export const api = {
   verifyDomain: (token: string) => request<PlanResponse>('/sellers/me/domain/verify', { method: 'POST', token }),
   removeDomain: (token: string) => request<PlanResponse>('/sellers/me/domain', { method: 'DELETE', token }),
 
-  uploadImage: (token: string, body: { kind: 'logo' | 'banner'; mime_type: string; data: string }) =>
+  uploadImage: (token: string, body: { kind: 'logo' | 'banner' | 'product'; mime_type: string; data: string }) =>
     request<{ url: string }>('/sellers/me/uploads', { body, token }),
 
   banks: (token: string) => request<{ banks: Bank[] }>('/sellers/me/payouts/banks', { token }),

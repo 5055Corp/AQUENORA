@@ -12,6 +12,11 @@ const SHAPES: Record<ImageKind, { id: string; label: string; ratio: number | nul
     { id: 'wide', label: 'Banner', ratio: 2.4 },
     { id: 'original', label: 'Original', ratio: null },
   ],
+  product: [
+    { id: 'square', label: 'Square', ratio: 1 },
+    { id: 'portrait', label: 'Portrait', ratio: 0.8 },
+    { id: 'original', label: 'Original', ratio: null },
+  ],
 };
 
 /** Largest size we export; the upload step shrinks and compresses it further. */
@@ -127,16 +132,17 @@ export function ImageCropper({ file, kind, onCancel, onDone }: {
     ctx.rotate((rot * Math.PI) / 180);
     ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
     const type = kind === 'logo' ? 'image/png' : 'image/jpeg';
+    const fileName = kind === 'logo' ? 'logo.png' : `${kind}.jpg`;
     canvas.toBlob(blob => {
       if (!blob) { setError('Your phone could not process the picture.'); return; }
-      onDone(new File([blob], kind === 'logo' ? 'logo.png' : 'banner.jpg', { type }));
+      onDone(new File([blob], fileName, { type }));
     }, type, 0.92);
   };
 
   return (
     <div className="sheet-overlay crop-overlay" role="dialog" aria-modal="true" aria-labelledby="crop-title">
       <div className="crop-card">
-        <h2 id="crop-title">{kind === 'logo' ? 'Adjust your logo' : 'Adjust your banner photo'}</h2>
+        <h2 id="crop-title">{kind === 'logo' ? 'Adjust your logo' : kind === 'banner' ? 'Adjust your banner photo' : 'Adjust your product photo'}</h2>
         {error ? (
           <p className="form-error" role="alert">{error}</p>
         ) : !img ? (

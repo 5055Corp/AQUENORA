@@ -61,7 +61,7 @@ function demoStore(): StoreData {
     name,
     country: s.country,
     design: normalizeDesign(s.design, designFromLegacy({ theme: s.theme, accent: s.accent, font: s.font, announce: s.announce, country: country.id === 'DI' ? 'Africa' : country.name })),
-    items: demoProducts(s, usdConverter(country.rate)).map((p, i) => ({ key: `demo-${i}`, name: p.name, price: p.price, stock: p.stock })),
+    items: demoProducts(s, usdConverter(country.rate)).map((p, i) => ({ key: `demo-${i}`, name: p.name, price: p.price, stock: p.stock, images: p.images ?? [] })),
     sellsAbroad: s.intl,
     showBadge: true,
     pickup: offered(s.pickup),
@@ -98,7 +98,7 @@ async function liveStore(handle: string): Promise<StoreData> {
         country: liveCountryName(store.country_code),
       }),
     ),
-    items: products.map(p => ({ key: p.id, name: p.title, price: p.price, stock: p.stock })),
+    items: products.map(p => ({ key: p.id, name: p.title, price: p.price, stock: p.stock, images: p.images ?? [], description: p.description ?? null })),
     sellsAbroad: store.sells_abroad,
     showBadge: store.show_badge !== false,
     pickup: offered(store.pickup),
@@ -369,6 +369,8 @@ function Store({ data }: { data: StoreData }) {
     });
   };
 
+  const [viewing, setViewing] = useState<StoreItem | null>(null);
+
   const add = (item: StoreItem) => {
     const current = bag[item.key] ?? 0;
     if (current >= item.stock) {
@@ -476,7 +478,17 @@ function Store({ data }: { data: StoreData }) {
         bagCount={count}
         onAdd={add}
         onOpenBag={() => setOpen(true)}
+        onOpen={setViewing}
       />
+      {viewing && (
+        <ProductPhotos
+          item={viewing}
+          price={show(viewing.price)}
+          design={d}
+          onClose={() => setViewing(null)}
+          onAdd={() => { add(viewing); setViewing(null); }}
+        />
+      )}
 
       {data.pickup && <ShopVisit pickup={data.pickup} country={data.country} ink={ink} card={d.colors.card} />}
 
@@ -777,5 +789,47 @@ function BuyerField(props: { label: string; value: string; onChange: (v: string)
       />
       {props.error ? <small className="sp-field-error">{props.error}</small> : props.hint ? <small>{props.hint}</small> : null}
     </label>
+  );
+}
+
+/** A product's photos, swipeable, with its name, price and description. */
+function ProductPhotos({ item, price, design: d, onClose, onAdd }: {
+  item: StoreItem;
+  price: string;
+  design: StoreDesign;
+  onClose: () => void;
+  onAdd: () => void;
+}) {
+  const [at, setAt] = useState(0);
+  const images = item.images ?? [];
+  const soldOut = item.stock <= 0;
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', key);
+    return () => window.removeEventListener('keydown', key);
+  }, [onClose]);
+  return (
+    <div className="sheet-overlay pp-overlay" role="dialog" aria-modal="true" aria-label={item.name} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="pp-card" style={{ background: d.colors.card, color: d.colors.text }}>
+        <button type="button" className="pp-close" aria-label="Close" onClick={onClose}>×</button>
+        <div className="pp-gallery" onScroll={e => { const el = e.currentTarget; setAt(Math.round(el.scrollLeft / el.clientWidth)); }}>
+          {images.map((url, i) => <img key={url} src={url} alt={`${item.name}, photo ${i + 1} of ${images.length}`} />)}
+        </div>
+        {images.length > 1 && (
+          <div className="pp-dots" aria-hidden="true">
+            {images.map((url, i) => <span key={url} style={{ background: d.colors.text, opacity: i === at ? 0.9 : 0.25 }} />)}
+          </div>
+        )}
+        <div className="pp-body">
+          <div className="pp-name" style={{ fontFamily: STORE_FONTS[d.fonts.heading].family }}>{item.name}</div>
+          <div className="pp-price">{price}</div>
+          {item.description && <p className="pp-desc">{item.description}</p>}
+          <button type="button" className="pp-add" disabled={soldOut} onClick={onAdd}
+            style={{ background: soldOut ? 'transparent' : d.colors.accent, color: soldOut ? d.colors.text : d.colors.accent_text, border: soldOut ? '1px solid currentColor' : 'none' }}>
+            {soldOut ? 'Sold out' : 'Add to bag'}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

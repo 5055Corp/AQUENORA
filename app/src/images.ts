@@ -1,10 +1,10 @@
 // Store logo and banner photos: shrunk in the seller's browser before upload, so stores load
 // fast on mobile data and uploads work on slow connections.
 
-export type ImageKind = 'logo' | 'banner';
+export type ImageKind = 'logo' | 'banner' | 'product';
 
 /** Longest side in pixels. Logos are shown small; banners fill a wide strip. */
-const MAX: Record<ImageKind, { w: number; h: number }> = { logo: { w: 400, h: 400 }, banner: { w: 1800, h: 1000 } };
+const MAX: Record<ImageKind, { w: number; h: number }> = { logo: { w: 400, h: 400 }, banner: { w: 1800, h: 1000 }, product: { w: 1400, h: 1400 } };
 
 export interface PreparedImage {
   mimeType: 'image/webp' | 'image/jpeg' | 'image/png';
