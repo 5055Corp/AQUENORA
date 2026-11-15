@@ -3,6 +3,7 @@ import { api, ApiError, type Finance, type Period } from '../api';
 import { demoSales } from '../demo';
 import { summarize } from '../finance';
 import { useStore } from '../store';
+import { SELL_PRO_HERE } from '../native';
 import { Help } from './Help';
 import { LineChart } from './LineChart';
 import { PayoutSettings } from './PayoutSettings';
@@ -51,7 +52,7 @@ export function Money() {
   // Free plan: totals only. Charts and profit per product are Pro (the backend leaves them out).
   const locked = live ? !!data?.locked : !planInfo?.plan.features.full_financials;
 
-  const upgradeCard = (
+  const upgradeCard = !SELL_PRO_HERE ? null : (
     <section className="card money-card upsell">
       <div className="eyebrow">Pro</div>
       <h2 className="card-title">See how your shop is growing</h2>

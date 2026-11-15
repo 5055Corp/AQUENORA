@@ -669,3 +669,11 @@ button:disabled { cursor: default; }
 .del-btns { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; margin-top: 4px; }
 .del-go { background: var(--alert); color: #fff; border: none; border-radius: 10px; font-weight: 700; }
 .del-go:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* iPhone notch and home indicator (the iPhone app, and Safari when the page fills the screen) */
+.m-top { padding-top: max(16px, env(safe-area-inset-top)); padding-left: max(18px, env(safe-area-inset-left)); padding-right: max(18px, env(safe-area-inset-right)); }
+.tabbar { padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+.sheet-overlay { padding-top: max(16px, env(safe-area-inset-top)); padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+/* In the app, the page shouldn't bounce or select like a web page. */
+html.ios-app, html.ios-app body { overscroll-behavior: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+html.ios-app input, html.ios-app textarea, html.ios-app [contenteditable] { -webkit-user-select: text; user-select: text; }

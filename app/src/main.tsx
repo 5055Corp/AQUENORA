@@ -4,6 +4,9 @@ import './index.css';
 import App from './App.tsx';
 import { StoreProvider } from './store';
 import { readSettings } from './settings';
+import { startNative } from './native';
+
+startNative();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
