@@ -79,6 +79,12 @@ export default defineMiddlewares({
       middlewares: [sellerAuth, validateAndTransformBody(UpdateSellerSchema)],
     },
     {
+      // A shopper's orders across AQUENORA stores.
+      methods: ["GET"],
+      matcher: "/store/me/orders",
+      middlewares: [authenticate("customer", ["bearer"])],
+    },
+    {
       // Delete account (Settings → Delete account).
       methods: ["DELETE"],
       matcher: "/sellers/me",
