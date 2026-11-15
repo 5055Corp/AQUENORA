@@ -13,7 +13,7 @@ import { homeCountry, normalizeShipping, optionsFor, type Shipping } from '../sh
 import { WORLD, WORLD_BY_CODE } from '../countries';
 import { convert, currencyChoices, formatMoney, guessBuyerCountry, loadCurrency, saveCurrency, sellerCurrency, useRates } from './currency';
 
-interface StoreData {
+export interface StoreData {
   handle: string;
   name: string;
   country: CountryId;
@@ -82,7 +82,7 @@ function liveCountryName(id: CountryId) {
   return !c || c.id === 'DI' ? 'Africa' : c.name;
 }
 
-async function liveStore(handle: string): Promise<StoreData> {
+export async function liveStore(handle: string): Promise<StoreData> {
   const { store, products } = await fetchPublicStore(handle);
   return {
     handle: store.handle,
@@ -106,6 +106,20 @@ async function liveStore(handle: string): Promise<StoreData> {
     shipping: normalizeShipping({ from: null, options: store.shipping?.options ?? [] }),
     shipsFrom: store.shipping?.ships_from ?? (store.country_code === 'DI' ? null : store.country_code),
   };
+}
+
+/** A store's design from its saved look (or its older theme/accent/font). Used for store cards in search. */
+export function designOf(store: { design: unknown; theme: string; accent: string; font: string; country_code: string }): StoreDesign {
+  return normalizeDesign(
+    store.design,
+    designFromLegacy({
+      theme: store.theme as never,
+      accent: Math.max(0, ACCENT_KEYS.indexOf(store.accent as never)),
+      font: store.font as never,
+      announce: '',
+      country: liveCountryName(store.country_code as CountryId),
+    }),
+  );
 }
 
 const COUNTRY_LIST = [...WORLD].sort((a, b) => a.name.localeCompare(b.name));
@@ -271,7 +285,21 @@ export function StorePage() {
   );
 }
 
-function Store({ data }: { data: StoreData }) {
+/** Lower-case words of a search, for showing matching products first. */
+const words = (q: string) => q.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').split(/[^a-z0-9]+/).filter(Boolean);
+const plain = (s: string) => s.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
+
+/** Opened from AQUENORA's shopping side (not the store's own address). */
+export interface Embedded {
+  onBack: () => void;
+  backLabel: string;
+  /** What the shopper searched for: matching products are shown first. */
+  query?: string;
+  /** Paystack sends the buyer here after paying: the store's own website. */
+  returnUrl: string;
+}
+
+export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded }) {
   const width = useWidth();
   const country = COUNTRIES.find(c => c.id === data.country) ?? COUNTRIES[0];
   /** In the seller's currency: what Paystack charges. */
@@ -321,7 +349,14 @@ function Store({ data }: { data: StoreData }) {
   const [showErrors, setShowErrors] = useState(false);
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState('');
-  const [paid, setPaid] = useState<Paid | null>(() => (new URLSearchParams(window.location.search).get('reference') ? { kind: 'checking' } : null));
+  const [paid, setPaid] = useState<Paid | null>(() => (!embedded && new URLSearchParams(window.location.search).get('reference') ? { kind: 'checking' } : null));
+  const [query, setQuery] = useState(embedded?.query ?? '');
+  const found = useMemo(() => {
+    const w = words(query);
+    if (!w.length) return null;
+    return new Set(data.items.filter(i => w.every(x => plain(`${i.name} ${i.description ?? ''}`).includes(x))).map(i => i.key));
+  }, [query, data.items]);
+  const shown = useMemo(() => (found ? [...data.items.filter(i => found.has(i.key)), ...data.items.filter(i => !found.has(i.key))] : data.items), [found, data.items]);
 
   // Back from Paystack: ask the shop whether the payment went through.
   const checkPayment = useCallback((reference: string) => {
@@ -433,10 +468,10 @@ function Store({ data }: { data: StoreData }) {
       return;
     }
     try {
-      const back = new URL(window.location.href);
+      const back = new URL(embedded ? embedded.returnUrl : window.location.href);
       back.search = '';
       back.hash = '';
-      const shop = new URLSearchParams(window.location.search).get('shop');
+      const shop = embedded ? (STORE_DOMAIN ? null : data.handle) : new URLSearchParams(window.location.search).get('shop');
       if (shop) back.searchParams.set('shop', shop);
       const { authorization_url } = await startCheckout(data.handle, {
         email: buyer.email.trim(),
@@ -468,12 +503,23 @@ function Store({ data }: { data: StoreData }) {
 
   return (
     <div className="sp" style={{ color: ink, fontFamily: STORE_FONTS[d.fonts.body].family }}>
+      {embedded && (
+        <div className="sp-embed" style={{ background: d.colors.background }}>
+          <button type="button" className="sp-embed-back" style={{ color: d.colors.text }} onClick={embedded.onBack}>‹ {embedded.backLabel}</button>
+          {found && query && (
+            <div className="sp-found" style={{ background: d.colors.accent, color: d.colors.accent_text }}>
+              <span>{found.size ? `${found.size} ${found.size === 1 ? 'match' : 'matches'} for “${query}” shown first` : `No matches for “${query}” here. Showing everything.`}</span>
+              <button type="button" onClick={() => setQuery('')} style={{ color: d.colors.accent_text }}>✕ Clear</button>
+            </div>
+          )}
+        </div>
+      )}
       <StoreView
         variant="page"
         name={data.name}
         design={d}
         narrow={width < 600}
-        items={data.items}
+        items={shown}
         fmt={show}
         bagCount={count}
         onAdd={add}

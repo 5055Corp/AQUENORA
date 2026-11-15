@@ -54,6 +54,8 @@ export interface ApiSeller {
   font: FontId;
   announcement: string | null;
   onboarding_completed: boolean;
+  /** Shown in AQUENORA's shopping search. */
+  marketplace_listed?: boolean;
   /** Full store design (see design.ts), or null if the seller hasn't customised it. */
   design: unknown;
   /** In-store pickup settings (see pickup.ts), or null if never set. */

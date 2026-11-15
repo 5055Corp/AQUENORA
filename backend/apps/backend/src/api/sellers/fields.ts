@@ -18,6 +18,7 @@ export const SELLER_FIELDS = [
   "pickup",
   "shipping",
   "onboarding_completed",
+  "marketplace_listed",
   "created_at",
 ]
 
