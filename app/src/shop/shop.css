@@ -142,3 +142,6 @@
 .sh-tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; background: #fff; border-top: 1px solid var(--s-line); display: grid; grid-template-columns: repeat(5, 1fr); padding: 8px max(4px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(4px, env(safe-area-inset-left)); }
 .sh-tabbar button { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 11px; font-weight: 700; color: var(--s-soft); background: none; border: none; padding: 4px 0; min-height: 52px; justify-content: center; }
 .sh-tabbar button.on { color: var(--s-violet); }
+
+.sh-help { color: var(--s-muted); font-size: 13.5px; line-height: 1.5; margin: 16px 0 0; }
+.sh-help a { color: var(--s-violet); font-weight: 700; }
