@@ -474,6 +474,7 @@ function Orders({ shopper, onLogin, onExpired }: { shopper: Shopper | null; onLo
             ))}
           </div>
         )}
+        <p className="sh-help">Questions about an order? Email <a href="mailto:orders@aquenora.com?subject=Question%20about%20my%20order">orders@aquenora.com</a> with your order number.</p>
       </div>
     </>
   );
