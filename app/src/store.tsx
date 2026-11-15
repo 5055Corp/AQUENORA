@@ -169,6 +169,13 @@ function useStoreValue(settings: Settings) {
     window.scrollTo(0, 0);
   };
 
+  /** Deletes the seller's account and store for good, then returns to the login screen. */
+  const deleteAccount = async () => {
+    if (!s.token) return;
+    await api.deleteAccount(s.token);
+    logOut('Your account has been deleted.');
+  };
+
   /** Shows a backend error; an expired login sends the seller back to the login screen. */
   const fail = (e: unknown) => {
     if (e instanceof ApiError && e.status === 401) logOut('Please log in again.');
@@ -569,7 +576,7 @@ function useStoreValue(settings: Settings) {
     pickup, savePickup, savePayout,
     s, set, settings, toast, flash, isMobile, framed, country, fmt, fromUsd, slug, shopNameShown, storeUrl,
     products, toggleHelp, advanceOrder, copyLink, shareWhatsApp, startOver,
-    design, setDesign, planInfo, refreshPlan, startTrial, requestUpgrade, setAutoRenew, connectDomain, checkDomain, removeDomain, live: LIVE, submitAuth, finishOnboarding, addProduct, setProductCost, publishDesign, logOut, retryLoad,
+    design, setDesign, planInfo, refreshPlan, startTrial, requestUpgrade, setAutoRenew, connectDomain, checkDomain, removeDomain, live: LIVE, submitAuth, finishOnboarding, addProduct, setProductCost, publishDesign, logOut, deleteAccount, retryLoad,
     showHints: settings.showHelpHints,
     h1Size: isMobile ? '30px' : '40px',
   };

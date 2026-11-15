@@ -153,5 +153,29 @@ medusaIntegrationTestRunner({
         expect(missing.status).toEqual(404)
       })
     })
+    describe("deleting an account", () => {
+      it("takes the store offline, removes the login and frees the email and web address", async () => {
+        const key = await getContainer().resolve(Modules.API_KEY).createApiKeys({ title: "t", type: "publishable", created_by: "t" })
+        const store = { headers: { "x-publishable-api-key": key.token } }
+        const { seller, headers } = await signUpSeller("gone@example.com", { name: "Gone Shop" })
+        const product = (await api.post("/sellers/me/products", { title: "Bag", price: 5000 }, { headers })).data.product
+        expect((await api.get("/store/sellers/goneshop", store)).status).toEqual(200)
+
+        expect((await api.delete("/sellers/me", { headers })).data).toEqual({ deleted: true })
+
+        expect((await api.get("/store/sellers/goneshop", store).catch((e) => e.response)).status).toEqual(404)
+        // An old login token no longer finds a store (the app then logs out).
+        expect((await api.get("/sellers/me", { headers }).catch((e) => e.response)).status).toEqual(404)
+        const login = await api.post("/auth/seller/emailpass", { email: "gone@example.com", password }).catch((e) => e.response)
+        expect(login.status).toEqual(401)
+        const products = await getContainer().resolve(Modules.PRODUCT).listProducts({ id: product.id })
+        expect(products).toHaveLength(0)
+
+        // The same email and shop name can be used again.
+        const again = await signUpSeller("gone@example.com", { name: "Gone Shop" })
+        expect(again.seller.handle).toEqual("goneshop")
+        expect(again.seller.id).not.toEqual(seller.id)
+      })
+    })
   },
 })

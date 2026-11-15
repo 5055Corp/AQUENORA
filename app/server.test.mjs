@@ -58,6 +58,10 @@ test('serves the seller app and store pages by address', async () => {
   // The seller interview lives on the app's address, never on a shop.
   assert.match((await get('/interview', 'app.aquenora.com')).body, /<title>AQUENORA seller interview<\/title>/);
   assert.match((await get('/interview', 'adirehouse.aquenora.com')).body, /<title>AQUENORA store<\/title>/);
+  // Privacy policy and support pages (App Store listing, Settings).
+  assert.match((await get('/privacy', 'app.aquenora.com')).body, /<title>Privacy policy · AQUENORA<\/title>/);
+  assert.match((await get('/support', 'app.aquenora.com')).body, /<title>Support · AQUENORA<\/title>/);
+  assert.match((await get('/privacy', 'adirehouse.aquenora.com')).body, /<title>AQUENORA store<\/title>/);
 });
 
 test('assets, 404s, health, compression, HTTPS header and path tricks', async () => {

@@ -120,7 +120,9 @@ export const server = createServer(async (req, res) => {
     const shop = pageForHost(req.headers.host) === 'store' || !!req.headers['x-aquenora-shop-domain'];
     // app.aquenora.com/interview: the seller interview (market research).
     const interview = !shop && /^\/interview\/?$/.test(url.pathname);
-    const page = join(DIST, shop ? 'store.html' : interview ? 'interview.html' : 'index.html');
+    // app.aquenora.com/privacy and /support: public pages (linked from the App Store listing and Settings).
+    const info = !shop && url.pathname.match(/^\/(privacy|support)\/?$/)?.[1];
+    const page = join(DIST, shop ? 'store.html' : interview ? 'interview.html' : info ? `${info}.html` : 'index.html');
 
     // On a shop subdomain every page path shows the store; real files (assets) are still served.
     const file = await fileFor(url.pathname === '/' ? '/__none__' : url.pathname);

@@ -362,6 +362,7 @@ export const api = {
   createSeller: (token: string, body: { name: string; category: string; country_code: CountryId; sells_abroad: boolean }) =>
     request<{ seller: ApiSeller }>('/sellers', { body, token }),
   me: (token: string) => request<{ seller: ApiSeller }>('/sellers/me', { token }),
+  deleteAccount: (token: string) => request<{ deleted: true }>('/sellers/me', { method: 'DELETE', token }),
   updateMe: (token: string, body: Partial<Omit<ApiSeller, 'id' | 'email' | 'currency_code' | 'paystack_subaccount_code' | 'payout'>>) =>
     request<{ seller: ApiSeller }>('/sellers/me', { body, token }),
 
