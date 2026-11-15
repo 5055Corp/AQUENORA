@@ -1,14 +1,11 @@
 import { HELP } from '../data';
 import { useStore } from '../store';
-import { useState } from 'react';
 import { daysLeft, formatPrice } from '../plan';
-import { DeleteAccount } from './DeleteAccount';
 
 type Key = 'store' | 'product' | 'pay' | 'design' | 'share' | 'order';
 
 export function Home() {
-  const { s, set, flash, products, showHints, toggleHelp, fmt, fromUsd, shopNameShown, storeUrl, isMobile, h1Size, copyLink, shareWhatsApp, startOver, live, logOut, deleteAccount, planInfo, startTrial } = useStore();
-  const [deleting, setDeleting] = useState(false);
+  const { s, set, flash, products, showHints, toggleHelp, fmt, fromUsd, shopNameShown, storeUrl, isMobile, h1Size, copyLink, shareWhatsApp, startOver, live, logOut, planInfo, startTrial } = useStore();
 
   const checklist: { k: Key; label: string; done: boolean; action?: string; help?: string }[] = [
     { k: 'store', label: 'Create your store', done: true },
@@ -145,13 +142,9 @@ export function Home() {
       </section>
 
       {live ? (
-        <div className="acct-links">
-          <button type="button" className="ob-skip" onClick={() => logOut()}>
-            Log out{s.email ? ` (${s.email})` : ''}
-          </button>
-          <button type="button" className="del-link" onClick={() => setDeleting(true)}>Delete account</button>
-          {deleting && <DeleteAccount storeUrl={storeUrl} onDelete={deleteAccount} onClose={() => setDeleting(false)} />}
-        </div>
+        <button type="button" className="ob-skip" onClick={() => logOut()}>
+          Log out{s.email ? ` (${s.email})` : ''}
+        </button>
       ) : (
         <button
           type="button"
