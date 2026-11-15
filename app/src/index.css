@@ -677,3 +677,8 @@ button:disabled { cursor: default; }
 /* In the app, the page shouldn't bounce or select like a web page. */
 html.ios-app, html.ios-app body { overscroll-behavior: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
 html.ios-app input, html.ios-app textarea, html.ios-app [contenteditable] { -webkit-user-select: text; user-select: text; }
+
+/* Phone: the bottom menu stays pinned to the bottom of the screen while the page scrolls. */
+.tabbar-fixed { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; padding-left: max(6px, env(safe-area-inset-left)); padding-right: max(6px, env(safe-area-inset-right)); }
+.main-tabbed { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+.tabbar button span:last-child { text-align: center; line-height: 1.15; }
