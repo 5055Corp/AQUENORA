@@ -51,6 +51,7 @@ function fromSeller(se: ApiSeller): Partial<State> {
     shipping: se.shipping ?? null,
     payout: se.payout ?? null,
     paystack: !!se.paystack_subaccount_code,
+    listed: se.marketplace_listed !== false,
   };
 }
 
@@ -167,6 +168,20 @@ function useStoreValue(settings: Settings) {
     persist.saveLive(null);
     setS({ ...initialState(settings), authMode: 'login', authError: message ?? '' });
     window.scrollTo(0, 0);
+  };
+
+  /** Shows or hides the store in AQUENORA's shopping search. */
+  const setListed = async (listed: boolean) => {
+    const before = s.listed;
+    set({ listed });
+    if (!LIVE) return;
+    try {
+      await api.updateMe(s.token, { marketplace_listed: listed });
+      flash(listed ? 'Your store shows in AQUENORA search' : 'Your store is hidden from AQUENORA search');
+    } catch (e) {
+      set({ listed: before });
+      fail(e);
+    }
   };
 
   /** Deletes the seller's account and store for good, then returns to the login screen. */
@@ -600,7 +615,7 @@ function useStoreValue(settings: Settings) {
     pickup, savePickup, savePayout,
     s, set, settings, toast, flash, isMobile, framed, country, fmt, fromUsd, slug, shopNameShown, storeUrl,
     products, toggleHelp, advanceOrder, copyLink, shareWhatsApp, startOver,
-    design, setDesign, planInfo, refreshPlan, startTrial, requestUpgrade, setAutoRenew, connectDomain, checkDomain, removeDomain, live: LIVE, submitAuth, finishOnboarding, addProduct, setProductCost, publishDesign, logOut, deleteAccount, retryLoad,
+    design, setDesign, planInfo, refreshPlan, startTrial, requestUpgrade, setAutoRenew, connectDomain, checkDomain, removeDomain, live: LIVE, submitAuth, finishOnboarding, addProduct, setProductCost, publishDesign, logOut, deleteAccount, setListed, retryLoad,
     showHints: settings.showHelpHints,
     h1Size: isMobile ? '30px' : '40px',
   };

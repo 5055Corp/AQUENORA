@@ -53,6 +53,8 @@ export interface State {
   // ---- live mode ----
   authMode: 'signup' | 'login';
   email: string;
+  /** Live: whether the store shows in AQUENORA's shopping search. */
+  listed: boolean;
   password: string;
   token: string;
   /** The store's web address as saved on the server (may differ from the name-derived one). */
@@ -103,6 +105,7 @@ export function initialState(settings: Settings): State {
     demoDomain: '',
     authMode: 'signup',
     email: '',
+    listed: true,
     password: '',
     token: '',
     handle: '',

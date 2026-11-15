@@ -736,3 +736,15 @@ html.ios-app input, html.ios-app textarea, html.ios-app [contenteditable] { -web
 .pp-price { font-weight: 800; font-size: 17px; }
 .pp-desc { margin: 4px 0 0; font-size: 14.5px; line-height: 1.5; white-space: pre-line; opacity: 0.85; }
 .pp-add { margin-top: 10px; padding: 13px; border-radius: 999px; font-weight: 800; font-size: 15px; }
+
+.set-switch { display: flex; align-items: center; gap: 14px; padding: 10px 0 12px; cursor: pointer; position: relative; }
+.set-switch > span:first-child { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+.set-switch small { color: var(--muted); font-size: 13px; line-height: 1.45; }
+.set-switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.set-switch-ui { width: 50px; height: 30px; border-radius: 999px; background: var(--field); position: relative; flex-shrink: 0; transition: background 0.15s; }
+.set-switch-ui::after { content: ""; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px #0003; transition: left 0.15s; }
+.set-switch input:checked + .set-switch-ui { background: var(--go); }
+.set-switch input:checked + .set-switch-ui::after { left: 23px; }
+.set-switch:focus-within .set-switch-ui { outline: 2px solid var(--ink); outline-offset: 2px; }
+.set-link-btn { display: flex; justify-content: space-between; width: 100%; padding: 13px 0; border: none; border-top: 1px solid var(--line-soft); background: none; color: var(--ink); font: inherit; font-weight: 600; text-align: left; }
+.set-link-btn span { color: var(--muted-3); }

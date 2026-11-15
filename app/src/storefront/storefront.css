@@ -137,3 +137,9 @@
 .sp-foot { align-items: center; }
 .sp-two > * { min-width: 0; }
 .sp-field input, .sp-field select { width: 100%; }
+
+/* A store opened from AQUENORA's shopping side */
+.sp-embed { position: sticky; top: 0; z-index: 30; padding: max(10px, env(safe-area-inset-top)) 14px 10px; display: flex; flex-direction: column; gap: 8px; }
+.sp-embed-back { align-self: flex-start; background: none; border: none; padding: 4px 0; font: inherit; font-weight: 700; font-size: 15px; }
+.sp-found { display: flex; justify-content: space-between; align-items: center; gap: 10px; border-radius: 12px; padding: 9px 12px; font-size: 13.5px; font-weight: 700; }
+.sp-found button { background: none; border: none; font: inherit; font-weight: 800; white-space: nowrap; padding: 0; }
