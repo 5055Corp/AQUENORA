@@ -1,3 +1,4 @@
+import { ImageCropper } from './ImageCropper';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { ImageKind } from '../images';
 import { contrast, FONT_KEYS, loadFonts, PRESETS, readableOn, STORE_FONTS, SWATCHES, type FontKey, type StoreDesign } from '../design';
@@ -20,8 +21,15 @@ function ImagePicker({ kind, label, hint, value, onRemove }: { kind: ImageKind; 
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [cropping, setCropping] = useState<File | null>(null);
+
+  const choose = (file: File | undefined) => {
+    if (input.current) input.current.value = '';
+    if (file) { setError(''); setCropping(file); }
+  };
 
   const pick = async (file: File | undefined) => {
+    setCropping(null);
     if (!file) return;
     setBusy(true);
     setError('');
@@ -44,7 +52,8 @@ function ImagePicker({ kind, label, hint, value, onRemove }: { kind: ImageKind; 
           {value && !busy && <button type="button" className="ship-remove" onClick={onRemove}>Remove</button>}
         </div>
         <input ref={input} type="file" accept="image/jpeg,image/png,image/webp" hidden aria-label={`Choose a ${label.toLowerCase()}`}
-          onChange={e => pick(e.target.files?.[0])} />
+          onChange={e => choose(e.target.files?.[0])} />
+        {cropping && <ImageCropper file={cropping} kind={kind} onCancel={() => setCropping(null)} onDone={f => pick(f)} />}
       </div>
       {error ? <div className="form-error" role="alert">{error}</div> : <div className="ctl-note">{hint}</div>}
     </div>
