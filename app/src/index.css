@@ -682,3 +682,16 @@ html.ios-app input, html.ios-app textarea, html.ios-app [contenteditable] { -web
 .tabbar-fixed { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; padding-left: max(6px, env(safe-area-inset-left)); padding-right: max(6px, env(safe-area-inset-right)); }
 .main-tabbed { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
 .tabbar button span:last-child { text-align: center; line-height: 1.15; }
+
+/* Crop and resize a logo or banner photo before uploading */
+.crop-overlay { justify-content: center; }
+.crop-card { background: var(--paper); color: var(--ink); width: 100%; max-width: 480px; box-sizing: border-box; padding: 20px; border-radius: 16px; display: flex; flex-direction: column; gap: 12px; }
+.crop-card h2 { margin: 0; font-family: var(--f-display); font-size: 21px; }
+.crop-card p { margin: 0; }
+.crop-frame { position: relative; width: 100%; overflow: hidden; border-radius: 12px; background: repeating-conic-gradient(#e7e1d6 0 25%, #f6f3ee 0 50%) 0 0 / 18px 18px; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+.crop-frame:active { cursor: grabbing; }
+.crop-frame img { position: absolute; left: 50%; top: 50%; max-width: none; pointer-events: none; }
+.crop-frame-logo { max-height: 60vh; }
+.crop-tools { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.crop-zoom { flex: 1; display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 14px; min-width: 180px; }
+.crop-zoom input { flex: 1; accent-color: var(--ink); }
