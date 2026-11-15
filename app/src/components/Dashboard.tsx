@@ -13,7 +13,7 @@ import { Settings } from './Settings';
 import { SELL_PRO_HERE } from '../native';
 
 export function Dashboard() {
-  const { s, set, isMobile, shopNameShown, slug } = useStore();
+  const { s, set, isMobile, framed, shopNameShown, slug } = useStore();
   const newCount = s.orders.filter(o => o.status === 'new').length;
   const pick = (k: Tab) => set({ tab: k, ...(k === 'design' ? { designed: true } : {}) });
 
@@ -53,7 +53,7 @@ export function Dashboard() {
         </aside>
       )}
 
-      <main className="main">
+      <main className={'main' + (isMobile && !framed ? ' main-tabbed' : '')}>
         {isMobile && (
           <div className="m-top">
             <div className="m-top-shop">
@@ -96,7 +96,7 @@ export function Dashboard() {
         </div>
 
         {isMobile && (
-          <nav className="tabbar" aria-label="Main">
+          <nav className={'tabbar' + (framed ? '' : ' tabbar-fixed')} aria-label="Main">
             {NAV.filter(n => n.phone !== false).map(n => {
               const active = s.tab === n.key;
               return (

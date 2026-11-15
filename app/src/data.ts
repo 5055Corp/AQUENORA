@@ -150,7 +150,7 @@ export const NAV: { key: Tab; label: string; short: string; phone?: boolean }[] 
   { key: 'products', label: 'Products', short: 'Products' },
   { key: 'money', label: 'Financials', short: 'Financials' },
   { key: 'customers', label: 'Customers', short: 'Buyers' },
-  { key: 'design', label: 'Store design', short: 'Design' },
+  { key: 'design', label: 'Store design', short: 'Store design' },
   { key: 'plan', label: 'Plan & domain', short: 'Plan', phone: false },
   { key: 'settings', label: 'Settings', short: 'Settings', phone: false },
 ];
