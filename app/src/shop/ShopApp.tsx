@@ -71,7 +71,7 @@ export function ShopApp() {
   const [focusSearch, setFocusSearch] = useState(0);
   const sellerLoggedIn = !!persist.loadLive();
 
-  useEffect(() => window.scrollTo(0, 0), [tab, store, login]);
+  useEffect(() => { window.scrollTo(0, 0); }, [tab, store, login]);
 
   const logOut = () => { saveShopper(null); setShopper(null); };
   const openStore = (handle: string, query?: string) =>
@@ -186,7 +186,7 @@ function Home({ onSearch, onCategory, onStore, onSell }: {
     setError('');
     shopHome().then(setData, e => setError(e instanceof Error ? e.message : 'Could not load AQUENORA.'));
   }, []);
-  useEffect(load, [load]);
+  useEffect(() => { load(); }, [load]);
   const storeOf = (handle: string) => data?.featured.find(s => s.handle === handle);
 
   return (
@@ -377,7 +377,7 @@ function StoreScreen({ handle, query, backLabel, onBack }: { handle: string; que
     liveStore(handle).then(d => { setData(d); rememberName(d.handle, d.name); }, e =>
       setError(e instanceof ApiError && e.status === 404 ? 'This store isn’t on AQUENORA any more.' : e instanceof Error ? e.message : 'Could not open the store.'));
   }, [handle]);
-  useEffect(load, [load]);
+  useEffect(() => { load(); }, [load]);
   // Paystack returns the buyer to the store's own website, which confirms the order.
   const returnUrl = STORE_DOMAIN ? `https://${handle}.${STORE_DOMAIN}/` : new URL('store.html', window.location.href).href;
 
@@ -441,7 +441,7 @@ function Orders({ shopper, onLogin, onExpired }: { shopper: Shopper | null; onLo
       else setError(e instanceof Error ? e.message : 'Could not load your orders.');
     });
   }, [shopper, onExpired]);
-  useEffect(load, [load]);
+  useEffect(() => { load(); }, [load]);
 
   return (
     <>
