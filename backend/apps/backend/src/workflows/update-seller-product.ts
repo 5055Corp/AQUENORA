@@ -11,6 +11,8 @@ export type UpdateSellerProductInput = {
   /** What one item costs the seller to make or buy. null clears it. */
   cost_price?: number | null
   stock?: number
+  /** Replaces the photos (first = main photo). */
+  images?: string[]
 }
 
 type OwnedProduct = {
@@ -42,7 +44,11 @@ const prepareSellerProductUpdateStep = createStep(
       currency_code: seller.currency_code,
       productUpdate: {
         selector: { id: product.id },
-        update: { ...(input.title !== undefined ? { title: input.title } : {}), metadata },
+        update: {
+          ...(input.title !== undefined ? { title: input.title } : {}),
+          ...(input.images !== undefined ? { images: input.images.map((url) => ({ url })), thumbnail: input.images[0] ?? null } : {}),
+          metadata,
+        },
       },
     })
   }

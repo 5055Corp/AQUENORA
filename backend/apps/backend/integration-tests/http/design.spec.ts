@@ -76,6 +76,32 @@ medusaIntegrationTestRunner({
       expect(cleared.logo).toBeNull()
     })
 
+    it("saves product photos in the order chosen, and only AQUENORA-uploaded ones", async () => {
+      const headers = await signUp()
+      const up = async () => (await api.post("/sellers/me/uploads", { kind: "product", mime_type: "image/png", data: PNG }, { headers })).data.url as string
+      const [a, b, c] = [await up(), await up(), await up()]
+
+      const created = (await api.post("/sellers/me/products", { title: "Kimono", price: 45000, images: [b, a] }, { headers })).data.product
+      expect(created.images).toEqual([b, a])
+      expect(created.thumbnail).toBe(b)
+
+      // Reorder, add and remove: the first is always the main photo.
+      const updated = (await api.post(`/sellers/me/products/${created.id}`, { images: [a, c] }, { headers })).data.product
+      expect(updated.images).toEqual([a, c])
+      expect(updated.thumbnail).toBe(a)
+      const listed = (await api.get("/sellers/me/products", { headers })).data.products[0]
+      expect(listed.images).toEqual([a, c])
+
+      const none = (await api.post(`/sellers/me/products/${created.id}`, { images: [] }, { headers })).data.product
+      expect(none.images).toEqual([])
+      expect(none.thumbnail).toBeNull()
+
+      const status = (p: Promise<unknown>) => p.then(() => 200, (e) => e.response.status)
+      expect(await status(api.post("/sellers/me/products", { title: "X", price: 1, images: ["https://evil.test/x.png"] }, { headers }))).toBe(400)
+      expect(await status(api.post("/sellers/me/products", { title: "X", price: 1, images: [a, a] }, { headers }))).toBe(400)
+      expect(await status(api.post("/sellers/me/products", { title: "X", price: 1, images: [a, b, c, a + "?1", b + "?1", c + "?1"] }, { headers }))).toBe(400)
+    })
+
     it("refuses files that aren't pictures, other people, and odd image addresses", async () => {
       const headers = await signUp()
       const status = (p: Promise<unknown>) => p.then(() => 200, (e) => e.response.status)
