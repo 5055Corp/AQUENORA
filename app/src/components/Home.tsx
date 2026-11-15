@@ -1,4 +1,5 @@
 import { HELP } from '../data';
+import { IOS_APP, SELL_PRO_HERE, shareStore } from '../native';
 import { useStore } from '../store';
 import { daysLeft, formatPrice } from '../plan';
 
@@ -48,7 +49,7 @@ export function Home() {
         <p>Here's what to do next. {doneCount === total ? "You're all set." : `${total - doneCount} steps left.`}</p>
       </div>
 
-      {planInfo && planInfo.plan.status !== 'paid' && (
+      {SELL_PRO_HERE && planInfo && planInfo.plan.status !== 'paid' && (
         <section className="plan-banner">
           <div>
             <strong>
@@ -132,9 +133,15 @@ export function Home() {
           >
             Share on WhatsApp
           </button>
-          <button type="button" className="share-copy" onClick={() => { set({ shared: true }); copyLink(); flash('Link copied'); }}>
-            Copy link
-          </button>
+          {IOS_APP ? (
+            <button type="button" className="share-copy" onClick={() => { set({ shared: true }); shareStore(storeUrl, shopNameShown).catch(() => {}); }}>
+              Share…
+            </button>
+          ) : (
+            <button type="button" className="share-copy" onClick={() => { set({ shared: true }); copyLink(); flash('Link copied'); }}>
+              Copy link
+            </button>
+          )}
           <a className="share-copy share-view" href={storeUrl} target="_blank" rel="noopener">
             View my store
           </a>

@@ -10,6 +10,7 @@ import { Customers } from './Customers';
 import { Plan } from './Plan';
 import { Logo } from './Logo';
 import { Settings } from './Settings';
+import { SELL_PRO_HERE } from '../native';
 
 export function Dashboard() {
   const { s, set, isMobile, shopNameShown, slug } = useStore();
@@ -29,7 +30,7 @@ export function Dashboard() {
             <div>{slug}.aquenora.com</div>
           </div>
           <nav className="sb-nav" aria-label="Main">
-            {NAV.map(n => {
+            {NAV.filter(n => SELL_PRO_HERE || n.key !== 'plan').map(n => {
               const active = s.tab === n.key;
               return (
                 <button
@@ -90,7 +91,7 @@ export function Dashboard() {
           {s.tab === 'money' && <Money />}
           {s.tab === 'customers' && <Customers />}
           {s.tab === 'design' && <ThemeEditor />}
-          {s.tab === 'plan' && <Plan />}
+          {s.tab === 'plan' && SELL_PRO_HERE && <Plan />}
           {s.tab === 'settings' && <Settings />}
         </div>
 
