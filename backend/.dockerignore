@@ -5,4 +5,5 @@
 !**/.env.template
 **/coverage
 **/.turbo
-**/uploads
+
+# Note: never ignore folders named "uploads": src/api/sellers/me/uploads is the photo upload route.
