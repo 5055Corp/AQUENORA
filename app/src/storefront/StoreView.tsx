@@ -6,6 +6,9 @@ export interface StoreItem {
   name: string;
   price: number;
   stock: number;
+  /** Photos; the first is shown on the card. */
+  images?: string[];
+  description?: string | null;
 }
 
 interface Props {
@@ -20,6 +23,8 @@ interface Props {
   bagCount?: number;
   onAdd?: (item: StoreItem) => void;
   onOpenBag?: () => void;
+  /** Opens a product's photos (store page only). */
+  onOpen?: (item: StoreItem) => void;
   maxWidth?: number | string;
 }
 
@@ -34,7 +39,7 @@ function mix(a: string, b: string, t: number) {
  * The store as buyers see it. The theme editor's preview and the public store page both draw
  * with this, so the preview always matches the real thing.
  */
-export function StoreView({ name, design: d, items, fmt, variant, narrow, bagCount = 0, onAdd, onOpenBag, maxWidth }: Props) {
+export function StoreView({ name, design: d, items, fmt, variant, narrow, bagCount = 0, onAdd, onOpenBag, onOpen, maxWidth }: Props) {
   const page = variant === 'page';
   const { background: bg, text, accent, accent_text: onAccent, card } = d.colors;
   const heading = STORE_FONTS[d.fonts.heading].family;
@@ -103,7 +108,16 @@ export function StoreView({ name, design: d, items, fmt, variant, narrow, bagCou
           const soldOut = p.stock <= 0;
           return (
             <div key={p.key} className="sf-card" style={{ background: card, borderRadius: radius }}>
-              <div className="sf-img" style={{ background: stripes(8), borderRadius: Math.max(0, radius - 4) }} />
+              {p.images?.[0] && page && onOpen ? (
+                <button type="button" className="sf-img sf-img-btn" style={{ background: stripes(8), borderRadius: Math.max(0, radius - 4) }} aria-label={`See photos of ${p.name}`} onClick={() => onOpen(p)}>
+                  <img src={p.images[0]} alt={p.name} loading="lazy" />
+                  {p.images.length > 1 && <span className="sf-img-count">1/{p.images.length}</span>}
+                </button>
+              ) : (
+                <div className="sf-img" style={{ background: stripes(8), borderRadius: Math.max(0, radius - 4) }}>
+                  {p.images?.[0] && <img src={p.images[0]} alt={p.name} loading="lazy" />}
+                </div>
+              )}
               <div className="sf-card-name">{p.name}</div>
               <div className="sf-card-price">{fmt(p.price)}</div>
               {d.products.show_stock && !soldOut && <div className="sf-card-stock">{p.stock} left</div>}

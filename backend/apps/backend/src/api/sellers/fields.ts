@@ -28,6 +28,8 @@ export const PRODUCT_FIELDS = [
   "products.description",
   "products.status",
   "products.thumbnail",
+  "products.images.url",
+  "products.images.rank",
   "products.metadata",
   "products.created_at",
   "products.variants.id",
@@ -120,6 +122,7 @@ type RawProduct = {
   description?: string | null
   status: string
   thumbnail?: string | null
+  images?: ({ url: string; rank?: number | null } | null)[] | null
   metadata?: Record<string, unknown> | null
   created_at: string | Date
   variants?: { prices?: { amount: number | string; currency_code: string }[] }[]
@@ -143,6 +146,11 @@ export function toSellerProduct(raw: unknown) {
     description: p.description ?? null,
     status: p.status,
     thumbnail: p.thumbnail ?? null,
+    // Main photo first (the order the seller chose).
+    images: (p.images ?? [])
+      .filter((i): i is { url: string; rank?: number | null } => !!i?.url)
+      .sort((a, b) => (a.rank ?? 0) - (b.rank ?? 0))
+      .map((i) => i.url),
     price: price ? Number(price.amount) : 0,
     currency_code: price?.currency_code ?? null,
     stock: Number.isFinite(stock) ? stock : 0,

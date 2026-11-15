@@ -163,6 +163,8 @@ export interface Product {
   stock: number;
   /** What one item costs the seller. undefined = not set yet (demo samples get a made-up one). */
   cost?: number | null;
+  /** Photos (first = main photo). */
+  images?: string[];
 }
 
 export const HELP = {

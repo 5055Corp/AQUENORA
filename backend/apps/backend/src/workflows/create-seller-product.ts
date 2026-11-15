@@ -23,6 +23,8 @@ export type CreateSellerProductInput = {
   stock?: number
   /** What one item costs the seller to make or buy (for profit). */
   cost_price?: number
+  /** Photo addresses (already uploaded); the first is the main photo. */
+  images?: string[]
 }
 
 /**
@@ -55,6 +57,8 @@ export const createSellerProductWorkflow = createWorkflow(
             // twice) can sell something called "Wrap": add a short random ending.
             handle: productHandle(input.title),
             description: input.description,
+            images: (input.images ?? []).map((url) => ({ url })),
+            thumbnail: input.images?.[0] ?? null,
             status: "published" as const,
             options: [{ title: "Default", values: ["Default"] }],
             variants: [

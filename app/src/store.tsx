@@ -32,7 +32,7 @@ const toOrder = (o: ApiOrder): Order => ({
   items: o.items,
 });
 
-const toProduct = (p: ApiProduct): Product => ({ id: p.id, name: p.title, price: p.price, stock: p.stock, cost: p.cost_price });
+const toProduct = (p: ApiProduct): Product => ({ id: p.id, name: p.title, price: p.price, stock: p.stock, cost: p.cost_price, images: p.images ?? [] });
 
 function fromSeller(se: ApiSeller): Partial<State> {
   return {
@@ -278,19 +278,19 @@ function useStoreValue(settings: Settings) {
   /** The product list with demo cost prices fixed in place, so later edits don't shift them. */
   const withCosts = () => products.map((p, i) => ({ ...p, cost: LIVE ? p.cost ?? null : demoCost(p, i) }));
 
-  const addProduct = async () => {
+  const addProduct = async (images: string[] = []) => {
     const name = s.newName.trim();
     if (!name) return;
     const price = Number(s.newPrice) || 0;
     const cost = s.newCost.trim() === '' ? null : Number(s.newCost);
     if (!LIVE) {
-      set({ products: [{ name, price, stock: 1, cost }, ...withCosts()], newName: '', newPrice: '', newCost: '' });
+      set({ products: [{ name, price, stock: 1, cost, images }, ...withCosts()], newName: '', newPrice: '', newCost: '' });
       flash('Product added to your store');
-      return;
+      return true;
     }
     set({ busy: true });
     try {
-      const { product } = await api.addProduct(s.token, { title: name, price, stock: 1, ...(cost != null ? { cost_price: cost } : {}) });
+      const { product } = await api.addProduct(s.token, { title: name, price, stock: 1, ...(cost != null ? { cost_price: cost } : {}), ...(images.length ? { images } : {}) });
       set(st => ({
         products: [toProduct(product), ...(st.products ?? [])],
         newName: '',
@@ -299,9 +299,30 @@ function useStoreValue(settings: Settings) {
         busy: false,
       }));
       flash('Product added to your store');
+      return true;
     } catch (e) {
       set({ busy: false });
       fail(e);
+      return false;
+    }
+  };
+
+  /** Replaces a product's photos (first = main photo). Returns an error message, or '' when saved. */
+  const setProductImages = async (index: number, images: string[]): Promise<string> => {
+    const target = products[index];
+    if (!target) return 'Product not found.';
+    if (!LIVE) {
+      set({ products: withCosts().map((p, i) => (i === index ? { ...p, images } : p)) });
+      return '';
+    }
+    if (!target.id) return 'Product not found.';
+    try {
+      const { product } = await api.updateProduct(s.token, target.id, { images });
+      set(st => ({ products: (st.products ?? []).map(p => (p.id === product.id ? toProduct(product) : p)) }));
+      return '';
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) logOut('Please log in again.');
+      return e instanceof Error ? e.message : 'Could not save the photos. Please try again.';
     }
   };
 
@@ -556,13 +577,16 @@ function useStoreValue(settings: Settings) {
    * Shrinks and uploads a logo or banner photo and puts it in the design (seen after "Publish").
    * Returns an error message to show, or ''.
    */
+  /** Shrinks and uploads a photo; returns its address (in the demo, the photo itself). Throws with a readable message. */
+  const uploadPhoto = async (kind: ImageKind, file: File): Promise<string> => {
+    const img = await prepareImage(file, kind);
+    if (!LIVE) return img.dataUrl;
+    return (await api.uploadImage(s.token, { kind, mime_type: img.mimeType, data: img.base64 })).url;
+  };
+
   const uploadStoreImage = async (kind: ImageKind, file: File): Promise<string> => {
     try {
-      const img = await prepareImage(file, kind);
-      let url = img.dataUrl;
-      if (LIVE) {
-        url = (await api.uploadImage(s.token, { kind, mime_type: img.mimeType, data: img.base64 })).url;
-      }
+      const url = await uploadPhoto(kind, file);
       setDesign(d => (kind === 'logo' ? { ...d, logo: url } : { ...d, banner: { ...d.banner, image: url, style: d.banner.style === 'none' ? 'large' : d.banner.style } }));
       return '';
     } catch (e) {
@@ -571,7 +595,7 @@ function useStoreValue(settings: Settings) {
   };
 
   return {
-    uploadStoreImage,
+    uploadStoreImage, uploadPhoto, setProductImages,
     shipping, saveShipping,
     pickup, savePickup, savePayout,
     s, set, settings, toast, flash, isMobile, framed, country, fmt, fromUsd, slug, shopNameShown, storeUrl,

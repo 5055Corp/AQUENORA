@@ -695,3 +695,44 @@ html.ios-app input, html.ios-app textarea, html.ios-app [contenteditable] { -web
 .crop-tools { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .crop-zoom { flex: 1; display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 14px; min-width: 180px; }
 .crop-zoom input { flex: 1; accent-color: var(--ink); }
+
+/* Product photos */
+.photos { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.photos-label { font-weight: 700; font-size: 14px; }
+.photos-label span { color: var(--muted); font-weight: 600; font-size: 12.5px; margin-left: 4px; }
+.photos-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.photo-tile { position: relative; width: 84px; height: 84px; border-radius: 12px; overflow: hidden; background: var(--tile); border: 1px solid var(--line); }
+.photo-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.photo-main { position: absolute; left: 6px; top: 6px; background: var(--ink); color: #fff; font-size: 10.5px; font-weight: 800; border-radius: 6px; padding: 2px 6px; }
+.photo-x { position: absolute; right: 4px; top: 4px; width: 26px; height: 26px; border-radius: 50%; border: none; background: rgba(0,0,0,0.62); color: #fff; font-size: 17px; line-height: 1; display: grid; place-items: center; }
+.photo-move { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: space-between; background: linear-gradient(to top, rgba(0,0,0,0.6), transparent); padding: 10px 4px 3px; }
+.photo-move button { background: none; border: none; color: #fff; font-size: 18px; font-weight: 800; width: 26px; height: 24px; padding: 0; }
+.photo-move button:disabled { opacity: 0.3; }
+.photo-move .photo-star { font-size: 14px; }
+.photo-add { width: 84px; height: 84px; border-radius: 12px; border: 1.5px dashed var(--dash); background: var(--tile); color: var(--muted-2); font-weight: 700; font-size: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+.photo-add span { font-size: 24px; line-height: 1; }
+.prod-thumb-btn { border: none; padding: 0; overflow: hidden; display: grid; place-items: center; font-size: 11px; font-weight: 700; color: var(--muted-2); }
+.prod-thumb-btn img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.prod-photos-link { flex-basis: 100%; }
+.prod-photos { flex-basis: 100%; border-top: 1px solid var(--line-soft); padding-top: 10px; }
+.prod-wrap { flex-wrap: wrap; }
+.prod-photos-link { margin-top: -6px; padding-left: 70px; }
+.sf-img { position: relative; overflow: hidden; }
+.sf-img img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.sf-img-btn { border: none; padding: 0; width: 100%; cursor: zoom-in; }
+.sf-img-count { position: absolute; right: 6px; bottom: 6px; background: rgba(0,0,0,0.55); color: #fff; font-size: 10.5px; font-weight: 700; border-radius: 6px; padding: 1px 6px; }
+
+/* Store page: a product's photos */
+.pp-overlay { justify-content: center; }
+.pp-card { position: relative; width: 100%; max-width: 460px; border-radius: 16px; overflow: hidden; }
+.pp-close { position: absolute; right: 10px; top: 10px; z-index: 2; width: 34px; height: 34px; border-radius: 50%; border: none; background: rgba(0,0,0,0.55); color: #fff; font-size: 22px; line-height: 1; }
+.pp-gallery { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; aspect-ratio: 1; background: rgba(0,0,0,0.05); }
+.pp-gallery::-webkit-scrollbar { display: none; }
+.pp-gallery img { flex: 0 0 100%; width: 100%; height: 100%; object-fit: cover; scroll-snap-align: start; }
+.pp-dots { display: flex; justify-content: center; gap: 6px; padding: 10px 0 0; }
+.pp-dots span { width: 7px; height: 7px; border-radius: 50%; }
+.pp-body { padding: 14px 18px 18px; display: flex; flex-direction: column; gap: 6px; }
+.pp-name { font-size: 22px; line-height: 1.2; }
+.pp-price { font-weight: 800; font-size: 17px; }
+.pp-desc { margin: 4px 0 0; font-size: 14.5px; line-height: 1.5; white-space: pre-line; opacity: 0.85; }
+.pp-add { margin-top: 10px; padding: 13px; border-radius: 999px; font-weight: 800; font-size: 15px; }

@@ -1,4 +1,5 @@
 import { MedusaError } from "@medusajs/framework/utils"
+import { isOwnFileUrl } from "../../lib/files"
 import { z } from "@medusajs/framework/zod"
 import { SELLER_COUNTRIES } from "../../modules/seller/currency"
 import { StoreDesignSchema } from "../../modules/seller/design"
@@ -44,12 +45,20 @@ export type UpdateSellerBody = z.infer<typeof UpdateSellerSchema>
 
 const money = z.number().min(0).max(1_000_000_000)
 
+/** Up to 5 product photos, uploaded through AQUENORA first (POST /sellers/me/uploads). The first is the main photo. */
+const productImages = z
+  .array(z.string().url().max(600))
+  .max(5, "A product can have up to 5 photos.")
+  .refine((urls) => urls.every(isOwnFileUrl), "Upload photos through AQUENORA first.")
+  .refine((urls) => new Set(urls).size === urls.length, "The same photo is in the list twice.")
+
 export const CreateSellerProductSchema = z.object({
   title: z.string().trim().min(1, "Product name is required").max(120),
   price: z.number().int().min(0).max(1_000_000_000),
   description: z.string().trim().max(2000).optional(),
   stock: z.number().int().min(0).max(1_000_000).optional(),
   cost_price: money.optional(),
+  images: productImages.optional(),
 })
 
 export const UpdateSellerProductSchema = z
@@ -58,6 +67,7 @@ export const UpdateSellerProductSchema = z
     price: z.number().int().min(0).max(1_000_000_000),
     stock: z.number().int().min(0).max(1_000_000),
     cost_price: money.nullable(),
+    images: productImages,
   })
   .partial()
   .strict()
@@ -173,7 +183,7 @@ export type VerifyPaymentBody = z.infer<typeof VerifyPaymentSchema>
 /** A store image, already resized in the seller's browser. `data` is base64 (no data: prefix). */
 export const UploadImageSchema = z
   .object({
-    kind: z.enum(["logo", "banner"]),
+    kind: z.enum(["logo", "banner", "product"]),
     mime_type: z.enum(["image/webp", "image/jpeg", "image/png"]),
     // About 2 MB of image at most once decoded.
     data: z.string().min(16).max(2_800_000).regex(/^[A-Za-z0-9+/]+=*$/, "Not an image"),
