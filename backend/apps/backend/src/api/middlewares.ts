@@ -79,6 +79,12 @@ export default defineMiddlewares({
       middlewares: [sellerAuth, validateAndTransformBody(UpdateSellerSchema)],
     },
     {
+      // Delete account (Settings → Delete account).
+      methods: ["DELETE"],
+      matcher: "/sellers/me",
+      middlewares: [sellerAuth],
+    },
+    {
       methods: ["POST"],
       matcher: "/sellers/me/products",
       middlewares: [sellerAuth, validateAndTransformBody(CreateSellerProductSchema)],
