@@ -35,6 +35,7 @@ export const UpdateSellerSchema = z
     font: z.enum(["classic", "modern", "friendly"]),
     announcement: z.string().trim().max(120).nullable(),
     onboarding_completed: z.boolean(),
+    marketplace_listed: z.boolean(),
     design: StoreDesignSchema,
     pickup: PickupSchema,
     shipping: ShippingSchema,

@@ -32,6 +32,8 @@ const Seller = model.define("seller", {
   // Ship-from address and delivery options (DHL, FedEx, UPS... with the seller's flat rates); see shipping.ts.
   shipping: model.json().nullable(),
   onboarding_completed: model.boolean().default(false),
+  // Shown in AQUENORA's shopping search (the seller can turn this off in Settings).
+  marketplace_listed: model.boolean().default(true),
   // ---- plan ----
   // Pro is active while either date is in the future. A trial keeps the "Powered by AQUENORA" badge.
   trial_ends_at: model.dateTime().nullable(),
