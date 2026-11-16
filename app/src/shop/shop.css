@@ -147,3 +147,5 @@
 .sh-help a { color: var(--s-violet); font-weight: 700; }
 
 .sh-tabbar { padding-bottom: max(6px, calc(env(safe-area-inset-bottom) - 10px)); }
+
+.sh-tick { display: inline-flex; align-items: center; justify-content: center; width: 15px; height: 15px; border-radius: 50%; background: #1e8a4c; color: #fff; font-size: 9.5px; vertical-align: 1px; margin-left: 2px; }

@@ -26,6 +26,8 @@ interface Props {
   /** Opens a product's photos (store page only). */
   onOpen?: (item: StoreItem) => void;
   maxWidth?: number | string;
+  /** AQUENORA has checked this seller's ID or CAC documents. */
+  verified?: boolean;
 }
 
 /** Mixes a colour with the background (for subtle stripes and borders). */
@@ -39,7 +41,7 @@ function mix(a: string, b: string, t: number) {
  * The store as buyers see it. The theme editor's preview and the public store page both draw
  * with this, so the preview always matches the real thing.
  */
-export function StoreView({ name, design: d, items, fmt, variant, narrow, bagCount = 0, onAdd, onOpenBag, onOpen, maxWidth }: Props) {
+export function StoreView({ name, design: d, items, fmt, variant, narrow, bagCount = 0, onAdd, onOpenBag, onOpen, maxWidth, verified }: Props) {
   const page = variant === 'page';
   const { background: bg, text, accent, accent_text: onAccent, card } = d.colors;
   const heading = STORE_FONTS[d.fonts.heading].family;
@@ -67,11 +69,14 @@ export function StoreView({ name, design: d, items, fmt, variant, narrow, bagCou
       {d.announcement.trim() && <div className="sf-announce" style={{ background: accent, color: onAccent }}>{d.announcement}</div>}
 
       <div className={'sf-head' + (center ? ' sf-head-center' : '')}>
-        {d.logo ? (
-          <img className="sf-logo" src={d.logo} alt={name} />
-        ) : (
-          <div className="sf-name" style={{ fontFamily: heading }}>{name}</div>
-        )}
+        <div className="sf-brand">
+          {d.logo ? (
+            <img className="sf-logo" src={d.logo} alt={name} />
+          ) : (
+            <div className="sf-name" style={{ fontFamily: heading }}>{name}</div>
+          )}
+          {verified && <span className="sf-verified" title="AQUENORA checked this seller's ID or business registration">✓ Verified seller</span>}
+        </div>
         {page ? (
           <button type="button" className="sf-bag" style={{ color: text, borderRadius: btnRadius }} onClick={onOpenBag}>
             Bag ({bagCount})

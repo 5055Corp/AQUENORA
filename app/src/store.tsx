@@ -5,7 +5,7 @@ import { normalizeShipping, type Shipping } from './shipping';
 import { prepareImage, type ImageKind } from './images';
 import type { Settings } from './settings';
 import * as persist from './persist';
-import { api, ApiError, LIVE, sellerIdFromToken, storeLink, type ApiOrder, type ApiProduct, type ApiSeller, type PlanResponse } from './api';
+import { api, ApiError, LIVE, sellerIdFromToken, storeLink, type ApiOrder, type ApiProduct, type ApiSeller, type PlanResponse, type VerificationBody } from './api';
 import { demoCost } from './demo';
 import { designFromLegacy, normalizeDesign, type StoreDesign } from './design';
 import { demoPlan } from './plan';
@@ -58,6 +58,7 @@ function fromSeller(se: ApiSeller): Partial<State> {
     payout: se.payout ?? null,
     paystack: !!se.paystack_subaccount_code,
     listed: se.marketplace_listed !== false,
+    verification: se.verification_status ?? 'verified',
   };
 }
 
@@ -217,6 +218,27 @@ function useStoreValue(settings: Settings) {
       busy: false,
       loadError: '',
     });
+    // A rejected seller sees why, so they can fix it and send again.
+    if (seller.verification_status === 'rejected') {
+      api.verification(token).then(({ verification: v }) => set({ verifyReason: v.details?.reject_reason ?? '' })).catch(() => {});
+    }
+  };
+
+  /** Sends the seller's documents for AQUENORA to check. Returns an error message, or '' when sent. */
+  const submitVerification = async (body: VerificationBody): Promise<string> => {
+    if (!LIVE) {
+      set({ verification: 'pending', verifyReason: '' });
+      flash("Sent. We'll email you when you're verified.");
+      return '';
+    }
+    try {
+      const { verification: v } = await api.submitVerification(s.token, body);
+      set({ verification: v.status, verifyReason: '' });
+      flash("Sent. We'll email you when you're verified.");
+      return '';
+    } catch (e) {
+      return e instanceof Error ? e.message : 'Could not send. Check your connection and try again.';
+    }
   };
 
   const retryLoad = () => {
@@ -631,7 +653,7 @@ function useStoreValue(settings: Settings) {
     pickup, savePickup, savePayout,
     s, set, settings, toast, flash, isMobile, framed, country, fmt, fromUsd, slug, shopNameShown, storeUrl,
     products, toggleHelp, advanceOrder, copyLink, shareWhatsApp, startOver,
-    design, setDesign, planInfo, refreshPlan, startTrial, requestUpgrade, setAutoRenew, connectDomain, checkDomain, removeDomain, live: LIVE, submitAuth, finishOnboarding, addProduct, setProductCost, publishDesign, logOut, deleteAccount, setListed, retryLoad,
+    design, setDesign, planInfo, refreshPlan, startTrial, requestUpgrade, setAutoRenew, connectDomain, checkDomain, removeDomain, live: LIVE, submitAuth, finishOnboarding, addProduct, setProductCost, publishDesign, logOut, deleteAccount, setListed, retryLoad, submitVerification,
     showHints: settings.showHelpHints,
     h1Size: isMobile ? '30px' : '40px',
   };

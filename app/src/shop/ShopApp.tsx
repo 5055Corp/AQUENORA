@@ -217,7 +217,7 @@ function Home({ onSearch, onCategory, onStore, onSell }: {
                   <StoreBanner store={s} height={84} />
                   <span className="sh-scard-meta">
                     <StoreLogo store={s} />
-                    <span className="sh-t"><b>{s.name}</b><small>{CATEGORY_LOOK[s.category]?.short ?? s.category} · {place(s.country_code)}</small></span>
+                    <span className="sh-t"><b>{s.name} <span className="sh-tick" title="Verified seller" aria-label="Verified seller">✓</span></b><small>{CATEGORY_LOOK[s.category]?.short ?? s.category} · {place(s.country_code)}</small></span>
                   </span>
                 </button>
               ))}
@@ -340,7 +340,7 @@ function Search({ value, onChange, focus, onStore }: {
                   <StoreBanner store={s} height={62} />
                   <span className="sh-res-meta">
                     <StoreLogo store={s} />
-                    <span className="sh-t"><b>{s.name}</b><small>{place(s.country_code)}{s.sells_abroad ? ' · Ships abroad' : ''}</small></span>
+                    <span className="sh-t"><b>{s.name} <span className="sh-tick" title="Verified seller" aria-label="Verified seller">✓</span></b><small>{place(s.country_code)}{s.sells_abroad ? ' · Ships abroad' : ''}</small></span>
                     <span className="sh-visit">Visit store ›</span>
                   </span>
                 </button>
