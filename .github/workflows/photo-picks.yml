@@ -10,6 +10,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Probe
+        run: |
+          curl -sS -A "Mozilla/5.0" -o /tmp/p.json -w "napi %{http_code}\n" "https://unsplash.com/napi/search/photos?query=dress&per_page=2"; head -c 300 /tmp/p.json; echo
+          curl -sS -o /dev/null -w "pexels %{http_code}\n" "https://www.pexels.com/"
+          curl -sS -o /dev/null -w "commons %{http_code}\n" "https://commons.wikimedia.org/w/api.php?action=query&format=json&list=search&srsearch=dress"
       - name: Download free Unsplash photos (no Unsplash+ / premium)
         run: |
           mkdir -p photos
@@ -17,7 +22,7 @@ jobs:
           while IFS= read -r q; do
             [ -z "$q" ] && continue
             i=$((i+1)); slug=$(printf '%02d' $i)
-            curl -sfL "https://unsplash.com/napi/search/photos?query=$(python3 -c 'import sys,urllib.parse;print(urllib.parse.quote(sys.argv[1]))' "$q")&per_page=14" -o "photos/$slug.json" || continue
+            curl -sfL -A "Mozilla/5.0" "https://unsplash.com/napi/search/photos?query=$(python3 -c 'import sys,urllib.parse;print(urllib.parse.quote(sys.argv[1]))' "$q")&per_page=14" -o "photos/$slug.json" || continue
             python3 - "$slug" <<'PY'
           import json, sys, urllib.request
           slug = sys.argv[1]
