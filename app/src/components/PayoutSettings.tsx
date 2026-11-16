@@ -1,3 +1,4 @@
+import { PAYOUT_COUNTRIES } from '../data';
 import { useEffect, useState } from 'react';
 import { api, type Bank } from '../api';
 import { estimatePaymentFee } from '../finance';
@@ -40,6 +41,27 @@ export function PayoutSettings({ id }: { id?: string }) {
       .catch(e => !stale && setLoadError(e instanceof Error ? e.message : 'Could not load banks.'));
     return () => { stale = true; };
   }, [live, open, banks, s.token]);
+
+  // Sellers outside Nigeria: payouts aren't connected yet.
+  if (!PAYOUT_COUNTRIES.includes(country.id)) {
+    return (
+      <section id={id} className="card payout-card" aria-labelledby="payout-title">
+        <div className="pickup-head">
+          <div>
+            <h2 id="payout-title" className="card-title">Get paid <span className="soon-pill">Coming soon</span></h2>
+            <p className="pickup-sub">
+              Payouts for sellers in {country.id === 'DI' ? 'the diaspora' : country.name} are coming soon: your sales will go straight to your own bank{country.id === 'GH' ? ' or mobile money' : ''}, just like in Nigeria.
+            </p>
+          </div>
+        </div>
+        <ul className="soon-list">
+          <li>Keep building: add products and photos, and design your store now.</li>
+          <li>Your store is ready for launch day. Buyers can see it, but online checkout switches on when payouts open.</li>
+          <li>We'll email you as soon as you can connect your bank.</li>
+        </ul>
+      </section>
+    );
+  }
 
   const save = async () => {
     const bank = banks?.find(b => b.code === code);
