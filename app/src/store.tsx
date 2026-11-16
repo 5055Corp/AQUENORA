@@ -32,6 +32,12 @@ const toOrder = (o: ApiOrder): Order => ({
   items: o.items,
 });
 
+/** A photo kept as a data: address, back into a file for uploading. */
+async function dataUrlToFile(url: string): Promise<File> {
+  const blob = await (await fetch(url)).blob();
+  return new File([blob], 'product.jpg', { type: blob.type || 'image/jpeg' });
+}
+
 const toProduct = (p: ApiProduct): Product => ({ id: p.id, name: p.title, price: p.price, stock: p.stock, cost: p.cost_price, images: p.images ?? [] });
 
 function fromSeller(se: ApiSeller): Partial<State> {
@@ -276,7 +282,17 @@ function useStoreValue(settings: Settings) {
       }
       if (!skip) {
         if (s.productName.trim()) {
-          await api.addProduct(token, { title: s.productName.trim(), price: Number(s.productPrice) || 0, stock: 1 });
+          // The photo chosen during set-up is uploaded now that the store exists.
+          let images: string[] = [];
+          if (s.productPhoto) {
+            try {
+              const img = await prepareImage(await dataUrlToFile(s.productPhoto), 'product');
+              images = [(await api.uploadImage(token, { kind: 'product', mime_type: img.mimeType, data: img.base64 })).url];
+            } catch {
+              // The product is still added; the photo can be added again from Products.
+            }
+          }
+          await api.addProduct(token, { title: s.productName.trim(), price: Number(s.productPrice) || 0, stock: 1, ...(images.length ? { images } : {}) });
         }
         await api.updateMe(token, { onboarding_completed: true });
       }

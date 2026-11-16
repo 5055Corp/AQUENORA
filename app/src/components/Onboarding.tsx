@@ -1,3 +1,6 @@
+import { useRef, useState } from 'react';
+import { prepareImage } from '../images';
+import { ImageCropper } from './ImageCropper';
 import { CATEGORIES, COUNTRIES, HELP, STEPS } from '../data';
 import { useStore } from '../store';
 import { Help } from './Help';
@@ -150,9 +153,34 @@ function StepCountry() {
 
 function StepProduct() {
   const { s, set, country } = useStore();
+  const input = useRef<HTMLInputElement>(null);
+  const [cropping, setCropping] = useState<File | null>(null);
+  const [error, setError] = useState('');
+  const use = async (file: File) => {
+    setCropping(null);
+    try {
+      // Shrunk now and kept until the store is created (then uploaded with the product).
+      set({ productPhoto: (await prepareImage(file, 'product')).dataUrl });
+      setError('');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not use that photo. Try another one.');
+    }
+  };
   return (
     <div className="ob-col-12">
-      <div className="ob-photo stripes">tap to add product photo</div>
+      <button type="button" className={'ob-photo' + (s.productPhoto ? ' ob-photo-set' : ' stripes')} onClick={() => input.current?.click()}
+        aria-label={s.productPhoto ? 'Change product photo' : 'Add a product photo'}>
+        {s.productPhoto ? (
+          <>
+            <img src={s.productPhoto} alt="" />
+            <span className="ob-photo-change">Change photo</span>
+          </>
+        ) : 'tap to add product photo'}
+      </button>
+      <input ref={input} type="file" accept="image/jpeg,image/png,image/webp" hidden aria-label="Choose a product photo"
+        onChange={e => { const f = e.target.files?.[0]; if (input.current) input.current.value = ''; if (f) setCropping(f); }} />
+      {error && <div className="form-error" role="alert">{error}</div>}
+      {cropping && <ImageCropper file={cropping} kind="product" onCancel={() => setCropping(null)} onDone={use} />}
       <label className="ob-label">What is it called?
         <input
           className="field ob-input"
@@ -235,7 +263,7 @@ function LivePreview() {
         <div className="pv-body">
           <div className="pv-name">{shopNameShown}</div>
           <div className="pv-cat">{s.category}</div>
-          <div className="pv-photo stripes">product photo</div>
+          {s.productPhoto ? <div className="pv-photo pv-photo-set"><img src={s.productPhoto} alt="" /></div> : <div className="pv-photo stripes">product photo</div>}
           <div className="pv-line">
             <span>{s.productName || 'Your first product'}</span><span>{fmt(s.productPrice)}</span>
           </div>

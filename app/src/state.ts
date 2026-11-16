@@ -16,6 +16,8 @@ export interface State {
   country: CountryId;
   productName: string;
   productPrice: string;
+  /** Set-up: the first product's photo (already adjusted), kept here until the store is created. */
+  productPhoto: string;
   paystack: boolean;
   intl: boolean;
   help: Record<string, boolean>;
@@ -79,6 +81,7 @@ export function initialState(settings: Settings): State {
     country: 'NG',
     productName: 'Indigo adire kimono',
     productPrice: '28000',
+    productPhoto: '',
     paystack: false,
     intl: true,
     help: {},
@@ -123,6 +126,7 @@ export function initialState(settings: Settings): State {
     shopName: '',
     productName: '',
     productPrice: '',
+    productPhoto: '',
     announce: '',
     products: [],
     orders: [],
@@ -132,7 +136,7 @@ export function initialState(settings: Settings): State {
 /** The demo store's product list: the seller's own products, or sample ones until they add any. */
 export function demoProducts(s: State, fromUsd: (usd: number) => number): Product[] {
   return s.products ?? [
-    { name: s.productName || 'Your first product', price: Number(s.productPrice) || 0, stock: 6 },
+    { name: s.productName || 'Your first product', price: Number(s.productPrice) || 0, stock: 6, images: s.productPhoto ? [s.productPhoto] : [] },
     { name: 'Adire tote bag', price: fromUsd(16), stock: 14 },
     { name: 'Silk head wrap', price: fromUsd(6), stock: 0 },
     { name: 'Indigo throw pillow', price: fromUsd(11), stock: 3 },
