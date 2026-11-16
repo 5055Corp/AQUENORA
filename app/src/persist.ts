@@ -107,5 +107,6 @@ export function load(base: State): State {
   if (!['home', 'orders', 'products', 'money', 'customers', 'design', 'plan'].includes(out.tab)) out.tab = base.tab;
   if (!['all', 'new', 'shipped', 'ready', 'delivered'].includes(out.filter)) out.filter = 'all';
   if (out.pv !== 'phone' && out.pv !== 'desktop') out.pv = base.pv;
+  if (!['unverified', 'pending', 'verified', 'rejected'].includes(out.verification)) out.verification = base.verification;
   return out;
 }

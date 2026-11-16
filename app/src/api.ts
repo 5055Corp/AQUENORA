@@ -39,6 +39,22 @@ export function storeLink(handle: string): string {
 
 export type Accent = 'terracotta' | 'leaf' | 'indigo' | 'hibiscus';
 
+export type VerificationStatus = 'unverified' | 'pending' | 'verified' | 'rejected';
+export type IdType = 'nin' | 'drivers_licence' | 'passport' | 'voters_card' | 'national_id';
+export interface VerificationInfo {
+  status: VerificationStatus;
+  details: { type?: 'registered' | 'individual'; business_name?: string; cac_number?: string; id_type?: IdType; socials?: { instagram?: string; tiktok?: string; facebook?: string }; submitted_at?: string; reject_reason?: string | null } | null;
+  verified_at: string | null;
+}
+export interface VerificationBody {
+  type: 'registered' | 'individual';
+  business_name?: string;
+  cac_number?: string;
+  id_type?: IdType;
+  socials: { instagram?: string; tiktok?: string; facebook?: string };
+  documents: { kind: 'cac' | 'id' | 'selfie'; mime_type: string; data: string }[];
+}
+
 export interface ApiSeller {
   id: string;
   email: string;
@@ -56,6 +72,8 @@ export interface ApiSeller {
   onboarding_completed: boolean;
   /** Shown in AQUENORA's shopping search. */
   marketplace_listed?: boolean;
+  /** Anti-scam check by AQUENORA: only verified sellers can take payments. */
+  verification_status?: VerificationStatus;
   /** Full store design (see design.ts), or null if the seller hasn't customised it. */
   design: unknown;
   /** In-store pickup settings (see pickup.ts), or null if never set. */
@@ -259,7 +277,7 @@ export function sellerIdFromToken(token: string): string {
 const PUBLISHABLE_KEY: string = import.meta.env.VITE_MEDUSA_PUBLISHABLE_KEY ?? '';
 
 export interface PublicStore {
-  store: Pick<ApiSeller, 'id' | 'name' | 'handle' | 'category' | 'country_code' | 'currency_code' | 'sells_abroad' | 'theme' | 'accent' | 'font' | 'announcement' | 'design'> & { show_badge?: boolean; pickup?: unknown; accepts_payments?: boolean; shipping?: { ships_from: string | null; options: unknown[] } };
+  store: Pick<ApiSeller, 'id' | 'name' | 'handle' | 'category' | 'country_code' | 'currency_code' | 'sells_abroad' | 'theme' | 'accent' | 'font' | 'announcement' | 'design'> & { show_badge?: boolean; pickup?: unknown; accepts_payments?: boolean; verified?: boolean; shipping?: { ships_from: string | null; options: unknown[] } };
   products: ApiProduct[];
 }
 
@@ -369,6 +387,9 @@ export const api = {
     request<{ seller: ApiSeller }>('/sellers', { body, token }),
   me: (token: string) => request<{ seller: ApiSeller }>('/sellers/me', { token }),
   deleteAccount: (token: string) => request<{ deleted: true }>('/sellers/me', { method: 'DELETE', token }),
+  verification: (token: string) => request<{ verification: VerificationInfo }>('/sellers/me/verification', { token }),
+  submitVerification: (token: string, body: VerificationBody) =>
+    request<{ verification: VerificationInfo }>('/sellers/me/verification', { body, token }),
   updateMe: (token: string, body: Partial<Omit<ApiSeller, 'id' | 'email' | 'currency_code' | 'paystack_subaccount_code' | 'payout'>>) =>
     request<{ seller: ApiSeller }>('/sellers/me', { body, token }),
 

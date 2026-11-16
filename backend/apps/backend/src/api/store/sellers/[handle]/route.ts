@@ -29,6 +29,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       "design",
       "pickup",
       "paystack_subaccount_code",
+      "verification_status",
       "shipping",
       "trial_ends_at",
       "pro_paid_until",
@@ -42,10 +43,11 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     throw new MedusaError(MedusaError.Types.NOT_FOUND, `No store at ${req.params.handle}.aquenora.com`)
   }
 
-  const { products, trial_ends_at, pro_paid_until, paystack_subaccount_code, shipping, ...store } = seller as typeof seller & {
+  const { products, trial_ends_at, pro_paid_until, paystack_subaccount_code, verification_status, shipping, ...store } = seller as typeof seller & {
     trial_ends_at?: string | null
     pro_paid_until?: string | null
     paystack_subaccount_code?: string | null
+    verification_status?: string | null
     shipping?: Shipping | null
   }
   const plan = await resolvePlan(req.scope, { trial_ends_at, pro_paid_until })
@@ -62,7 +64,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
         ships_from: homeCountry({ country_code: store.country_code, shipping }),
         options: shipping?.options ?? [],
       },
-      accepts_payments: paymentsBlocker({ country_code: store.country_code, paystack_subaccount_code }) === null,
+      accepts_payments: paymentsBlocker({ country_code: store.country_code, paystack_subaccount_code, verification_status }) === null,
+      verified: verification_status === "verified",
     },
     products: newestFirst(
       (products ?? [])

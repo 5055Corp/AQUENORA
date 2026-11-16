@@ -32,6 +32,13 @@ const Seller = model.define("seller", {
   // Ship-from address and delivery options (DHL, FedEx, UPS... with the seller's flat rates); see shipping.ts.
   shipping: model.json().nullable(),
   onboarding_completed: model.boolean().default(false),
+  // ---- verification (anti-scam), reviewed by hand in the admin (Seller verification page) ----
+  // Only verified sellers can take payments. Sellers who joined before verification existed are verified.
+  verification_status: model.enum(["unverified", "pending", "verified", "rejected"]).default("unverified"),
+  // { type: "registered" | "individual", business_name, cac_number, id_type, socials: { instagram, tiktok, facebook },
+  //   submitted_at, reviewed_at, reject_reason }
+  verification: model.json().nullable(),
+  verified_at: model.dateTime().nullable(),
   // Shown in AQUENORA's shopping search (the seller can turn this off in Settings).
   marketplace_listed: model.boolean().default(true),
   // ---- plan ----

@@ -53,7 +53,9 @@ medusaIntegrationTestRunner({
     async function setup() {
       const email = "shop@example.com"
       const reg = await api.post("/auth/seller/emailpass/register", { email, password })
-      await api.post("/sellers", { name: "Adire House" }, { headers: { authorization: `Bearer ${reg.data.token}` } })
+      const { seller: created } = (await api.post("/sellers", { name: "Adire House" }, { headers: { authorization: `Bearer ${reg.data.token}` } })).data
+      // AQUENORA has checked this seller (verification has its own tests).
+      await (getContainer().resolve("seller") as { updateSellers: (d: unknown) => Promise<unknown> }).updateSellers({ id: created.id, verification_status: "verified" })
       const login = await api.post("/auth/seller/emailpass", { email, password })
       const headers = { authorization: `Bearer ${login.data.token}` }
       const product = (await api.post("/sellers/me/products", { title: "Kimono", price: 28000, stock: 5 }, { headers })).data.product

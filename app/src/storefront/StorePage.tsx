@@ -26,6 +26,8 @@ export interface StoreData {
   pickup: Pickup | null;
   /** The Checkout button works: Paystack is on and the seller has connected a bank account. */
   acceptsPayments: boolean;
+  /** AQUENORA has verified the seller. */
+  verified: boolean;
   /** Delivery options (DHL, local courier...) and the country the shop ships from. */
   shipping: Shipping;
   shipsFrom: string | null;
@@ -66,6 +68,7 @@ function demoStore(): StoreData {
     showBadge: true,
     pickup: offered(s.pickup),
     acceptsPayments: true,
+    verified: true,
     shipping: normalizeShipping(s.shipping),
     shipsFrom: homeCountry(s.country, normalizeShipping(s.shipping)),
   };
@@ -103,6 +106,7 @@ export async function liveStore(handle: string): Promise<StoreData> {
     showBadge: store.show_badge !== false,
     pickup: offered(store.pickup),
     acceptsPayments: store.accepts_payments === true,
+    verified: store.verified === true,
     shipping: normalizeShipping({ from: null, options: store.shipping?.options ?? [] }),
     shipsFrom: store.shipping?.ships_from ?? (store.country_code === 'DI' ? null : store.country_code),
   };
@@ -517,6 +521,7 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
       <StoreView
         variant="page"
         name={data.name}
+        verified={data.verified}
         design={d}
         narrow={width < 600}
         items={shown}

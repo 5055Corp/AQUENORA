@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useStore } from '../store';
 import { DeleteAccount } from './DeleteAccount';
+import { VerifyStatus } from './Verify';
 import { goToSide } from '../side';
 
 const SITE = 'https://app.aquenora.com';
@@ -29,6 +30,13 @@ export function Settings() {
           </div>
         )}
       </section>
+
+      {(live || s.verification !== 'verified') && (
+        <section className="card money-card" aria-labelledby="set-verify">
+          <h2 id="set-verify" className="card-title">Verification</h2>
+          <VerifyStatus />
+        </section>
+      )}
 
       <section className="card money-card" aria-labelledby="set-shop">
         <h2 id="set-shop" className="card-title">AQUENORA shopping</h2>

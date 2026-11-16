@@ -70,7 +70,11 @@ const closeSellerStep = createStep(
       domain_verified_at: null,
       trial_ends_at: null,
       pro_paid_until: null,
+      verification: null,
     })
+    // ID, selfie and CAC documents are deleted for good, not kept with the closed account.
+    const docs = await sellers.listSellerDocuments({ seller_id: input.seller_id }, { select: ["id"] })
+    if (docs.length) await sellers.deleteSellerDocuments(docs.map((d) => d.id))
     await sellers.softDeleteSellers([input.seller_id])
     return new StepResponse(true)
   }

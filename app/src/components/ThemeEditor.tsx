@@ -259,6 +259,7 @@ export function ThemeEditor() {
             narrow={phone}
             maxWidth={phone ? 340 : '100%'}
             name={shopNameShown}
+            verified={s.verification === 'verified'}
             design={d}
             items={products.slice(0, phone ? 4 : d.products.columns * 2).map((p, i) => ({ key: p.id ?? i + p.name, name: p.name, price: p.price, stock: p.stock, images: p.images ?? [] }))}
             fmt={fmt}

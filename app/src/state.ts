@@ -57,6 +57,10 @@ export interface State {
   email: string;
   /** Live: whether the store shows in AQUENORA's shopping search. */
   listed: boolean;
+  /** Live: AQUENORA's check of the seller (only verified sellers can take payments). Demo: always set up. */
+  verification: 'unverified' | 'pending' | 'verified' | 'rejected';
+  /** Why AQUENORA couldn't verify the seller last time (shown so they can fix it). */
+  verifyReason: string;
   password: string;
   token: string;
   /** The store's web address as saved on the server (may differ from the name-derived one). */
@@ -109,6 +113,8 @@ export function initialState(settings: Settings): State {
     authMode: 'signup',
     email: '',
     listed: true,
+    verification: 'verified',
+    verifyReason: '',
     password: '',
     token: '',
     handle: '',
