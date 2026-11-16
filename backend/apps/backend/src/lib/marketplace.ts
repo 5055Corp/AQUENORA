@@ -35,6 +35,7 @@ type RawSeller = {
   font: string
   design: Record<string, unknown> | null
   paystack_subaccount_code: string | null
+  verification_status?: string | null
   marketplace_listed?: boolean | null
   created_at: string | Date
   products?: (RawProduct | null)[] | null
@@ -70,7 +71,7 @@ type Listed = { store: MarketStore; products: MarketProduct[] }
 
 const SELLER_FIELDS = [
   "id", "name", "handle", "category", "country_code", "currency_code", "sells_abroad",
-  "theme", "accent", "font", "design", "paystack_subaccount_code", "marketplace_listed", "created_at",
+  "theme", "accent", "font", "design", "paystack_subaccount_code", "verification_status", "marketplace_listed", "created_at",
   "products.id", "products.title", "products.description", "products.status", "products.thumbnail",
   "products.images.url", "products.images.rank", "products.metadata", "products.created_at",
   "products.variants.prices.amount", "products.variants.prices.currency_code",

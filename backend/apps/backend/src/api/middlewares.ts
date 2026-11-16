@@ -18,6 +18,8 @@ import {
   ProCheckoutSchema,
   ProConfirmSchema,
   UploadImageSchema,
+  SubmitVerificationSchema,
+  ReviewVerificationSchema,
   CheckoutSchema,
   SetPayoutSchema,
   VerifyPaymentSchema,
@@ -83,6 +85,18 @@ export default defineMiddlewares({
       methods: ["GET"],
       matcher: "/store/me/orders",
       middlewares: [authenticate("customer", ["bearer"])],
+    },
+    {
+      // Seller verification: documents are sent as base64 (shrunk by the app first).
+      methods: ["POST"],
+      matcher: "/sellers/me/verification",
+      bodyParser: { sizeLimit: "14mb" },
+      middlewares: [sellerAuth, validateAndTransformBody(SubmitVerificationSchema)],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/admin/verifications/:id",
+      middlewares: [validateAndTransformBody(ReviewVerificationSchema)],
     },
     {
       // Delete account (Settings → Delete account).

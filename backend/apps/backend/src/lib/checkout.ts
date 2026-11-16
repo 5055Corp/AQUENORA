@@ -39,6 +39,7 @@ type CheckoutSeller = {
   currency_code: string
   custom_domain?: string | null
   paystack_subaccount_code?: string | null
+  verification_status?: string | null
   pickup?: { enabled?: boolean; address?: string; area?: string } | null
   sells_abroad?: boolean
   shipping?: Shipping | null
@@ -67,12 +68,16 @@ type CheckoutData = {
 const round2 = (n: number) => Math.round(n * 100) / 100
 
 /** Why a store can't take payments right now, or null if it can. */
-export function paymentsBlocker(seller: Pick<CheckoutSeller, "country_code" | "paystack_subaccount_code">): string | null {
+export function paymentsBlocker(seller: Pick<CheckoutSeller, "country_code" | "paystack_subaccount_code" | "verification_status">): string | null {
   if (!paystackEnabled()) {
     return "Paying online isn't switched on yet."
   }
   if (!PAYSTACK_CURRENCY[seller.country_code]) {
     return "Paying online isn't available in this country yet."
+  }
+  // Only sellers AQUENORA has verified can take money (anti-scam).
+  if (seller.verification_status !== "verified") {
+    return "This shop is finishing its verification. Check back soon."
   }
   if (!seller.paystack_subaccount_code) {
     return "This shop hasn't set up payments yet."
@@ -93,6 +98,7 @@ async function sellerByHandle(container: MedusaContainer, handle: string): Promi
       "currency_code",
       "custom_domain",
       "paystack_subaccount_code",
+      "verification_status",
       "pickup",
       "sells_abroad",
       "shipping",

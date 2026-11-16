@@ -230,3 +230,45 @@ export const SubmitInterviewSchema = z
   })
   .strict()
 export type SubmitInterviewBody = z.infer<typeof SubmitInterviewSchema>
+
+// ---- seller verification (anti-scam) ----
+const socialHandle = z.string().trim().max(80).transform((s) => s.replace(/^@+/, "").replace(/[\u0000-\u001f\u007f<>"']/g, ""))
+const VerificationDocSchema = z
+  .object({
+    kind: z.enum(["cac", "id", "selfie"]),
+    mime_type: z.enum(["image/jpeg", "image/png", "image/webp", "application/pdf"]),
+    // About 3 MB once decoded.
+    data: z.string().min(16).max(4_200_000).regex(/^[A-Za-z0-9+/]+=*$/, "Not a valid file"),
+  })
+  .strict()
+export const SubmitVerificationSchema = z
+  .object({
+    type: z.enum(["registered", "individual"]),
+    business_name: z.string().trim().max(120).optional(),
+    cac_number: z.string().trim().toUpperCase().max(20).optional(),
+    id_type: z.enum(["nin", "drivers_licence", "passport", "voters_card", "national_id"]).optional(),
+    socials: z.object({ instagram: socialHandle.optional(), tiktok: socialHandle.optional(), facebook: socialHandle.optional() }).strict(),
+    documents: z.array(VerificationDocSchema).min(1).max(3),
+  })
+  .strict()
+  .superRefine((v, ctx) => {
+    const has = (k: string) => v.documents.some((d) => d.kind === k)
+    const add = (message: string) => ctx.addIssue({ code: "custom", message })
+    if (v.type === "registered") {
+      if (!v.cac_number || !/^(RC|BN|IT)?\s?[0-9]{4,10}$/.test(v.cac_number)) add("Enter your CAC number, e.g. RC1234567 or BN1234567.")
+      if (!v.business_name) add("Enter your registered business name.")
+      if (!has("cac")) add("Upload your CAC certificate.")
+    } else {
+      if (!v.id_type) add("Choose the type of ID.")
+      if (!has("id")) add("Upload a photo of your ID.")
+      if (!has("selfie")) add("Take a selfie so we can match it to your ID.")
+      if (!v.socials.instagram && !v.socials.tiktok && !v.socials.facebook) add("Add at least one social media handle.")
+    }
+  })
+export type SubmitVerificationBody = z.infer<typeof SubmitVerificationSchema>
+
+export const ReviewVerificationSchema = z
+  .object({ decision: z.enum(["approve", "reject"]), reason: z.string().trim().max(500).optional() })
+  .strict()
+  .refine((v) => v.decision === "approve" || !!v.reason, "Say why, so the seller can fix it.")
+export type ReviewVerificationBody = z.infer<typeof ReviewVerificationSchema>

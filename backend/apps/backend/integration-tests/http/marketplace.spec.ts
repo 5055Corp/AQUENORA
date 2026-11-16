@@ -26,7 +26,7 @@ medusaIntegrationTestRunner({
         }, { headers })).data.product
       const canPay = async () => {
         const sellers = getContainer().resolve("seller") as { updateSellers: (d: unknown) => Promise<unknown> }
-        await sellers.updateSellers({ id: seller.id, paystack_subaccount_code: "ACCT_test" })
+        await sellers.updateSellers({ id: seller.id, paystack_subaccount_code: "ACCT_test", verification_status: "verified" })
       }
       return { seller, headers, product, canPay }
     }
