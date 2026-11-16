@@ -22,6 +22,7 @@ import {
   newReference,
   PAYSTACK_CURRENCY,
   paystackEnabled,
+  payoutCountries,
   toSubunit,
   verifyTransaction,
   type PaystackTransaction,
@@ -72,8 +73,8 @@ export function paymentsBlocker(seller: Pick<CheckoutSeller, "country_code" | "p
   if (!paystackEnabled()) {
     return "Paying online isn't switched on yet."
   }
-  if (!PAYSTACK_CURRENCY[seller.country_code]) {
-    return "Paying online isn't available in this country yet."
+  if (!PAYSTACK_CURRENCY[seller.country_code] || !payoutCountries().has(seller.country_code)) {
+    return "Paying online for this shop is coming soon."
   }
   // Only sellers AQUENORA has verified can take money (anti-scam).
   if (seller.verification_status !== "verified") {

@@ -15,6 +15,12 @@ export interface Country {
   local: string;
 }
 
+/**
+ * Where sellers can be paid out today (AQUENORA's Paystack account is Nigerian).
+ * Keep in sync with PAYOUT_COUNTRIES on the backend (lib/paystack.ts).
+ */
+export const PAYOUT_COUNTRIES = ['NG'];
+
 export const COUNTRIES: Country[] = [
   { id: 'NG', name: 'Nigeria', sym: '₦', curName: 'Naira', rate: 1550, local: 'cards, bank transfer and USSD: 1.5% + ₦100 per sale (max ₦2,000).' },
   { id: 'GH', name: 'Ghana', sym: 'GH₵', curName: 'Cedis', rate: 15, local: 'cards, mobile money and bank transfer: 1.95% per sale.' },

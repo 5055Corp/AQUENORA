@@ -83,5 +83,16 @@ medusaIntegrationTestRunner({
       expect(await status(api.get("/store/marketplace", opts))).toBe(400)
       expect(await status(api.get(`/store/marketplace?q=${"a".repeat(81)}`, opts))).toBe(400)
     })
+    it("tells sellers outside Nigeria that payouts are coming soon", async () => {
+      const password = "supersecret123"
+      const reg = await api.post("/auth/seller/emailpass/register", { email: "gh@x.test", password })
+      await api.post("/sellers", { name: "Accra Threads", country_code: "GH" }, { headers: { authorization: `Bearer ${reg.data.token}` } })
+      const login = await api.post("/auth/seller/emailpass", { email: "gh@x.test", password })
+      const res = await api
+        .post("/sellers/me/payouts", { bank_code: "GH001", account_number: "1234567890" }, { headers: { authorization: `Bearer ${login.data.token}` } })
+        .catch((e) => e.response)
+      expect(res.status).toBe(400)
+      expect(res.data.message).toContain("coming soon")
+    })
   },
 })
