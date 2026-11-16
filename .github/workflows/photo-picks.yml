@@ -18,7 +18,7 @@ jobs:
           qs = [q.strip() for q in open(".github/photo-queries.txt") if q.strip()]
           ua = {"User-Agent": "aquenora-photo-picks/1.0"}
           for i, q in enumerate(qs, 1):
-              url = "https://api.openverse.org/v1/images/?" + urllib.parse.urlencode({"q": q, "license": "cc0,pdm", "category": "photograph", "page_size": 20, "mature": "false"})
+              url = "https://api.openverse.org/v1/images/?" + urllib.parse.urlencode({"q": q, "license": "cc0,pdm", "category": "photograph", "page_size": 40, "mature": "false"})
               try:
                   d = json.load(urllib.request.urlopen(urllib.request.Request(url, headers=ua), timeout=30))
               except Exception as e:
@@ -34,7 +34,7 @@ jobs:
                   except Exception:
                       continue
                   keep.append({"file": name, "title": r.get("title"), "license": r.get("license"), "source": r.get("source"), "page": r.get("foreign_landing_url"), "by": r.get("creator")})
-                  if len(keep) == 10: break
+                  if len(keep) == 12: break
               print(q, len(d.get("results", [])), "->", len(keep))
               json.dump(keep, open(f"photos/{i:02d}.json", "w"), indent=1)
           PY
