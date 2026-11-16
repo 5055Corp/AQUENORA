@@ -75,7 +75,11 @@ export function StoreView({ name, design: d, items, fmt, variant, narrow, bagCou
           ) : (
             <div className="sf-name" style={{ fontFamily: heading }}>{name}</div>
           )}
-          {verified && <span className="sf-verified" title="AQUENORA checked this seller's ID or business registration">✓ Verified seller</span>}
+          {verified && (
+            <span className="sf-verified" title="AQUENORA checked this seller's ID or business registration">
+              ✓ Verified seller
+            </span>
+          )}
         </div>
         {page ? (
           <button type="button" className="sf-bag" style={{ color: text, borderRadius: btnRadius }} onClick={onOpenBag}>

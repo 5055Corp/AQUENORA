@@ -87,6 +87,11 @@ medusaIntegrationTestRunner({
       const sentMail = await getContainer().resolve(Modules.NOTIFICATION).listNotifications({ to: "new@x.test" })
       expect(sentMail).toHaveLength(2)
       expect(await status(api.post("/sellers/me/verification", { type: "registered", business_name: "X", cac_number: "RC1", socials: {}, documents: [{ kind: "cac", mime_type: "application/pdf", data: PDF }] }, { headers }))).toBe(400)
+
+      // Deleting the account deletes the documents too.
+      await api.delete("/sellers/me", { headers })
+      const left = await (getContainer().resolve("seller") as { listSellerDocuments: (f: unknown) => Promise<unknown[]> }).listSellerDocuments({ seller_id: seller.id })
+      expect(left).toHaveLength(0)
     })
   },
 })
