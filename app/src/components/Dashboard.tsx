@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { NAV, type Tab } from '../data';
 import { useStore } from '../store';
 import { TAGLINE } from '../brand';
@@ -11,6 +12,16 @@ import { Plan } from './Plan';
 import { Logo } from './Logo';
 import { Settings } from './Settings';
 import { SELL_PRO_HERE } from '../native';
+
+/** Bottom-menu icons on phones (same style as the Shop side's menu). */
+const TAB_ICONS: Record<string, ReactNode> = {
+  home: <path d="M3 11l9-7 9 7v9H3z" />,
+  orders: <><rect x="4" y="3" width="16" height="18" rx="2" /><path d="M8 8h8M8 12h8M8 16h5" /></>,
+  products: <><path d="M20.6 13.4l-7.2 7.2a2 2 0 01-2.8 0L3 13V3h10l7.6 7.6a2 2 0 010 2.8z" /><circle cx="7.5" cy="7.5" r="1.4" /></>,
+  money: <><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></>,
+  customers: <><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20c.8-3.6 3.5-5.5 6.5-5.5s5.7 1.9 6.5 5.5" /><path d="M16 4.5a3.5 3.5 0 010 7M18.5 14.8c1.6.8 2.6 2.5 3 5.2" /></>,
+  design: <><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18M9 9v12" /></>,
+};
 
 export function Dashboard() {
   const { s, set, isMobile, framed, shopNameShown, slug } = useStore();
@@ -104,10 +115,10 @@ export function Dashboard() {
                   type="button"
                   key={n.key}
                   aria-current={active ? 'page' : undefined}
-                  style={{ fontWeight: active ? 700 : 500, color: active ? 'var(--ink)' : 'var(--muted-3)' }}
+                  style={{ fontWeight: active ? 700 : 600, color: active ? '#ffffff' : '#9A93A8' }}
                   onClick={() => pick(n.key)}
                 >
-                  <span className="tabbar-mark" style={{ background: active ? 'var(--accent)' : 'transparent' }} />
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.9} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{TAB_ICONS[n.key]}</svg>
                   <span>{n.short}</span>
                 </button>
               );

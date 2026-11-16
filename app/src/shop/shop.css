@@ -145,3 +145,5 @@
 
 .sh-help { color: var(--s-muted); font-size: 13.5px; line-height: 1.5; margin: 16px 0 0; }
 .sh-help a { color: var(--s-violet); font-weight: 700; }
+
+.sh-tabbar { padding-bottom: max(6px, calc(env(safe-area-inset-bottom) - 10px)); }
