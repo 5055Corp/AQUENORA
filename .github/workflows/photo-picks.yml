@@ -1,0 +1,45 @@
+name: Photo picks (one-off)
+on:
+  push:
+    branches: [photo-picks]
+    paths: [".github/photo-queries.txt"]
+permissions:
+  contents: write
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download free Unsplash photos (no Unsplash+ / premium)
+        run: |
+          mkdir -p photos
+          i=0
+          while IFS= read -r q; do
+            [ -z "$q" ] && continue
+            i=$((i+1)); slug=$(printf '%02d' $i)
+            curl -sfL "https://unsplash.com/napi/search/photos?query=$(python3 -c 'import sys,urllib.parse;print(urllib.parse.quote(sys.argv[1]))' "$q")&per_page=14" -o "photos/$slug.json" || continue
+            python3 - "$slug" <<'PY'
+          import json, sys, urllib.request
+          slug = sys.argv[1]
+          d = json.load(open(f"photos/{slug}.json"))
+          keep = []
+          for p in d.get("results", []):
+              if p.get("premium") or p.get("plus"):
+                  continue
+              url = p["urls"]["raw"] + "&w=1080&q=80&fm=jpg"
+              name = f"photos/{slug}-{len(keep):02d}.jpg"
+              try:
+                  urllib.request.urlretrieve(url, name)
+              except Exception:
+                  continue
+              keep.append({"file": name, "id": p["id"], "alt": p.get("alt_description"), "by": p["user"]["name"], "page": p["links"]["html"]})
+              if len(keep) == 10:
+                  break
+          json.dump(keep, open(f"photos/{slug}.json", "w"), indent=1)
+          PY
+          done < .github/photo-queries.txt
+      - name: Save
+        run: |
+          git config user.name "photo-picks"
+          git config user.email "photo-picks@users.noreply.github.com"
+          git add photos && git commit -qm "Candidate photos" && git push
