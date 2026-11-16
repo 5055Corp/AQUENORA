@@ -10,39 +10,38 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Probe
-        run: |
-          curl -sS -D - -A "Mozilla/5.0" -o /tmp/p.json "https://unsplash.com/napi/search/photos?query=dress&per_page=2" | head -12; curl -sSL -A "Mozilla/5.0" -o /tmp/p2.json -w "napiL %{http_code} %{url_effective}\n" "https://unsplash.com/napi/search/photos?query=dress&per_page=2"; head -c 300 /tmp/p2.json; echo
-          curl -sS -o /dev/null -w "pexels %{http_code}\n" "https://www.pexels.com/"
-          curl -sS -o /dev/null -w "commons %{http_code}\n" "https://commons.wikimedia.org/w/api.php?action=query&format=json&list=search&srsearch=dress"
-      - name: Download free Unsplash photos (no Unsplash+ / premium)
+      - name: Download CC0 / public-domain photos from Openverse
         run: |
           mkdir -p photos
-          i=0
-          while IFS= read -r q; do
-            [ -z "$q" ] && continue
-            i=$((i+1)); slug=$(printf '%02d' $i)
-            curl -sfL -A "Mozilla/5.0" "https://unsplash.com/napi/search/photos?query=$(python3 -c 'import sys,urllib.parse;print(urllib.parse.quote(sys.argv[1]))' "$q")&per_page=14" -o "photos/$slug.json" || continue
-            python3 - "$slug" <<'PY'
-          import json, sys, urllib.request
-          slug = sys.argv[1]
-          d = json.load(open(f"photos/{slug}.json"))
-          keep = []
-          for p in d.get("results", []):
-              if p.get("premium") or p.get("plus"):
-                  continue
-              url = p["urls"]["raw"] + "&w=1080&q=80&fm=jpg"
-              name = f"photos/{slug}-{len(keep):02d}.jpg"
+          python3 - <<'PY'
+          import json, urllib.request, urllib.parse
+          qs = [q.strip() for q in open(".github/photo-queries.txt") if q.strip()]
+          ua = {"User-Agent": "aquenora-photo-picks/1.0"}
+          for i, q in enumerate(qs, 1):
+              url = "https://api.openverse.org/v1/images/?" + urllib.parse.urlencode({"q": q, "license": "cc0,pdm", "category": "photograph", "page_size": 20, "mature": "false"})
               try:
-                  urllib.request.urlretrieve(url, name)
-              except Exception:
-                  continue
-              keep.append({"file": name, "id": p["id"], "alt": p.get("alt_description"), "by": p["user"]["name"], "page": p["links"]["html"]})
-              if len(keep) == 10:
-                  break
-          json.dump(keep, open(f"photos/{slug}.json", "w"), indent=1)
+                  d = json.load(urllib.request.urlopen(urllib.request.Request(url, headers=ua), timeout=30))
+              except Exception as e:
+                  print("search failed", q, e); continue
+              keep = []
+              for r in d.get("results", []):
+                  if (r.get("width") or 0) < 900: continue
+                  name = f"photos/{i:02d}-{len(keep):02d}.jpg"
+                  try:
+                      data = urllib.request.urlopen(urllib.request.Request(r["url"], headers=ua), timeout=30).read()
+                      if len(data) < 20000 or len(data) > 15_000_000: continue
+                      open(name, "wb").write(data)
+                  except Exception:
+                      continue
+                  keep.append({"file": name, "title": r.get("title"), "license": r.get("license"), "source": r.get("source"), "page": r.get("foreign_landing_url"), "by": r.get("creator")})
+                  if len(keep) == 10: break
+              print(q, len(d.get("results", [])), "->", len(keep))
+              json.dump(keep, open(f"photos/{i:02d}.json", "w"), indent=1)
           PY
-          done < .github/photo-queries.txt
+      - name: Shrink
+        run: |
+          sudo apt-get -qq install -y imagemagick >/dev/null || true
+          for f in photos/*.jpg; do mogrify -resize '1400x1400>' -quality 82 "$f" || true; done
       - name: Save
         run: |
           git config user.name "photo-picks"
