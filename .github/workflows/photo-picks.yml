@@ -12,7 +12,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Probe
         run: |
-          curl -sS -A "Mozilla/5.0" -o /tmp/p.json -w "napi %{http_code}\n" "https://unsplash.com/napi/search/photos?query=dress&per_page=2"; head -c 300 /tmp/p.json; echo
+          curl -sS -D - -A "Mozilla/5.0" -o /tmp/p.json "https://unsplash.com/napi/search/photos?query=dress&per_page=2" | head -12; curl -sSL -A "Mozilla/5.0" -o /tmp/p2.json -w "napiL %{http_code} %{url_effective}\n" "https://unsplash.com/napi/search/photos?query=dress&per_page=2"; head -c 300 /tmp/p2.json; echo
           curl -sS -o /dev/null -w "pexels %{http_code}\n" "https://www.pexels.com/"
           curl -sS -o /dev/null -w "commons %{http_code}\n" "https://commons.wikimedia.org/w/api.php?action=query&format=json&list=search&srsearch=dress"
       - name: Download free Unsplash photos (no Unsplash+ / premium)
