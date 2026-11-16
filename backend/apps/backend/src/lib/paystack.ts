@@ -19,6 +19,15 @@ const secret = () => process.env.PAYSTACK_SECRET_KEY || ""
 export const paystackEnabled = () => !!secret()
 
 /** Currencies Paystack can take payments in, by seller country. Senegal isn't supported by Paystack yet. */
+/**
+ * Countries whose sellers can be paid out today. A Paystack account only pays out to banks in its own
+ * country (AQUENORA's is Nigerian), so other countries are "coming soon" until they're connected.
+ * Set PAYOUT_COUNTRIES (e.g. "NG,GH") on the backend to change it.
+ */
+export function payoutCountries(): Set<string> {
+  return new Set((process.env.PAYOUT_COUNTRIES || "NG").split(",").map((c) => c.trim().toUpperCase()).filter(Boolean))
+}
+
 export const PAYSTACK_CURRENCY: Record<string, string | null> = {
   NG: "NGN",
   GH: "GHS",

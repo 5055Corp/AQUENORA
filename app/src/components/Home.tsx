@@ -1,4 +1,4 @@
-import { HELP } from '../data';
+import { HELP, PAYOUT_COUNTRIES } from '../data';
 import { IOS_APP, SELL_PRO_HERE, shareStore } from '../native';
 import { useStore } from '../store';
 import { daysLeft, formatPrice } from '../plan';
@@ -8,10 +8,12 @@ type Key = 'store' | 'product' | 'pay' | 'design' | 'share' | 'order';
 export function Home() {
   const { s, set, flash, products, showHints, toggleHelp, fmt, fromUsd, shopNameShown, storeUrl, isMobile, h1Size, copyLink, shareWhatsApp, startOver, live, logOut, planInfo, startTrial } = useStore();
 
+  const canPayOut = PAYOUT_COUNTRIES.includes(s.country);
   const checklist: { k: Key; label: string; done: boolean; action?: string; help?: string }[] = [
     { k: 'store', label: 'Create your store', done: true },
     { k: 'product', label: 'Add your first product', done: products.length > 0 },
-    { k: 'pay', label: 'Add your bank account so you can get paid', done: s.paystack, action: 'Add', help: HELP.checklistPay },
+    // Outside Nigeria, payouts are coming soon (see Financials → Get paid).
+    ...(canPayOut ? [{ k: 'pay' as Key, label: 'Add your bank account so you can get paid', done: s.paystack, action: 'Add', help: HELP.checklistPay }] : []),
     { k: 'design', label: 'Choose how your store looks', done: s.designed, action: 'Choose' },
     { k: 'share', label: 'Share your store link on WhatsApp or Instagram', done: s.shared, action: 'Share', help: HELP.checklistShare },
     { k: 'order', label: 'Get your first order', done: s.orders.length > 0 },

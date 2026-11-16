@@ -4,6 +4,7 @@ import {
   createSubaccount,
   listBanks,
   PAYSTACK_CURRENCY,
+  payoutCountries,
   resolveAccount,
   updateSubaccount,
 } from "../../../../lib/paystack"
@@ -39,8 +40,8 @@ export async function POST(req: AuthenticatedMedusaRequest<SetPayoutBody>, res: 
     pro_paid_until: string | null
   }
   const currency = PAYSTACK_CURRENCY[seller.country_code]
-  if (!currency) {
-    throw new MedusaError(MedusaError.Types.NOT_ALLOWED, "Paystack doesn't support payouts in your country yet.")
+  if (!currency || !payoutCountries().has(seller.country_code)) {
+    throw new MedusaError(MedusaError.Types.NOT_ALLOWED, "Payouts in your country are coming soon. We'll let you know as soon as you can connect your bank.")
   }
   const { bank_code, account_number } = req.validatedBody
   const bank = (await listBanks(currency)).find((b) => b.code === bank_code)
