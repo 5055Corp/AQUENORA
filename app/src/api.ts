@@ -315,7 +315,7 @@ export interface CheckoutRequest {
   display_currency?: string;
   marketing_opt_in: boolean;
   return_url: string;
-  items: { product_id: string; quantity: number }[];
+  items: { product_id: string; quantity: number; choices?: string[]; note?: string }[];
 }
 
 export interface CheckoutLine { product_id: string; title: string; quantity: number; unit_price: number }

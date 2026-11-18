@@ -6,6 +6,7 @@ import { ACCENT_KEYS, demoProducts, initialState, usdConverter } from '../state'
 import { designFromLegacy, normalizeDesign, STORE_FONTS, type StoreDesign } from '../design';
 import type { CountryId } from '../data';
 import { StoreView, type StoreItem } from './StoreView';
+import { fromPrice, pickedFromLabels, priceFor, stockFor, variesInPrice } from '../options';
 import { TAGLINE } from '../brand';
 import { Logo, Mark } from '../components/Logo';
 import { DAY_NAMES, DAYS, hoursText, isOpenNow, normalizePickup, shopNow, type Pickup } from '../pickup';
@@ -63,7 +64,7 @@ function demoStore(): StoreData {
     name,
     country: s.country,
     design: normalizeDesign(s.design, designFromLegacy({ theme: s.theme, accent: s.accent, font: s.font, announce: s.announce, country: country.id === 'DI' ? 'Africa' : country.name })),
-    items: demoProducts(s, usdConverter(country.rate)).map((p, i) => ({ key: `demo-${i}`, name: p.name, price: p.price, stock: p.stock, images: p.images ?? [] })),
+    items: demoProducts(s, usdConverter(country.rate)).map((p, i) => ({ key: `demo-${i}`, name: p.name, price: p.price, stock: p.stock, images: p.images ?? [], description: p.description ?? null, options: p.options ?? null, madeToOrderDays: p.madeToOrderDays ?? null, notePrompt: p.notePrompt ?? null })),
     sellsAbroad: s.intl,
     showBadge: true,
     pickup: offered(s.pickup),
@@ -101,7 +102,7 @@ export async function liveStore(handle: string): Promise<StoreData> {
         country: liveCountryName(store.country_code),
       }),
     ),
-    items: products.map(p => ({ key: p.id, name: p.title, price: p.price, stock: p.stock, images: p.images ?? [], description: p.description ?? null })),
+    items: products.map(p => ({ key: p.id, name: p.title, price: p.price, stock: p.stock, images: p.images ?? [], description: p.description ?? null, options: p.options ?? null, madeToOrderDays: p.made_to_order_days ?? null, notePrompt: p.note_prompt ?? null })),
     sellsAbroad: store.sells_abroad,
     showBadge: store.show_badge !== false,
     pickup: offered(store.pickup),
@@ -130,8 +131,24 @@ const COUNTRY_LIST = [...WORLD].sort((a, b) => a.name.localeCompare(b.name));
 
 // ---- bag, kept per store in this browser ----
 
+/** Bag lines by key: the product alone, or the product with the buyer's choices and note. */
 type Bag = Record<string, number>;
 const bagKey = (handle: string) => `aqenora-bag-${handle}`;
+
+/** A bag line: product, choices (labels, in option order) and the buyer's note. */
+export interface BagLine { product: string; choices: string[]; note: string }
+export const lineKey = (l: BagLine) => (l.choices.length || l.note ? JSON.stringify([l.product, l.choices, l.note]) : l.product);
+export function parseLineKey(key: string): BagLine {
+  if (key.startsWith('[')) {
+    try {
+      const [product, choices, note] = JSON.parse(key);
+      if (typeof product === 'string' && Array.isArray(choices)) return { product, choices: choices.map(String), note: typeof note === 'string' ? note : '' };
+    } catch {
+      /* fall through */
+    }
+  }
+  return { product: key, choices: [], note: '' };
+}
 
 function loadBag(handle: string): Bag {
   try {
@@ -326,13 +343,31 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
   const ink = d.colors.text;
 
   const byKey = useMemo(() => new Map(data.items.map(i => [i.key, i])), [data.items]);
+  /** One bag line with its product, the price for its choices, and how many can be bought. */
+  const lineOf = useCallback((key: string) => {
+    const l = parseLineKey(key);
+    const item = byKey.get(l.product);
+    if (!item) return null;
+    const picked = pickedFromLabels(item.options, l.choices);
+    // Choices must still exist (the seller may have changed them).
+    if (item.options?.groups.length && picked.some(i => i < 0)) return null;
+    return {
+      key,
+      item,
+      choices: l.choices,
+      note: l.note,
+      price: priceFor(item.price, item.options, picked),
+      stock: stockFor(item.stock, item.options, picked, item.madeToOrderDays),
+      label: l.choices.length ? `${item.name} (${l.choices.join(', ')})` : item.name,
+    };
+  }, [byKey]);
   const [bag, setBag] = useState<Bag>(() => {
     // Drop anything no longer for sale, and cap quantities at what's in stock.
     const saved = loadBag(data.handle);
     const clean: Bag = {};
     for (const [k, q] of Object.entries(saved)) {
-      const item = byKey.get(k);
-      if (item && item.stock > 0 && Number(q) > 0) clean[k] = Math.min(Number(q), item.stock);
+      const line = lineOf(k);
+      if (line && line.stock > 0 && Number(q) > 0) clean[k] = Math.min(Number(q), line.stock);
     }
     return clean;
   });
@@ -397,11 +432,11 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
   }, [open]);
 
   const setQty = (key: string, qty: number) => {
-    const item = byKey.get(key);
-    if (!item) return;
+    const line = lineOf(key);
+    if (!line) return;
     setBag(b => {
       const next = { ...b };
-      const q = Math.max(0, Math.min(qty, item.stock));
+      const q = Math.max(0, Math.min(qty, line.stock));
       if (q === 0) delete next[key];
       else next[key] = q;
       return next;
@@ -410,23 +445,32 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
 
   const [viewing, setViewing] = useState<StoreItem | null>(null);
 
-  const add = (item: StoreItem) => {
-    const current = bag[item.key] ?? 0;
-    if (current >= item.stock) {
-      setNote(`Only ${item.stock} left of ${item.name}`);
+  const add = (item: StoreItem, choices: string[] = [], buyerNote = '') => {
+    const key = lineKey({ product: item.key, choices, note: buyerNote.trim() });
+    const line = lineOf(key);
+    if (!line) return;
+    // Lines of the same product share its stock unless each choice has its own.
+    const sameStock = Object.entries(bag)
+      .filter(([k]) => {
+        const o = lineOf(k);
+        return o && o.item.key === item.key && (!item.options?.stock_per_choice || o.choices[0] === choices[0]);
+      })
+      .reduce((a, [, q]) => a + q, 0);
+    if (sameStock >= line.stock) {
+      setNote(`Only ${line.stock} left of ${line.label}`);
     } else {
-      setQty(item.key, current + 1);
-      setNote(`${item.name} added to your bag`);
+      setQty(key, (bag[key] ?? 0) + 1);
+      setNote(`${line.label} added to your bag`);
     }
     window.setTimeout(() => setNote(''), 2200);
   };
 
   const lines = Object.entries(bag).flatMap(([k, q]) => {
-    const item = byKey.get(k);
-    return item ? [{ item, qty: q }] : [];
+    const line = lineOf(k);
+    return line ? [{ ...line, qty: q }] : [];
   });
   const count = lines.reduce((a, l) => a + l.qty, 0);
-  const subtotal = lines.reduce((a, l) => a + l.qty * l.item.price, 0);
+  const subtotal = lines.reduce((a, l) => a + l.qty * l.price, 0);
   function closeBag() {
     setOpen(false);
     setStage('bag');
@@ -464,7 +508,7 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
     if (!LIVE) {
       // Demo: no real payment. Show what the buyer would see afterwards.
       window.setTimeout(() => {
-        setPaid({ kind: 'paid', orderNo: 1044, total, pickup: fulfillment === 'pickup', items: lines.map(l => ({ title: l.item.name, quantity: l.qty })), shipping: chosen ? { name: chosen.name, price: chosen.price } : null });
+        setPaid({ kind: 'paid', orderNo: 1044, total, pickup: fulfillment === 'pickup', items: lines.map(l => ({ title: l.label, quantity: l.qty })), shipping: chosen ? { name: chosen.name, price: chosen.price } : null });
         setBag({});
         setOpen(false);
         setPaying(false);
@@ -495,7 +539,12 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
         ...(foreign ? { display_currency: showCur } : {}),
         marketing_opt_in: buyer.optIn,
         return_url: back.toString(),
-        items: lines.map(l => ({ product_id: l.item.key, quantity: l.qty })),
+        items: lines.map(l => ({
+          product_id: l.item.key,
+          quantity: l.qty,
+          ...(l.choices.length ? { choices: l.choices } : {}),
+          ...(l.note ? { note: l.note } : {}),
+        })),
       });
       window.location.assign(authorization_url);
     } catch (e) {
@@ -534,10 +583,10 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
       {viewing && (
         <ProductPhotos
           item={viewing}
-          price={show(viewing.price)}
+          show={show}
           design={d}
           onClose={() => setViewing(null)}
-          onAdd={() => { add(viewing); setViewing(null); }}
+          onAdd={(choices, buyerNote) => { add(viewing, choices, buyerNote); setViewing(null); }}
         />
       )}
 
@@ -624,21 +673,22 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
               <p className="sp-bag-empty">Your bag is empty.</p>
             ) : (
               <ul className="sp-lines">
-                {lines.map(({ item, qty }) => (
-                  <li key={item.key}>
+                {lines.map(({ key, label, note: lineNote, price, stock, qty }) => (
+                  <li key={key}>
                     <div className="sp-line-name">
-                      <span>{item.name}</span>
-                      <span>{show(item.price * qty)}</span>
+                      <span>{label}</span>
+                      <span>{show(price * qty)}</span>
                     </div>
+                    {lineNote && <div className="sp-line-note">Your note: {lineNote}</div>}
                     <div className="sp-qty" style={{ borderColor: ink + '33' }}>
-                      <button type="button" style={{ color: ink }} onClick={() => setQty(item.key, qty - 1)} aria-label={`One less ${item.name}`}>−</button>
+                      <button type="button" style={{ color: ink }} onClick={() => setQty(key, qty - 1)} aria-label={`One less ${label}`}>−</button>
                       <span aria-live="polite">{qty}</span>
                       <button
                         type="button"
                         style={{ color: ink }}
-                        disabled={qty >= item.stock}
-                        onClick={() => setQty(item.key, qty + 1)}
-                        aria-label={`One more ${item.name}`}
+                        disabled={qty >= stock}
+                        onClick={() => setQty(key, qty + 1)}
+                        aria-label={`One more ${label}`}
                       >
                         +
                       </button>
@@ -843,29 +893,44 @@ function BuyerField(props: { label: string; value: string; onChange: (v: string)
   );
 }
 
-/** A product's photos, swipeable, with its name, price and description. */
-function ProductPhotos({ item, price, design: d, onClose, onAdd }: {
+/** A product's photos, swipeable, with its name, price and description; buyers pick options here. */
+function ProductPhotos({ item, show, design: d, onClose, onAdd }: {
   item: StoreItem;
-  price: string;
+  show: (n: number) => string;
   design: StoreDesign;
   onClose: () => void;
-  onAdd: () => void;
+  onAdd: (choices: string[], note: string) => void;
 }) {
   const [at, setAt] = useState(0);
+  const groups = item.options?.groups ?? [];
+  const [picked, setPicked] = useState<number[]>(() => groups.map(() => -1));
+  const [buyerNote, setBuyerNote] = useState('');
+  const [tried, setTried] = useState(false);
   const images = item.images ?? [];
-  const soldOut = item.stock <= 0;
+  const perChoice = !!item.options?.stock_per_choice && !item.madeToOrderDays;
+  const allPicked = picked.every(i => i >= 0);
+  const price = allPicked ? priceFor(item.price, item.options, picked) : fromPrice(item.price, item.options);
+  const left = stockFor(item.stock, item.options, picked, item.madeToOrderDays);
+  const soldOut = item.madeToOrderDays ? false : groups.length && perChoice ? (allPicked ? left <= 0 : item.stock <= 0) : item.stock <= 0;
+  const accent = d.colors.accent;
   useEffect(() => {
     const key = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', key);
     return () => window.removeEventListener('keydown', key);
   }, [onClose]);
+  const add = () => {
+    if (!allPicked) return setTried(true);
+    onAdd(groups.map((g, gi) => g.choices[picked[gi]].label), buyerNote);
+  };
   return (
     <div className="sheet-overlay pp-overlay" role="dialog" aria-modal="true" aria-label={item.name} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="pp-card" style={{ background: d.colors.card, color: d.colors.text }}>
         <button type="button" className="pp-close" aria-label="Close" onClick={onClose}>×</button>
-        <div className="pp-gallery" onScroll={e => { const el = e.currentTarget; setAt(Math.round(el.scrollLeft / el.clientWidth)); }}>
-          {images.map((url, i) => <img key={url} src={url} alt={`${item.name}, photo ${i + 1} of ${images.length}`} />)}
-        </div>
+        {images.length > 0 && (
+          <div className="pp-gallery" onScroll={e => { const el = e.currentTarget; setAt(Math.round(el.scrollLeft / el.clientWidth)); }}>
+            {images.map((url, i) => <img key={url} src={url} alt={`${item.name}, photo ${i + 1} of ${images.length}`} />)}
+          </div>
+        )}
         {images.length > 1 && (
           <div className="pp-dots" aria-hidden="true">
             {images.map((url, i) => <span key={url} style={{ background: d.colors.text, opacity: i === at ? 0.9 : 0.25 }} />)}
@@ -873,12 +938,50 @@ function ProductPhotos({ item, price, design: d, onClose, onAdd }: {
         )}
         <div className="pp-body">
           <div className="pp-name" style={{ fontFamily: STORE_FONTS[d.fonts.heading].family }}>{item.name}</div>
-          <div className="pp-price">{price}</div>
+          <div className="pp-price">{!allPicked && variesInPrice(item.price, item.options) ? 'From ' : ''}{show(price)}</div>
+          {allPicked && groups.length > 0 && <div className="pp-picked">{groups.map((g, gi) => g.choices[picked[gi]].label).join(' · ')}</div>}
+          {!!item.madeToOrderDays && (
+            <div className="pp-mto" style={{ borderColor: accent, color: d.colors.text }}>Made to order · ready in {item.madeToOrderDays} {item.madeToOrderDays === 1 ? 'day' : 'days'}</div>
+          )}
+          {groups.map((g, gi) => (
+            <div key={g.name} className="pp-opt" role="radiogroup" aria-label={g.name}>
+              <div className="pp-opt-name">{g.name}{tried && picked[gi] < 0 && <span className="pp-opt-need"> · choose one</span>}</div>
+              <div className="pp-chips">
+                {g.choices.map((c, ci) => {
+                  const out = gi === 0 && perChoice && (c.stock ?? 0) <= 0;
+                  const on = picked[gi] === ci;
+                  const extra = gi > 0 && c.extra ? ` +${show(c.extra)}` : '';
+                  return (
+                    <button
+                      key={c.label}
+                      type="button"
+                      role="radio"
+                      aria-checked={on}
+                      disabled={out}
+                      className={'pp-chip' + (on ? ' on' : '') + (out ? ' out' : '')}
+                      style={on ? { background: d.colors.text, color: d.colors.card, borderColor: d.colors.text } : { borderColor: d.colors.text + '33', color: d.colors.text }}
+                      onClick={() => setPicked(p => p.map((x, i) => (i === gi ? ci : x)))}
+                    >
+                      {c.label}{extra}{out ? ' · sold out' : ''}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+          {item.notePrompt && (
+            <label className="pp-note">
+              <span>{item.notePrompt}</span>
+              <textarea rows={3} maxLength={500} value={buyerNote} onChange={e => setBuyerNote(e.target.value)}
+                style={{ color: d.colors.text, borderColor: d.colors.text + '33' }} />
+            </label>
+          )}
           {item.description && <p className="pp-desc">{item.description}</p>}
-          <button type="button" className="pp-add" disabled={soldOut} onClick={onAdd}
-            style={{ background: soldOut ? 'transparent' : d.colors.accent, color: soldOut ? d.colors.text : d.colors.accent_text, border: soldOut ? '1px solid currentColor' : 'none' }}>
-            {soldOut ? 'Sold out' : 'Add to bag'}
+          <button type="button" className="pp-add" disabled={!!soldOut} onClick={add}
+            style={{ background: soldOut ? 'transparent' : accent, color: soldOut ? d.colors.text : d.colors.accent_text, border: soldOut ? '1px solid currentColor' : 'none' }}>
+            {soldOut ? 'Sold out' : allPicked ? `Add to bag · ${show(price)}` : groups.length ? 'Add to bag' : 'Add to bag'}
           </button>
+          {tried && !allPicked && <div className="pp-opt-need" role="alert">Choose {groups.filter((_, gi) => picked[gi] < 0).map(g => g.name.toLowerCase()).join(' and ')} first.</div>}
         </div>
       </div>
     </div>

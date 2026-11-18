@@ -123,7 +123,7 @@ function ProductRow({ product: p, cost, fmt, sym, onSaveCost, onSaveImages, onEd
           {p.madeToOrderDays ? `Made to order · ${p.madeToOrderDays} days` : p.stock === 0 ? 'Sold out' : p.stock + ' in stock'}
         </div>
         {!!p.options?.groups.length && (
-          <div className="prod-opts">{p.options.groups.map(g => `${g.name}: ${g.choices.map(c => c.label).join(', ')}`).join(' · ')}</div>
+          <div className="prod-opts">{p.options.groups.map(g => `${g.name} (${g.choices.length})`).join(' · ')}</div>
         )}
         {!editing && (
           <div className="prod-cost">
