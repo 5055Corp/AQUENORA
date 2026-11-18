@@ -7,6 +7,42 @@ import { designFromLegacy, normalizeDesign, STORE_FONTS, type StoreDesign } from
 import type { CountryId } from '../data';
 import { StoreView, type StoreItem } from './StoreView';
 import { TrackOrder } from './TrackOrder';
+import { recordVisit, type VisitSource } from '../api';
+
+/** Where a visitor came from: ?from=..., or the website that sent them. */
+function visitSource(embedded: boolean): VisitSource {
+  if (embedded) return 'aquenora';
+  const from = new URLSearchParams(window.location.search).get('from')?.toLowerCase() ?? '';
+  const ref = (() => {
+    try {
+      return document.referrer ? new URL(document.referrer).hostname.toLowerCase() : '';
+    } catch {
+      return '';
+    }
+  })();
+  const hit = (s: string) => from === s || ref.includes(s);
+  if (hit('whatsapp') || ref === 'wa.me') return 'whatsapp';
+  if (hit('instagram')) return 'instagram';
+  if (hit('facebook') || ref.endsWith('fb.com') || ref === 'fb.me') return 'facebook';
+  if (hit('tiktok')) return 'tiktok';
+  if (hit('google')) return 'google';
+  if (ref.includes('aquenora')) return 'aquenora';
+  return ref ? 'other' : 'direct';
+}
+
+/** Counts one visit per store per day in this browser. */
+function countVisit(handle: string, embedded: boolean) {
+  if (!LIVE || !handle) return;
+  const key = `aqenora-visit-${handle}`;
+  const today = new Date().toISOString().slice(0, 10);
+  try {
+    if (localStorage.getItem(key) === today) return;
+    localStorage.setItem(key, today);
+  } catch {
+    /* storage blocked: still count */
+  }
+  recordVisit(handle, visitSource(embedded));
+}
 import { fromPrice, pickedFromLabels, priceFor, stockFor, variesInPrice } from '../options';
 import { TAGLINE } from '../brand';
 import { Logo, Mark } from '../components/Logo';
@@ -436,6 +472,7 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
   }, [checkPayment]);
 
   useEffect(() => saveBag(data.handle, bag), [data.handle, bag]);
+  useEffect(() => { if (!tracking) countVisit(data.handle, !!embedded); }, [data.handle, embedded, tracking]);
   useEffect(() => {
     document.title = data.name;
     document.body.style.background = d.colors.background;

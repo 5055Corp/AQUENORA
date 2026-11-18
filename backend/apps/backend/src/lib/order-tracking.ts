@@ -5,12 +5,13 @@
 // the order. Nothing is stored for it, so it works for every order, old and new.
 
 import { createHmac, timingSafeEqual } from "node:crypto"
+import { MedusaError } from "@medusajs/framework/utils"
 import { shopUrl } from "./campaign-email"
 
 function secret(): string {
   const s = process.env.ORDER_TRACKING_SECRET || process.env.JWT_SECRET || process.env.COOKIE_SECRET
   if (s) return s
-  if (process.env.NODE_ENV === "production") throw new Error("Set JWT_SECRET (used to sign order tracking links).")
+  if (process.env.NODE_ENV === "production") throw new MedusaError(MedusaError.Types.UNEXPECTED_STATE, "Set JWT_SECRET (used to sign order tracking links).")
   return "dev-order-tracking-secret"
 }
 

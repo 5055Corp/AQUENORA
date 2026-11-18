@@ -287,6 +287,21 @@ export interface PublicStore {
 }
 
 /** The public data for one store page. 404 means there is no store at that address. */
+/** Store visits: this week day by day (oldest first), last week's total, and sources. */
+export interface VisitStats { days: string[]; by_day: number[]; week: number; previous_week: number; sources: Record<string, number> }
+
+export type VisitSource = 'whatsapp' | 'instagram' | 'facebook' | 'tiktok' | 'google' | 'aquenora' | 'direct' | 'other';
+
+/** Counts one store visit (only a count by source is kept). Never throws. */
+export function recordVisit(handle: string, source: VisitSource) {
+  fetch(`${storeApi()}/store/sellers/${encodeURIComponent(handle)}/visit`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-publishable-api-key': PUBLISHABLE_KEY },
+    body: JSON.stringify({ source }),
+    keepalive: true,
+  }).catch(() => {});
+}
+
 /** An order's progress for the buyer (from their tracking link). */
 export interface TrackedOrder {
   order: {
@@ -445,6 +460,7 @@ export const api = {
     request<{ customers: Customer[]; audiences: Record<Audience, number> }>('/sellers/me/customers', { token }),
   campaigns: (token: string) => request<{ campaigns: Campaign[] }>('/sellers/me/campaigns', { token }),
   plan: (token: string) => request<PlanResponse>('/sellers/me/plan', { token }),
+  visits: (token: string) => request<{ visits: VisitStats }>('/sellers/me/visits', { token }),
   startTrial: (token: string) => request<PlanResponse>('/sellers/me/plan/trial', { method: 'POST', token }),
   /** Starts paying for Pro by card: returns Paystack's payment page. */
   upgrade: (token: string, return_url: string) =>

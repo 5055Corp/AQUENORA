@@ -160,7 +160,8 @@ function useStoreValue(settings: Settings) {
     navigator.clipboard?.writeText(storeUrl).catch(() => {});
   };
   const shareWhatsApp = () => {
-    window.open(`https://wa.me/?text=${encodeURIComponent(`Visit my shop: ${storeUrl}`)}`, '_blank', 'noopener');
+    // ?from=whatsapp lets the store's visit stats show WhatsApp as the source.
+    window.open(`https://wa.me/?text=${encodeURIComponent(`Visit my shop: ${storeUrl}${storeUrl.includes('?') ? '&' : '?'}from=whatsapp`)}`, '_blank', 'noopener');
   };
 
   /** Wipe the demo store and go back to step 1 of setup (used between seller interviews). */
