@@ -1,6 +1,9 @@
 import { HELP, PAYOUT_COUNTRIES } from '../data';
 import { IOS_APP, SELL_PRO_HERE, shareStore } from '../native';
+import { useEffect, useState } from 'react';
+import { api, type VisitStats } from '../api';
 import { useStore } from '../store';
+import { demoVisits, visitChange, VisitsCards } from './Visits';
 import { VerifyStatus } from './Verify';
 import { daysLeft, formatPrice } from '../plan';
 
@@ -38,11 +41,20 @@ export function Home() {
   const liveSales = s.orders
     .filter(o => o.status !== 'canceled' && o.created_at && new Date(o.created_at).getTime() >= weekAgo)
     .reduce((a, o) => a + (o.amount ?? 0), 0);
+  // Store visits: counted on the store page (live), or sample numbers in the demo.
+  const [visits, setVisits] = useState<VisitStats | null>(() => (live ? null : demoVisits()));
+  useEffect(() => {
+    if (!live || !s.token) return;
+    api.visits(s.token).then(r => setVisits(r.visits)).catch(() => {});
+  }, [live, s.token]);
+  const ordersThisWeek = live
+    ? s.orders.filter(o => o.status !== 'canceled' && o.created_at && new Date(o.created_at).getTime() >= weekAgo).length
+    : Math.min(s.orders.length, 14);
+  const change = visits ? visitChange(visits) : null;
   const stats = [
     { label: 'Sales this week', value: fmt(live ? liveSales : fromUsd(salesUsd)) },
     { label: 'Orders', value: String(s.orders.filter(o => o.status !== 'canceled').length) },
-    // Visits aren't tracked yet, so live stores show a dash instead of the demo number.
-    { label: 'Store visits', value: live ? '—' : '312' },
+    { label: 'Store visits', value: visits ? String(visits.week) : '—', change },
   ];
 
   return (
@@ -123,9 +135,11 @@ export function Home() {
           <div key={st.label} className="card stat">
             <div>{st.label}</div>
             <div style={{ fontSize: isMobile ? 19 : 26 }}>{st.value}</div>
+            {'change' in st && st.change && <div className={'vs-change' + (st.change.up ? '' : ' down')}>{st.change.text}</div>}
           </div>
         ))}
       </div>
+      {visits && <VisitsCards visits={visits} ordersThisWeek={ordersThisWeek} />}
 
       <section className="share">
         <div className="share-title">Your store link</div>

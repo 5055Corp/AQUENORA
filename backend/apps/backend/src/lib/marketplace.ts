@@ -77,9 +77,11 @@ const SELLER_FIELDS = [
   "products.variants.prices.amount", "products.variants.prices.currency_code",
 ]
 
+import { fromPrice, madeToOrderDays, readOptions } from "./product-options"
+
 function toMarketProduct(p: RawProduct, currency: string): MarketProduct | null {
   if (p.status !== "published") return null
-  if (Number(p.metadata?.stock ?? 0) <= 0) return null
+  if (!madeToOrderDays(p.metadata) && Number(p.metadata?.stock ?? 0) <= 0) return null
   const images = (p.images ?? []).filter((i): i is { url: string; rank?: number | null } => !!i?.url)
     .sort((a, b) => (a.rank ?? 0) - (b.rank ?? 0))
   const image = images[0]?.url ?? p.thumbnail ?? null
@@ -89,7 +91,8 @@ function toMarketProduct(p: RawProduct, currency: string): MarketProduct | null 
     id: p.id,
     title: p.title,
     description: p.description ?? null,
-    price: price ? Number(price.amount) : 0,
+    // With options, the lowest price ("from").
+    price: fromPrice(readOptions(p.metadata), price ? Number(price.amount) : 0),
     currency_code: currency,
     image,
     photo_count: Math.max(images.length, 1),

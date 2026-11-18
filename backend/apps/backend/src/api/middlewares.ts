@@ -29,6 +29,7 @@ import {
   SetDomainSchema,
   UpdateSellerOrderSchema,
   UpdateSellerProductSchema,
+  StoreVisitSchema,
   UpdateSellerSchema,
 } from "./sellers/validators"
 
@@ -113,6 +114,17 @@ export default defineMiddlewares({
       methods: ["POST"],
       matcher: "/sellers/me/products/:id",
       middlewares: [sellerAuth, validateAndTransformBody(UpdateSellerProductSchema)],
+    },
+    {
+      methods: ["DELETE"],
+      matcher: "/sellers/me/products/:id",
+      middlewares: [sellerAuth],
+    },
+    {
+      // Counting a store page visit (public, from the store page).
+      methods: ["POST"],
+      matcher: "/store/sellers/:handle/visit",
+      middlewares: [validateAndTransformBody(StoreVisitSchema)],
     },
     {
       methods: ["POST"],

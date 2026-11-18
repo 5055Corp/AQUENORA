@@ -51,6 +51,9 @@ export function Orders() {
                   <div>{o.name} <span>· #{o.id.length > 8 ? o.id.slice(-6).toUpperCase() : o.id}</span></div>
                   <div>{o.item}{o.address ? ` · ${o.address.city}, ${WORLD_BY_CODE.get(o.address.country)?.name ?? o.address.country}` : o.place ? ' · ' + o.place : ''}{o.intl ? ' · abroad' : ''}</div>
                   {o.shipping && <div className="order-ship">{o.shipping.name} · {fmt(o.shipping.price)} shipping</div>}
+                  {(o.items ?? []).filter(i => i.note).map((i, n) => (
+                    <div key={n} className="order-note"><b>Buyer's note{(o.items?.length ?? 0) > 1 ? ` (${i.title})` : ''}:</b> {i.note}</div>
+                  ))}
                 </div>
                 <div className="amount">{o.amount != null ? fmt(o.amount) : o.intl ? '$' + o.usd : fmt(fromUsd(o.usd))}</div>
               </div>

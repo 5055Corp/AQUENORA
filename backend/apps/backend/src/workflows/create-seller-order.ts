@@ -4,6 +4,7 @@ import { createOrdersStep, createRemoteLinkStep, useQueryGraphStep } from "@medu
 import { resolvePlan, type PlanSeller } from "../lib/plans"
 import { SELLER_MODULE } from "../modules/seller"
 import { upsertMarketingContactStep } from "./steps/marketing-steps"
+import { madeToOrderDays, readOptions, totalStock } from "../lib/product-options"
 
 export type CreateSellerOrderInput = {
   seller_id: string
@@ -38,7 +39,17 @@ export type CreateSellerOrderInput = {
     commission_rate: number
   }
   /** unit_price: the price shown at checkout (defaults to the product's current price). */
-  items: { product_id: string; quantity: number; unit_price?: number }[]
+  items: {
+    product_id: string
+    quantity: number
+    unit_price?: number
+    /** Title with the buyer's choices, e.g. "Bone straight wig (20 inch, Natural black)". */
+    title?: string
+    options?: { name: string; value: string }[]
+    /** Index of the first option's choice: its own stock goes down when stock is per choice. */
+    first_choice?: number | null
+    note?: string
+  }[]
   /** Take the sold quantities out of stock (real sales; the demo seed leaves stock alone). */
   reduce_stock?: boolean
 }
@@ -78,9 +89,21 @@ const reduceStockStep = createStep(
     const before: { id: string; metadata: Record<string, unknown> }[] = []
     for (const [id, n] of qty) {
       const metadata = byId.get(id)?.metadata ?? {}
-      const stock = Number(metadata.stock ?? 0)
       before.push({ id, metadata })
-      // Paid already, so never refuse here; stock just can't go below zero.
+      // Made to order: nothing to count.
+      if (madeToOrderDays(metadata)) continue
+      const options = readOptions(metadata)
+      if (options?.stock_per_choice) {
+        const choices = options.groups[0].choices.map((c) => ({ ...c }))
+        for (const i of input.items.filter((x) => x.product_id === id && x.first_choice != null)) {
+          const c = choices[i.first_choice!]
+          if (c) c.stock = Math.max(0, (c.stock ?? 0) - i.quantity)
+        }
+        const next = { ...options, groups: [{ ...options.groups[0], choices }, ...options.groups.slice(1)] }
+        await productService.updateProducts(id, { metadata: { ...metadata, options: next, stock: totalStock(next, 0) } })
+        continue
+      }
+      const stock = Number(metadata.stock ?? 0)
       await productService.updateProducts(id, { metadata: { ...metadata, stock: Math.max(0, (Number.isFinite(stock) ? stock : 0) - n) } })
     }
     return new StepResponse(before, before)
@@ -190,12 +213,17 @@ export const createSellerOrderWorkflow = createWorkflow(
             const price = variant?.prices?.find((x) => x.currency_code === seller.currency_code) ?? variant?.prices?.[0]
             const cost = Number(p.metadata?.cost_price)
             return {
-              title: p.title,
+              title: i.title ?? p.title,
               product_id: p.id,
               variant_id: variant?.id,
               quantity: i.quantity,
               unit_price: i.unit_price ?? Number(price?.amount ?? 0),
-              metadata: Number.isFinite(cost) && p.metadata?.cost_price != null ? { cost_price: cost } : {},
+              metadata: {
+                ...(Number.isFinite(cost) && p.metadata?.cost_price != null ? { cost_price: cost } : {}),
+                ...(i.options?.length ? { options: i.options } : {}),
+                ...(i.note ? { note: i.note } : {}),
+                ...(madeToOrderDays(p.metadata) ? { made_to_order_days: madeToOrderDays(p.metadata) } : {}),
+              },
             }
           }),
         },

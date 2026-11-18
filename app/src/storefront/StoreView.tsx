@@ -1,4 +1,5 @@
 import { useEffect, type CSSProperties } from 'react';
+import { fromPrice, variesInPrice, type ProductOptions } from '../options';
 import { BUTTON_RADIUS, loadFonts, RADIUS, STORE_FONTS, type StoreDesign } from '../design';
 
 export interface StoreItem {
@@ -9,7 +10,16 @@ export interface StoreItem {
   /** Photos; the first is shown on the card. */
   images?: string[];
   description?: string | null;
+  /** Sizes, lengths, colours... the buyer picks before adding to the bag. */
+  options?: ProductOptions | null;
+  /** Made to order: days to make it (never sold out). */
+  madeToOrderDays?: number | null;
+  /** Question for the buyer's notes box. */
+  notePrompt?: string | null;
 }
+
+/** Buyers choose options or write a note on the product's own view before adding it. */
+export const needsChoosing = (p: StoreItem) => !!p.options?.groups.length || !!p.notePrompt;
 
 interface Props {
   name: string;
@@ -114,7 +124,8 @@ export function StoreView({ name, design: d, items, fmt, variant, narrow, bagCou
 
       <div className="sf-grid" style={{ gridTemplateColumns: `repeat(${columns},minmax(0,1fr))` }}>
         {items.map(p => {
-          const soldOut = p.stock <= 0;
+          const soldOut = p.stock <= 0 && !p.madeToOrderDays;
+          const choose = needsChoosing(p) && !!onOpen;
           return (
             <div key={p.key} className="sf-card" style={{ background: card, borderRadius: radius }}>
               {p.images?.[0] && page && onOpen ? (
@@ -128,19 +139,21 @@ export function StoreView({ name, design: d, items, fmt, variant, narrow, bagCou
                 </div>
               )}
               <div className="sf-card-name">{p.name}</div>
-              <div className="sf-card-price">{fmt(p.price)}</div>
-              {d.products.show_stock && !soldOut && <div className="sf-card-stock">{p.stock} left</div>}
+              <div className="sf-card-price">{variesInPrice(p.price, p.options) ? 'From ' : ''}{fmt(fromPrice(p.price, p.options))}</div>
+              {p.madeToOrderDays ? (
+                <div className="sf-card-stock">Made to order · {p.madeToOrderDays} {p.madeToOrderDays === 1 ? 'day' : 'days'}</div>
+              ) : d.products.show_stock && !soldOut && <div className="sf-card-stock">{p.stock} left</div>}
               {!page ? (
                 <div className="sf-add" style={button(soldOut ? { background: 'transparent', color: text, border: `1px solid ${sa}`, opacity: 0.7 } : {})}>
-                  {soldOut ? 'Sold out' : 'Add to bag'}
+                  {soldOut ? 'Sold out' : needsChoosing(p) ? 'Choose options' : 'Add to bag'}
                 </div>
               ) : soldOut ? (
                 <button type="button" className="sf-add" disabled style={button({ background: 'transparent', color: text, border: `1px solid ${sa}`, opacity: 0.7 })}>
                   Sold out
                 </button>
               ) : (
-                <button type="button" className="sf-add" style={button()} onClick={() => onAdd?.(p)}>
-                  Add to bag
+                <button type="button" className="sf-add" style={button()} onClick={() => (choose ? onOpen!(p) : onAdd?.(p))}>
+                  {choose ? (p.options?.groups.length ? 'Choose options' : 'Add to bag') : 'Add to bag'}
                 </button>
               )}
             </div>

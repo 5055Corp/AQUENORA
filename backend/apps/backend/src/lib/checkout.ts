@@ -30,6 +30,10 @@ import {
 import { resolvePlan } from "./plans"
 import { WORLD_BY_CODE } from "./countries"
 import { homeCountry, optionsFor, type Shipping } from "../modules/seller/shipping"
+import { availableStock, madeToOrderDays, notePrompt, priceWithChoices } from "./product-options"
+import { renderOrderConfirmation, ordersFrom } from "./order-email"
+import { trackToken, trackUrl } from "./order-tracking"
+import { supportEmail } from "./account-email"
 
 type CheckoutSeller = {
   id: string
@@ -63,7 +67,20 @@ type CheckoutData = {
   shipping?: { id: string; carrier: string; name: string; price: number; days: string }
   display_currency?: string
   marketing_opt_in: boolean
-  items: { product_id: string; title: string; quantity: number; unit_price: number }[]
+  items: {
+    product_id: string
+    title: string
+    quantity: number
+    unit_price: number
+    /** What the buyer chose, e.g. [{ name: "Length", value: "20 inch" }]. */
+    options?: { name: string; value: string }[]
+    /** Index of the first option's choice (stock per choice). */
+    first_choice?: number | null
+    /** Measurements or special requests. */
+    note?: string
+    /** Made to order: days to make it. */
+    made_to_order_days?: number | null
+  }[]
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100
@@ -160,23 +177,46 @@ export async function startCheckout(container: MedusaContainer, handle: string, 
     const sp = toSellerProduct(p)
     return [sp.id, sp]
   }))
-  const qty = new Map<string, number>()
+  // Same product with the same choices and note = one line.
+  const lines = new Map<string, { product_id: string; quantity: number; choices?: string[]; note?: string }>()
   for (const i of body.items) {
-    qty.set(i.product_id, (qty.get(i.product_id) ?? 0) + i.quantity)
+    const note = i.note?.trim() || undefined
+    const key = JSON.stringify([i.product_id, (i.choices ?? []).map((c) => c.trim().toLowerCase()), note ?? ""])
+    const line = lines.get(key)
+    if (line) line.quantity += i.quantity
+    else lines.set(key, { product_id: i.product_id, quantity: i.quantity, choices: i.choices, note })
   }
   const items: CheckoutData["items"] = []
-  for (const [id, quantity] of qty) {
-    const p = products.get(id)
+  // Stock is checked across lines: two lengths of one wig share its stock unless each length has its own.
+  const wanted = new Map<string, number>()
+  for (const line of lines.values()) {
+    const p = products.get(line.product_id)
     if (!p || p.status !== "published") {
       throw new MedusaError(MedusaError.Types.INVALID_DATA, "Something in your bag is no longer for sale. Please remove it and try again.")
     }
-    if (quantity > p.stock) {
+    const raw = (seller.products ?? []).find((x) => (x as { id?: string } | null)?.id === p.id) as { metadata?: Record<string, unknown> | null }
+    const metadata = raw?.metadata ?? null
+    const priced = priceWithChoices({ title: p.title, price: p.price, metadata }, line.choices)
+    const left = availableStock({ stock: p.stock, metadata }, priced.first_choice)
+    const stockKey = `${p.id}:${p.options?.stock_per_choice ? priced.first_choice : ""}`
+    const total = (wanted.get(stockKey) ?? 0) + line.quantity
+    wanted.set(stockKey, total)
+    if (total > left) {
       throw new MedusaError(
         MedusaError.Types.INVALID_DATA,
-        p.stock > 0 ? `Only ${p.stock} left of ${p.title}.` : `${p.title} is sold out.`
+        left > 0 ? `Only ${left} left of ${priced.title}.` : `${priced.title} is sold out.`
       )
     }
-    items.push({ product_id: id, title: p.title, quantity, unit_price: p.price })
+    items.push({
+      product_id: p.id,
+      title: priced.title,
+      quantity: line.quantity,
+      unit_price: priced.unit_price,
+      ...(priced.options.length ? { options: priced.options, first_choice: priced.first_choice } : {}),
+      // Notes only for products that ask for them.
+      ...(line.note && notePrompt(metadata) ? { note: line.note } : {}),
+      ...(madeToOrderDays(metadata) ? { made_to_order_days: madeToOrderDays(metadata) } : {}),
+    })
   }
 
   const itemsTotal = round2(items.reduce((a, i) => a + i.quantity * i.unit_price, 0))
@@ -271,7 +311,7 @@ function chooseShipping(seller: CheckoutSeller, body: CheckoutBody): CheckoutDat
 }
 
 export type ConfirmResult =
-  | { status: "paid"; order: { id: string; display_id: number }; checkout: CheckoutSummary }
+  | { status: "paid"; order: { id: string; display_id: number }; checkout: CheckoutSummary; track_token: string }
   | { status: "pending" | "failed"; message: string; checkout: CheckoutSummary | null }
 
 type CheckoutSummary = {
@@ -311,7 +351,7 @@ async function confirmLocked(container: MedusaContainer, reference: string): Pro
   }
 
   if (checkout.status === "paid" && checkout.order_id) {
-    return { status: "paid", order: await orderRef(container, checkout.order_id), checkout: summary }
+    return { status: "paid", order: await orderRef(container, checkout.order_id), checkout: summary, track_token: trackToken(checkout.order_id) }
   }
 
   const tx: PaystackTransaction = await verifyTransaction(reference)
@@ -331,10 +371,10 @@ async function confirmLocked(container: MedusaContainer, reference: string): Pro
   const query = container.resolve(ContainerRegistrationKeys.QUERY)
   const { data: rows } = await query.graph({
     entity: "seller",
-    fields: ["id", "handle", "country_code"],
+    fields: ["id", "name", "handle", "country_code"],
     filters: { id: checkout.seller_id },
   })
-  const seller = rows[0] as unknown as { id: string; handle: string; country_code: string }
+  const seller = rows[0] as unknown as { id: string; name: string; handle: string; country_code: string }
   summary.seller_handle = seller.handle
   const cardCountry = tx.authorization?.country_code?.toUpperCase()
   const international = !!cardCountry && seller.country_code !== "DI" && cardCountry !== seller.country_code
@@ -355,7 +395,15 @@ async function confirmLocked(container: MedusaContainer, reference: string): Pro
       international,
       marketing_opt_in: data.marketing_opt_in,
       fulfillment: data.fulfillment,
-      items: data.items.map((i) => ({ product_id: i.product_id, quantity: i.quantity, unit_price: i.unit_price })),
+      items: data.items.map((i) => ({
+        product_id: i.product_id,
+        quantity: i.quantity,
+        unit_price: i.unit_price,
+        title: i.title,
+        options: i.options,
+        first_choice: i.first_choice,
+        note: i.note,
+      })),
       reduce_stock: true,
       payment: {
         reference,
@@ -366,7 +414,8 @@ async function confirmLocked(container: MedusaContainer, reference: string): Pro
     },
   })
   await sellers.updateCheckouts({ id: checkout.id, status: "paid", order_id: order.id })
-  return { status: "paid", order: { id: order.id, display_id: order.display_id }, checkout: summary }
+  await emailBuyer(container, { seller, data, order, currency: checkout.currency_code })
+  return { status: "paid", order: { id: order.id, display_id: order.display_id }, checkout: summary, track_token: trackToken(order.id) }
 }
 
 /** Seller currency codes are lowercase Medusa codes ("ngn"); Paystack's are upper case. */
@@ -377,4 +426,34 @@ async function orderRef(container: MedusaContainer, id: string) {
   const { data } = await query.graph({ entity: "order", fields: ["id", "display_id"], filters: { id } })
   const o = data[0] as unknown as { id: string; display_id: number }
   return { id: o.id, display_id: o.display_id }
+}
+
+/** "Order confirmed" email with the tracking link. A failed email never undoes the order. */
+async function emailBuyer(
+  container: MedusaContainer,
+  input: { seller: { name: string; handle: string }; data: CheckoutData; order: { id: string; display_id: number }; currency: string }
+) {
+  try {
+    const days = Math.max(0, ...input.data.items.map((i) => i.made_to_order_days ?? 0))
+    const email = renderOrderConfirmation({
+      shopName: input.seller.name,
+      buyerName: input.data.name,
+      orderNo: input.order.display_id,
+      currency: input.currency,
+      items: input.data.items,
+      shipping: input.data.shipping ?? null,
+      pickup: input.data.fulfillment === "pickup",
+      madeToOrderDays: days || null,
+      trackUrl: trackUrl(input.seller.handle, input.order.id),
+    })
+    await container.resolve(Modules.NOTIFICATION).createNotifications({
+      to: input.data.email,
+      channel: "email",
+      template: "aquenora-order-confirmed",
+      from: ordersFrom(),
+      data: { ...email, reply_to: supportEmail() },
+    })
+  } catch (e) {
+    container.resolve(ContainerRegistrationKeys.LOGGER).warn(`Order confirmation email failed for ${input.order.id}: ${(e as Error).message}`)
+  }
 }

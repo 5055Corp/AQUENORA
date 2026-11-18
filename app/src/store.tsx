@@ -3,6 +3,7 @@ import { COUNTRIES, nextStep, type Order, type Product } from './data';
 import { DAY_NAMES, DAYS, normalizePickup, type Pickup } from './pickup';
 import { normalizeShipping, type Shipping } from './shipping';
 import { prepareImage, type ImageKind } from './images';
+import type { ProductOptions } from './options';
 import type { Settings } from './settings';
 import * as persist from './persist';
 import { api, ApiError, LIVE, sellerIdFromToken, storeLink, type ApiOrder, type ApiProduct, type ApiSeller, type PlanResponse, type VerificationBody } from './api';
@@ -38,7 +39,7 @@ async function dataUrlToFile(url: string): Promise<File> {
   return new File([blob], 'product.jpg', { type: blob.type || 'image/jpeg' });
 }
 
-const toProduct = (p: ApiProduct): Product => ({ id: p.id, name: p.title, price: p.price, stock: p.stock, cost: p.cost_price, images: p.images ?? [] });
+const toProduct = (p: ApiProduct): Product => ({ id: p.id, name: p.title, price: p.price, stock: p.stock, cost: p.cost_price, images: p.images ?? [], description: p.description ?? null, options: p.options ?? null, madeToOrderDays: p.made_to_order_days ?? null, notePrompt: p.note_prompt ?? null });
 
 function fromSeller(se: ApiSeller): Partial<State> {
   return {
@@ -159,7 +160,8 @@ function useStoreValue(settings: Settings) {
     navigator.clipboard?.writeText(storeUrl).catch(() => {});
   };
   const shareWhatsApp = () => {
-    window.open(`https://wa.me/?text=${encodeURIComponent(`Visit my shop: ${storeUrl}`)}`, '_blank', 'noopener');
+    // ?from=whatsapp lets the store's visit stats show WhatsApp as the source.
+    window.open(`https://wa.me/?text=${encodeURIComponent(`Visit my shop: ${storeUrl}${storeUrl.includes('?') ? '&' : '?'}from=whatsapp`)}`, '_blank', 'noopener');
   };
 
   /** Wipe the demo store and go back to step 1 of setup (used between seller interviews). */
@@ -331,19 +333,30 @@ function useStoreValue(settings: Settings) {
   /** The product list with demo cost prices fixed in place, so later edits don't shift them. */
   const withCosts = () => products.map((p, i) => ({ ...p, cost: LIVE ? p.cost ?? null : demoCost(p, i) }));
 
-  const addProduct = async (images: string[] = []) => {
+  const addProduct = async (images: string[] = [], extras: { options?: ProductOptions | null; madeToOrderDays?: number | null; notePrompt?: string } = {}) => {
     const name = s.newName.trim();
     if (!name) return;
     const price = Number(s.newPrice) || 0;
     const cost = s.newCost.trim() === '' ? null : Number(s.newCost);
+    const options = extras.options ?? null;
     if (!LIVE) {
-      set({ products: [{ name, price, stock: 1, cost, images }, ...withCosts()], newName: '', newPrice: '', newCost: '' });
+      const stock = options?.stock_per_choice ? options.groups[0].choices.reduce((a, c) => a + (c.stock ?? 0), 0) : 1;
+      set({ products: [{ name, price, stock, cost, images, options, madeToOrderDays: extras.madeToOrderDays ?? null, notePrompt: extras.notePrompt || null }, ...withCosts()], newName: '', newPrice: '', newCost: '' });
       flash('Product added to your store');
       return true;
     }
     set({ busy: true });
     try {
-      const { product } = await api.addProduct(s.token, { title: name, price, stock: 1, ...(cost != null ? { cost_price: cost } : {}), ...(images.length ? { images } : {}) });
+      const { product } = await api.addProduct(s.token, {
+        title: name,
+        price,
+        stock: 1,
+        ...(cost != null ? { cost_price: cost } : {}),
+        ...(images.length ? { images } : {}),
+        ...(options ? { options } : {}),
+        ...(extras.madeToOrderDays ? { made_to_order_days: extras.madeToOrderDays } : {}),
+        ...(extras.notePrompt ? { note_prompt: extras.notePrompt } : {}),
+      });
       set(st => ({
         products: [toProduct(product), ...(st.products ?? [])],
         newName: '',
@@ -376,6 +389,65 @@ function useStoreValue(settings: Settings) {
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) logOut('Please log in again.');
       return e instanceof Error ? e.message : 'Could not save the photos. Please try again.';
+    }
+  };
+
+  /** Saves changes to a product (name, price, stock, description, cost). Returns an error message, or '' when saved. */
+  const editProduct = async (index: number, changes: { name?: string; price?: number; stock?: number; description?: string; cost?: number | null; options?: ProductOptions | null; madeToOrderDays?: number | null; notePrompt?: string }): Promise<string> => {
+    const target = products[index];
+    if (!target) return 'Product not found.';
+    if (changes.name !== undefined && !changes.name.trim()) return 'Add a product name.';
+    if (!LIVE) {
+      set({
+        products: withCosts().map((p, i) => {
+          if (i !== index) return p;
+          const next = { ...p, ...changes, name: changes.name?.trim() ?? p.name, notePrompt: changes.notePrompt !== undefined ? changes.notePrompt || null : p.notePrompt };
+          const o = next.options;
+          return o?.stock_per_choice ? { ...next, stock: o.groups[0].choices.reduce((a, c) => a + (c.stock ?? 0), 0) } : next;
+        }),
+      });
+      flash('Product saved');
+      return '';
+    }
+    if (!target.id) return 'Product not found.';
+    try {
+      const { product } = await api.updateProduct(s.token, target.id, {
+        ...(changes.name !== undefined ? { title: changes.name.trim() } : {}),
+        ...(changes.price !== undefined ? { price: changes.price } : {}),
+        ...(changes.stock !== undefined ? { stock: changes.stock } : {}),
+        ...(changes.description !== undefined ? { description: changes.description.trim() } : {}),
+        ...(changes.cost !== undefined ? { cost_price: changes.cost } : {}),
+        ...(changes.options !== undefined ? { options: changes.options } : {}),
+        ...(changes.madeToOrderDays !== undefined ? { made_to_order_days: changes.madeToOrderDays } : {}),
+        ...(changes.notePrompt !== undefined ? { note_prompt: changes.notePrompt || null } : {}),
+      });
+      set(st => ({ products: (st.products ?? []).map(p => (p.id === product.id ? toProduct(product) : p)) }));
+      flash('Product saved');
+      return '';
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) logOut('Please log in again.');
+      return e instanceof Error ? e.message : 'Could not save. Please try again.';
+    }
+  };
+
+  /** Deletes a product for good (past orders keep their details). Returns an error message, or '' when deleted. */
+  const deleteProduct = async (index: number): Promise<string> => {
+    const target = products[index];
+    if (!target) return 'Product not found.';
+    if (!LIVE) {
+      set({ products: withCosts().filter((_, i) => i !== index) });
+      flash(target.name + ' deleted');
+      return '';
+    }
+    if (!target.id) return 'Product not found.';
+    try {
+      await api.deleteProduct(s.token, target.id);
+      set(st => ({ products: (st.products ?? []).filter(p => p.id !== target.id) }));
+      flash(target.name + ' deleted');
+      return '';
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) logOut('Please log in again.');
+      return e instanceof Error ? e.message : 'Could not delete. Please try again.';
     }
   };
 
@@ -648,7 +720,7 @@ function useStoreValue(settings: Settings) {
   };
 
   return {
-    uploadStoreImage, uploadPhoto, setProductImages,
+    uploadStoreImage, uploadPhoto, setProductImages, editProduct, deleteProduct,
     shipping, saveShipping,
     pickup, savePickup, savePayout,
     s, set, settings, toast, flash, isMobile, framed, country, fmt, fromUsd, slug, shopNameShown, storeUrl,
