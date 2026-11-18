@@ -287,6 +287,36 @@ export interface PublicStore {
 }
 
 /** The public data for one store page. 404 means there is no store at that address. */
+/** An order's progress for the buyer (from their tracking link). */
+export interface TrackedOrder {
+  order: {
+    display_id: number;
+    created_at: string;
+    status: 'new' | 'shipped' | 'delivered' | 'ready' | 'collected' | 'canceled';
+    fulfillment: 'delivery' | 'pickup';
+    currency_code: string;
+    items: { title: string; quantity: number; unit_price: number; note: string | null }[];
+    total: number;
+    shipping: { name: string; price: number; days: string } | null;
+    made_to_order_days: number | null;
+    place: string | null;
+    pickup_address: string | null;
+  };
+  store: { name: string; handle: string; whatsapp: string | null };
+}
+
+export async function fetchTracking(token: string): Promise<TrackedOrder> {
+  let res: Response;
+  try {
+    res = await fetch(`${storeApi()}/store/orders/track/${encodeURIComponent(token)}`, { headers: { 'x-publishable-api-key': PUBLISHABLE_KEY } });
+  } catch {
+    throw new ApiError(0, "Can't reach the shop right now. Check your internet connection and try again.");
+  }
+  if (res.status === 404) throw new ApiError(404, "We couldn't find that order. Check the link in your email.");
+  if (!res.ok) throw new ApiError(res.status, 'Your order could not be loaded. Please try again.');
+  return res.json();
+}
+
 export async function fetchPublicStore(handle: string): Promise<PublicStore> {
   let res: Response;
   try {
@@ -321,7 +351,7 @@ export interface CheckoutRequest {
 export interface CheckoutLine { product_id: string; title: string; quantity: number; unit_price: number }
 
 export type PaymentResult =
-  | { status: 'paid'; order: { id: string; display_id: number }; checkout: { amount: number; currency_code: string; fulfillment: 'delivery' | 'pickup'; items: CheckoutLine[]; shipping?: OrderShipping | null } }
+  | { status: 'paid'; order: { id: string; display_id: number }; checkout: { amount: number; currency_code: string; fulfillment: 'delivery' | 'pickup'; items: CheckoutLine[]; shipping?: OrderShipping | null }; track_token?: string }
   | { status: 'pending' | 'failed'; message: string; checkout: { amount: number; fulfillment: 'delivery' | 'pickup'; items: CheckoutLine[] } | null };
 
 /** POSTs to a public /store route; errors carry the backend's message (e.g. "Only 2 left of Kimono."). */

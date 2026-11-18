@@ -6,6 +6,7 @@ import { ACCENT_KEYS, demoProducts, initialState, usdConverter } from '../state'
 import { designFromLegacy, normalizeDesign, STORE_FONTS, type StoreDesign } from '../design';
 import type { CountryId } from '../data';
 import { StoreView, type StoreItem } from './StoreView';
+import { TrackOrder } from './TrackOrder';
 import { fromPrice, pickedFromLabels, priceFor, stockFor, variesInPrice } from '../options';
 import { TAGLINE } from '../brand';
 import { Logo, Mark } from '../components/Logo';
@@ -229,7 +230,7 @@ function checkBuyer(b: Buyer, pickup: boolean): Partial<Record<keyof Buyer, stri
 /** What happened to a payment, after Paystack sent the buyer back (?reference=...). */
 type Paid =
   | { kind: 'checking' }
-  | { kind: 'paid'; orderNo: number | string; total: number; pickup: boolean; items: { title: string; quantity: number }[]; shipping?: { name: string; price: number } | null }
+  | { kind: 'paid'; orderNo: number | string; total: number; pickup: boolean; items: { title: string; quantity: number }[]; shipping?: { name: string; price: number } | null; trackToken?: string }
   | { kind: 'pending' | 'failed' | 'error'; message: string; reference: string };
 
 function useWidth() {
@@ -341,6 +342,21 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
   const pickCurrency = (code: string) => { setCur(code); saveCurrency(code); };
   const d = data.design;
   const ink = d.colors.text;
+  // ?track=... (from the buyer's confirmation email): the order's progress instead of the shop.
+  const [tracking, setTracking] = useState(() => (embedded ? '' : new URLSearchParams(window.location.search).get('track') ?? ''));
+  const openTracking = (token: string) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('track', token);
+    window.history.pushState(null, '', url.toString());
+    setTracking(token);
+    window.scrollTo(0, 0);
+  };
+  const closeTracking = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('track');
+    window.history.replaceState(null, '', url.toString());
+    setTracking('');
+  };
 
   const byKey = useMemo(() => new Map(data.items.map(i => [i.key, i])), [data.items]);
   /** One bag line with its product, the price for its choices, and how many can be bought. */
@@ -402,7 +418,7 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
     verifyPayment(reference)
       .then((r: PaymentResult) => {
         if (r.status === 'paid') {
-          setPaid({ kind: 'paid', orderNo: r.order.display_id, total: r.checkout.amount, pickup: r.checkout.fulfillment === 'pickup', items: r.checkout.items, shipping: r.checkout.shipping ?? null });
+          setPaid({ kind: 'paid', orderNo: r.order.display_id, total: r.checkout.amount, pickup: r.checkout.fulfillment === 'pickup', items: r.checkout.items, shipping: r.checkout.shipping ?? null, trackToken: r.track_token });
           setBag({});
           const url = new URL(window.location.href);
           url.searchParams.delete('reference');
@@ -508,7 +524,7 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
     if (!LIVE) {
       // Demo: no real payment. Show what the buyer would see afterwards.
       window.setTimeout(() => {
-        setPaid({ kind: 'paid', orderNo: 1044, total, pickup: fulfillment === 'pickup', items: lines.map(l => ({ title: l.label, quantity: l.qty })), shipping: chosen ? { name: chosen.name, price: chosen.price } : null });
+        setPaid({ kind: 'paid', orderNo: 1044, total, pickup: fulfillment === 'pickup', items: lines.map(l => ({ title: l.label, quantity: l.qty })), shipping: chosen ? { name: chosen.name, price: chosen.price } : null, trackToken: 'demo' });
         setBag({});
         setOpen(false);
         setPaying(false);
@@ -553,6 +569,10 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
     }
   };
   const fieldError = (k: keyof Buyer) => (showErrors && errors[k] ? errors[k] : '');
+
+  if (tracking) {
+    return <TrackOrder token={tracking} design={d} shopName={data.name} verified={data.verified} fmt={fmt} onBack={closeTracking} />;
+  }
 
   return (
     <div className="sp" style={{ color: ink, fontFamily: STORE_FONTS[d.fonts.body].family }}>
@@ -634,7 +654,12 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
                     {paid.shipping ? `${data.name} will send your order with ${paid.shipping.name} and share the tracking number.` : `${data.name} will contact you about delivery.`} A receipt from Paystack is in your email.
                   </p>
                 )}
-                <button type="button" className="sp-checkout" style={{ background: d.colors.accent, color: d.colors.accent_text, opacity: 1 }} onClick={() => setPaid(null)}>
+                {paid.trackToken && !embedded && (
+                  <button type="button" className="sp-checkout" style={{ background: d.colors.accent, color: d.colors.accent_text, opacity: 1 }} onClick={() => { openTracking(paid.trackToken!); setPaid(null); }}>
+                    Track my order
+                  </button>
+                )}
+                <button type="button" className={paid.trackToken && !embedded ? 'sp-back' : 'sp-checkout'} style={paid.trackToken && !embedded ? { color: ink } : { background: d.colors.accent, color: d.colors.accent_text, opacity: 1 }} onClick={() => setPaid(null)}>
                   Keep shopping
                 </button>
               </>
