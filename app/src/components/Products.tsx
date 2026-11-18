@@ -3,17 +3,31 @@ import type { Product } from '../data';
 import { demoCost } from '../demo';
 import { useStore } from '../store';
 import { PhotoStrip } from './PhotoStrip';
+import { cleanSettings, OptionsEditor, optionsProblem, type OptionSettings } from './OptionsEditor';
+import { fromPrice, variesInPrice } from '../options';
 
 export function Products() {
   const { s, set, addProduct, setProductCost, setProductImages, products, fmt, country, h1Size, live } = useStore();
   const [editing, setEditing] = useState<number | null>(null);
   const sym = country.sym.trim();
   const [newImages, setNewImages] = useState<string[]>([]);
+  const emptyExtras: OptionSettings = { options: null, madeToOrderDays: null, notePrompt: '' };
+  const [more, setMore] = useState(false);
+  const [extras, setExtras] = useState<OptionSettings>(emptyExtras);
+  const [addError, setAddError] = useState('');
 
   const add = async (e?: FormEvent) => {
     e?.preventDefault();
     if (s.busy) return;
-    if (await addProduct(newImages)) setNewImages([]);
+    const problem = optionsProblem(cleanSettings(extras));
+    if (problem) return setAddError(problem);
+    setAddError('');
+    const clean = cleanSettings(extras);
+    if (await addProduct(newImages, { options: clean.options, madeToOrderDays: clean.madeToOrderDays, notePrompt: clean.notePrompt })) {
+      setNewImages([]);
+      setExtras(emptyExtras);
+      setMore(false);
+    }
   };
 
   // Demo samples show a made-up cost until the seller sets one.
@@ -55,6 +69,11 @@ export function Products() {
         </div>
         <div className="ctl-note">Cost = what one costs you to make or buy. It's only for your Financials page; customers never see it.</div>
         <PhotoStrip images={newImages} onChange={imgs => { setNewImages(imgs); return ''; }} busy={s.busy} />
+        <button type="button" className="link-btn add-more" aria-expanded={more} onClick={() => setMore(v => !v)}>
+          {more ? 'Hide sizes, colours and made to order' : '+ Sizes, lengths, colours, or made to order'}
+        </button>
+        {more && <OptionsEditor value={extras} onChange={setExtras} sym={sym} basePrice={Number(s.newPrice) || 0} />}
+        {addError && <div className="form-error" role="alert">{addError}</div>}
       </form>
       {products.length === 0 && <div className="empty">No products yet. Add your first one above.</div>}
       <div className="list">
@@ -100,9 +119,12 @@ function ProductRow({ product: p, cost, fmt, sym, onSaveCost, onSaveImages, onEd
       </button>
       <div className="prod-info">
         <div>{p.name}</div>
-        <div style={{ color: p.stock === 0 ? 'var(--alert)' : 'var(--muted)' }}>
-          {p.stock === 0 ? 'Sold out' : p.stock + ' in stock'}
+        <div style={{ color: p.stock === 0 && !p.madeToOrderDays ? 'var(--alert)' : 'var(--muted)' }}>
+          {p.madeToOrderDays ? `Made to order · ${p.madeToOrderDays} days` : p.stock === 0 ? 'Sold out' : p.stock + ' in stock'}
         </div>
+        {!!p.options?.groups.length && (
+          <div className="prod-opts">{p.options.groups.map(g => `${g.name}: ${g.choices.map(c => c.label).join(', ')}`).join(' · ')}</div>
+        )}
         {!editing && (
           <div className="prod-cost">
             {cost != null ? (
@@ -131,7 +153,7 @@ function ProductRow({ product: p, cost, fmt, sym, onSaveCost, onSaveImages, onEd
           </form>
         )}
       </div>
-      <div className="amount">{fmt(p.price)}</div>
+      <div className="amount">{variesInPrice(p.price, p.options) ? 'From ' : ''}{fmt(fromPrice(p.price, p.options))}</div>
       <div className="prod-photos-link">
         <button type="button" className="link-btn" onClick={() => setPhotos(v => !v)}>
           {photos ? 'Done' : images.length ? `Photos (${images.length})` : 'Add photos'}
@@ -160,19 +182,28 @@ function EditProductSheet({ index, product: p, cost, sym, onClose }: {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [extras, setExtras] = useState<OptionSettings>({ options: p.options ?? null, madeToOrderDays: p.madeToOrderDays ?? null, notePrompt: p.notePrompt ?? '' });
+  const perChoice = !!extras.options?.stock_per_choice;
   const digits = (v: string) => v.replace(/[^0-9]/g, '');
 
   const save = async (e?: FormEvent) => {
     e?.preventDefault();
     if (!name.trim()) return setError('Add a product name.');
+    const clean = cleanSettings(extras);
+    const problem = optionsProblem(clean);
+    if (problem) return setError(problem);
     setBusy(true);
     setError('');
     const msg = await editProduct(index, {
       name,
       price: Number(price) || 0,
-      stock: Number(stock) || 0,
+      // With stock per choice, the server adds the choices up.
+      ...(clean.options?.stock_per_choice ? {} : { stock: Number(stock) || 0 }),
       description,
       cost: costValue.trim() === '' ? null : Number(costValue),
+      options: clean.options,
+      madeToOrderDays: clean.madeToOrderDays,
+      notePrompt: clean.notePrompt,
     });
     setBusy(false);
     if (msg) setError(msg);
@@ -213,10 +244,12 @@ function EditProductSheet({ index, product: p, cost, sym, onClose }: {
                 <input className="field ob-input" inputMode="numeric" value={price} onChange={e => setPrice(digits(e.target.value))} />
               </label>
               <label className="ob-label">In stock
-                <input className="field ob-input" inputMode="numeric" value={stock} onChange={e => setStock(digits(e.target.value))} />
+                {perChoice || extras.madeToOrderDays
+                  ? <input className="field ob-input" disabled value={perChoice ? 'per choice ↓' : 'made to order'} />
+                  : <input className="field ob-input" inputMode="numeric" value={stock} onChange={e => setStock(digits(e.target.value))} />}
               </label>
             </div>
-            {Number(stock) > 0 && (
+            {Number(stock) > 0 && !perChoice && !extras.madeToOrderDays && (
               <button type="button" className="link-btn pe-soldout" onClick={() => setStock('0')}>Mark as sold out</button>
             )}
             <label className="ob-label"><span>Description <span className="pe-opt">(optional)</span></span>
@@ -226,6 +259,7 @@ function EditProductSheet({ index, product: p, cost, sym, onClose }: {
             <label className="ob-label"><span>Cost price ({sym}) <span className="pe-opt">(optional, only you see it)</span></span>
               <input className="field ob-input" inputMode="numeric" value={costValue} placeholder="What one costs you" onChange={e => setCostValue(digits(e.target.value))} />
             </label>
+            <OptionsEditor value={extras} onChange={setExtras} sym={sym} basePrice={Number(price) || 0} />
             <PhotoStrip images={p.images ?? []} onChange={imgs => setProductImages(index, imgs)} />
             {error && <div className="form-error" role="alert">{error}</div>}
             <div className="vf-actions pe-actions">

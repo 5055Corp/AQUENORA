@@ -110,6 +110,11 @@ export interface ApiProduct {
   images?: string[];
   thumbnail?: string | null;
   description?: string | null;
+  options?: import('./options').ProductOptions | null;
+  made_to_order_days?: number | null;
+  note_prompt?: string | null;
+  /** Lowest price with options. */
+  from_price?: number;
 }
 
 export type SellerOrderStatus = 'new' | 'shipped' | 'delivered' | 'ready' | 'collected' | 'canceled';
@@ -128,7 +133,7 @@ export interface ApiOrder {
   phone?: string | null;
   address?: OrderAddress | null;
   display_currency?: string | null;
-  items: { title: string; quantity: number; unit_price: number }[];
+  items: { title: string; quantity: number; unit_price: number; options?: { name: string; value: string }[]; note?: string | null }[];
   total: number;
 }
 
@@ -394,9 +399,9 @@ export const api = {
     request<{ seller: ApiSeller }>('/sellers/me', { body, token }),
 
   products: (token: string) => request<{ products: ApiProduct[] }>('/sellers/me/products', { token }),
-  addProduct: (token: string, body: { title: string; price: number; stock?: number; cost_price?: number; images?: string[] }) =>
+  addProduct: (token: string, body: { title: string; price: number; stock?: number; cost_price?: number; images?: string[]; options?: import('./options').ProductOptions | null; made_to_order_days?: number | null; note_prompt?: string | null }) =>
     request<{ product: ApiProduct }>('/sellers/me/products', { body, token }),
-  updateProduct: (token: string, id: string, body: { title?: string; price?: number; stock?: number; cost_price?: number | null; images?: string[]; description?: string }) =>
+  updateProduct: (token: string, id: string, body: { title?: string; price?: number; stock?: number; cost_price?: number | null; images?: string[]; description?: string; options?: import('./options').ProductOptions | null; made_to_order_days?: number | null; note_prompt?: string | null }) =>
     request<{ product: ApiProduct }>(`/sellers/me/products/${encodeURIComponent(id)}`, { body, token }),
   deleteProduct: (token: string, id: string) => request<{ id: string; deleted: true }>(`/sellers/me/products/${id}`, { token, method: 'DELETE' }),
 

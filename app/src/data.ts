@@ -104,7 +104,7 @@ export interface Order {
   email?: string | null;
   /** Currency the buyer saw prices in, e.g. "CAD". */
   displayCurrency?: string | null;
-  items?: { title: string; quantity: number; unit_price: number }[];
+  items?: { title: string; quantity: number; unit_price: number; options?: { name: string; value: string }[]; note?: string | null }[];
 }
 
 export const ORDERS: Order[] = [
@@ -173,6 +173,12 @@ export interface Product {
   images?: string[];
   /** Shown to buyers on the product's page. */
   description?: string | null;
+  /** Sizes, lengths, colours... (see options.ts). */
+  options?: import('./options').ProductOptions | null;
+  /** Made to order: days to make it. */
+  madeToOrderDays?: number | null;
+  /** Question for the buyer's notes box. */
+  notePrompt?: string | null;
 }
 
 export const HELP = {
