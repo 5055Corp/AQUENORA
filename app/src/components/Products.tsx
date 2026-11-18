@@ -219,17 +219,14 @@ function EditProductSheet({ index, product: p, cost, sym, onClose }: {
             {Number(stock) > 0 && (
               <button type="button" className="link-btn pe-soldout" onClick={() => setStock('0')}>Mark as sold out</button>
             )}
-            <label className="ob-label">Description <span className="pe-opt">(optional)</span>
+            <label className="ob-label"><span>Description <span className="pe-opt">(optional)</span></span>
               <textarea className="field ob-input pe-desc" rows={4} maxLength={2000} value={description}
                 placeholder="Size, material, how it fits, delivery time…" onChange={e => setDescription(e.target.value)} />
             </label>
-            <label className="ob-label">Cost price ({sym}) <span className="pe-opt">(optional, only you see it)</span>
+            <label className="ob-label"><span>Cost price ({sym}) <span className="pe-opt">(optional, only you see it)</span></span>
               <input className="field ob-input" inputMode="numeric" value={costValue} placeholder="What one costs you" onChange={e => setCostValue(digits(e.target.value))} />
             </label>
-            <div className="vf-file">
-              <div className="ctl-label">Photos</div>
-              <PhotoStrip images={p.images ?? []} onChange={imgs => setProductImages(index, imgs)} />
-            </div>
+            <PhotoStrip images={p.images ?? []} onChange={imgs => setProductImages(index, imgs)} />
             {error && <div className="form-error" role="alert">{error}</div>}
             <div className="vf-actions pe-actions">
               <button type="button" className="link-btn pe-delete" onClick={() => setConfirmDelete(true)} disabled={busy}>Delete product</button>

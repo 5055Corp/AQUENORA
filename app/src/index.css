@@ -817,3 +817,4 @@ button.ob-photo { width: 100%; cursor: pointer; font: inherit; font-family: var(
 .pe-spacer { flex: 1; }
 .pe-delete { color: var(--alert); }
 .pe-danger { background: #b42318; }
+.pe-actions .btn-dark { padding: 12px 26px; font-size: 15px; }
