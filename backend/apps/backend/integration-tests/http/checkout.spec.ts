@@ -241,7 +241,21 @@ medusaIntegrationTestRunner({
         { product_id: wig.id, quantity: 1, choices: ["12 inch", "Black"] },
       ]), store)).data
       expect(started.amount).toBe(110000)
-      await api.post("/store/payments/verify", { reference: started.reference }, store)
+      const verified = (await api.post("/store/payments/verify", { reference: started.reference }, store)).data
+
+      // Tracking: the buyer's signed link shows the order (no email, phone or street); a changed link doesn't.
+      const tracked = (await api.get(`/store/orders/track/${verified.track_token}`, store)).data
+      expect(tracked.order).toMatchObject({ status: "new", fulfillment: "delivery", total: 110000, made_to_order_days: null, place: "Ikeja, Lagos" })
+      expect(tracked.order.items[0]).toMatchObject({ title: "Wig (20 inch, Blonde)", note: "Medium cap, baby hairs please" })
+      expect(tracked.store).toMatchObject({ name: "Adire House", handle: "adirehouse" })
+      expect(JSON.stringify(tracked)).not.toMatch(/buyer@example|5 Allen|801 234/i)
+      expect((await err(api.get(`/store/orders/track/${verified.track_token.slice(0, -2)}xx`, store))).status).toBe(404)
+      // The buyer got an "order confirmed" email from orders@ with the tracking link.
+      const mail = (await getContainer().resolve(Modules.NOTIFICATION).listNotifications({ to: "buyer@example.com" }))
+        .find((n: { template: string }) => n.template === "aquenora-order-confirmed") as { from?: string; data: { subject: string; text: string } }
+      expect(mail.from).toContain("orders@aquenora.com")
+      expect(mail.data.subject).toContain("confirmed")
+      expect(mail.data.text).toContain(`track=${encodeURIComponent(verified.track_token)}`)
 
       const [order] = (await api.get("/sellers/me/orders", { headers })).data.orders
       expect(order.items).toEqual(expect.arrayContaining([

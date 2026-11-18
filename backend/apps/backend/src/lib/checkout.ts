@@ -30,7 +30,10 @@ import {
 import { resolvePlan } from "./plans"
 import { WORLD_BY_CODE } from "./countries"
 import { homeCountry, optionsFor, type Shipping } from "../modules/seller/shipping"
-import { availableStock, notePrompt, priceWithChoices } from "./product-options"
+import { availableStock, madeToOrderDays, notePrompt, priceWithChoices } from "./product-options"
+import { renderOrderConfirmation, ordersFrom } from "./order-email"
+import { trackToken, trackUrl } from "./order-tracking"
+import { supportEmail } from "./account-email"
 
 type CheckoutSeller = {
   id: string
@@ -75,6 +78,8 @@ type CheckoutData = {
     first_choice?: number | null
     /** Measurements or special requests. */
     note?: string
+    /** Made to order: days to make it. */
+    made_to_order_days?: number | null
   }[]
 }
 
@@ -210,6 +215,7 @@ export async function startCheckout(container: MedusaContainer, handle: string, 
       ...(priced.options.length ? { options: priced.options, first_choice: priced.first_choice } : {}),
       // Notes only for products that ask for them.
       ...(line.note && notePrompt(metadata) ? { note: line.note } : {}),
+      ...(madeToOrderDays(metadata) ? { made_to_order_days: madeToOrderDays(metadata) } : {}),
     })
   }
 
@@ -305,7 +311,7 @@ function chooseShipping(seller: CheckoutSeller, body: CheckoutBody): CheckoutDat
 }
 
 export type ConfirmResult =
-  | { status: "paid"; order: { id: string; display_id: number }; checkout: CheckoutSummary }
+  | { status: "paid"; order: { id: string; display_id: number }; checkout: CheckoutSummary; track_token: string }
   | { status: "pending" | "failed"; message: string; checkout: CheckoutSummary | null }
 
 type CheckoutSummary = {
@@ -345,7 +351,7 @@ async function confirmLocked(container: MedusaContainer, reference: string): Pro
   }
 
   if (checkout.status === "paid" && checkout.order_id) {
-    return { status: "paid", order: await orderRef(container, checkout.order_id), checkout: summary }
+    return { status: "paid", order: await orderRef(container, checkout.order_id), checkout: summary, track_token: trackToken(checkout.order_id) }
   }
 
   const tx: PaystackTransaction = await verifyTransaction(reference)
@@ -365,10 +371,10 @@ async function confirmLocked(container: MedusaContainer, reference: string): Pro
   const query = container.resolve(ContainerRegistrationKeys.QUERY)
   const { data: rows } = await query.graph({
     entity: "seller",
-    fields: ["id", "handle", "country_code"],
+    fields: ["id", "name", "handle", "country_code"],
     filters: { id: checkout.seller_id },
   })
-  const seller = rows[0] as unknown as { id: string; handle: string; country_code: string }
+  const seller = rows[0] as unknown as { id: string; name: string; handle: string; country_code: string }
   summary.seller_handle = seller.handle
   const cardCountry = tx.authorization?.country_code?.toUpperCase()
   const international = !!cardCountry && seller.country_code !== "DI" && cardCountry !== seller.country_code
@@ -408,7 +414,8 @@ async function confirmLocked(container: MedusaContainer, reference: string): Pro
     },
   })
   await sellers.updateCheckouts({ id: checkout.id, status: "paid", order_id: order.id })
-  return { status: "paid", order: { id: order.id, display_id: order.display_id }, checkout: summary }
+  await emailBuyer(container, { seller, data, order, currency: checkout.currency_code })
+  return { status: "paid", order: { id: order.id, display_id: order.display_id }, checkout: summary, track_token: trackToken(order.id) }
 }
 
 /** Seller currency codes are lowercase Medusa codes ("ngn"); Paystack's are upper case. */
@@ -419,4 +426,34 @@ async function orderRef(container: MedusaContainer, id: string) {
   const { data } = await query.graph({ entity: "order", fields: ["id", "display_id"], filters: { id } })
   const o = data[0] as unknown as { id: string; display_id: number }
   return { id: o.id, display_id: o.display_id }
+}
+
+/** "Order confirmed" email with the tracking link. A failed email never undoes the order. */
+async function emailBuyer(
+  container: MedusaContainer,
+  input: { seller: { name: string; handle: string }; data: CheckoutData; order: { id: string; display_id: number }; currency: string }
+) {
+  try {
+    const days = Math.max(0, ...input.data.items.map((i) => i.made_to_order_days ?? 0))
+    const email = renderOrderConfirmation({
+      shopName: input.seller.name,
+      buyerName: input.data.name,
+      orderNo: input.order.display_id,
+      currency: input.currency,
+      items: input.data.items,
+      shipping: input.data.shipping ?? null,
+      pickup: input.data.fulfillment === "pickup",
+      madeToOrderDays: days || null,
+      trackUrl: trackUrl(input.seller.handle, input.order.id),
+    })
+    await container.resolve(Modules.NOTIFICATION).createNotifications({
+      to: input.data.email,
+      channel: "email",
+      template: "aquenora-order-confirmed",
+      from: ordersFrom(),
+      data: { ...email, reply_to: supportEmail() },
+    })
+  } catch (e) {
+    container.resolve(ContainerRegistrationKeys.LOGGER).warn(`Order confirmation email failed for ${input.order.id}: ${(e as Error).message}`)
+  }
 }
