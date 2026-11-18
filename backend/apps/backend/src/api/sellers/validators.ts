@@ -69,6 +69,7 @@ export const UpdateSellerProductSchema = z
     stock: z.number().int().min(0).max(1_000_000),
     cost_price: money.nullable(),
     images: productImages,
+    description: z.string().trim().max(2000),
   })
   .partial()
   .strict()

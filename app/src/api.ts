@@ -396,8 +396,9 @@ export const api = {
   products: (token: string) => request<{ products: ApiProduct[] }>('/sellers/me/products', { token }),
   addProduct: (token: string, body: { title: string; price: number; stock?: number; cost_price?: number; images?: string[] }) =>
     request<{ product: ApiProduct }>('/sellers/me/products', { body, token }),
-  updateProduct: (token: string, id: string, body: { title?: string; price?: number; stock?: number; cost_price?: number | null; images?: string[] }) =>
+  updateProduct: (token: string, id: string, body: { title?: string; price?: number; stock?: number; cost_price?: number | null; images?: string[]; description?: string }) =>
     request<{ product: ApiProduct }>(`/sellers/me/products/${encodeURIComponent(id)}`, { body, token }),
+  deleteProduct: (token: string, id: string) => request<{ id: string; deleted: true }>(`/sellers/me/products/${id}`, { token, method: 'DELETE' }),
 
   orders: (token: string) => request<{ orders: ApiOrder[] }>('/sellers/me/orders', { token }),
   updateOrder: (token: string, id: string, status: 'shipped' | 'delivered' | 'ready' | 'collected') =>

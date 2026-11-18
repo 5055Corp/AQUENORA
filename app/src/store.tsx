@@ -38,7 +38,7 @@ async function dataUrlToFile(url: string): Promise<File> {
   return new File([blob], 'product.jpg', { type: blob.type || 'image/jpeg' });
 }
 
-const toProduct = (p: ApiProduct): Product => ({ id: p.id, name: p.title, price: p.price, stock: p.stock, cost: p.cost_price, images: p.images ?? [] });
+const toProduct = (p: ApiProduct): Product => ({ id: p.id, name: p.title, price: p.price, stock: p.stock, cost: p.cost_price, images: p.images ?? [], description: p.description ?? null });
 
 function fromSeller(se: ApiSeller): Partial<State> {
   return {
@@ -379,6 +379,55 @@ function useStoreValue(settings: Settings) {
     }
   };
 
+  /** Saves changes to a product (name, price, stock, description, cost). Returns an error message, or '' when saved. */
+  const editProduct = async (index: number, changes: { name?: string; price?: number; stock?: number; description?: string; cost?: number | null }): Promise<string> => {
+    const target = products[index];
+    if (!target) return 'Product not found.';
+    if (changes.name !== undefined && !changes.name.trim()) return 'Add a product name.';
+    if (!LIVE) {
+      set({ products: withCosts().map((p, i) => (i === index ? { ...p, ...changes, name: changes.name?.trim() ?? p.name } : p)) });
+      flash('Product saved');
+      return '';
+    }
+    if (!target.id) return 'Product not found.';
+    try {
+      const { product } = await api.updateProduct(s.token, target.id, {
+        ...(changes.name !== undefined ? { title: changes.name.trim() } : {}),
+        ...(changes.price !== undefined ? { price: changes.price } : {}),
+        ...(changes.stock !== undefined ? { stock: changes.stock } : {}),
+        ...(changes.description !== undefined ? { description: changes.description.trim() } : {}),
+        ...(changes.cost !== undefined ? { cost_price: changes.cost } : {}),
+      });
+      set(st => ({ products: (st.products ?? []).map(p => (p.id === product.id ? toProduct(product) : p)) }));
+      flash('Product saved');
+      return '';
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) logOut('Please log in again.');
+      return e instanceof Error ? e.message : 'Could not save. Please try again.';
+    }
+  };
+
+  /** Deletes a product for good (past orders keep their details). Returns an error message, or '' when deleted. */
+  const deleteProduct = async (index: number): Promise<string> => {
+    const target = products[index];
+    if (!target) return 'Product not found.';
+    if (!LIVE) {
+      set({ products: withCosts().filter((_, i) => i !== index) });
+      flash(target.name + ' deleted');
+      return '';
+    }
+    if (!target.id) return 'Product not found.';
+    try {
+      await api.deleteProduct(s.token, target.id);
+      set(st => ({ products: (st.products ?? []).filter(p => p.id !== target.id) }));
+      flash(target.name + ' deleted');
+      return '';
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) logOut('Please log in again.');
+      return e instanceof Error ? e.message : 'Could not delete. Please try again.';
+    }
+  };
+
   /** Sets what one item of a product costs the seller (for profit). */
   const setProductCost = async (index: number, cost: number | null) => {
     const target = products[index];
@@ -648,7 +697,7 @@ function useStoreValue(settings: Settings) {
   };
 
   return {
-    uploadStoreImage, uploadPhoto, setProductImages,
+    uploadStoreImage, uploadPhoto, setProductImages, editProduct, deleteProduct,
     shipping, saveShipping,
     pickup, savePickup, savePayout,
     s, set, settings, toast, flash, isMobile, framed, country, fmt, fromUsd, slug, shopNameShown, storeUrl,

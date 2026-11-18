@@ -171,6 +171,8 @@ export interface Product {
   cost?: number | null;
   /** Photos (first = main photo). */
   images?: string[];
+  /** Shown to buyers on the product's page. */
+  description?: string | null;
 }
 
 export const HELP = {

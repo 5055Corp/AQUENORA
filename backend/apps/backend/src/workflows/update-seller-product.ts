@@ -13,6 +13,8 @@ export type UpdateSellerProductInput = {
   stock?: number
   /** Replaces the photos (first = main photo). */
   images?: string[]
+  /** Shown to buyers on the product's page. "" clears it. */
+  description?: string
 }
 
 type OwnedProduct = {
@@ -46,6 +48,7 @@ const prepareSellerProductUpdateStep = createStep(
         selector: { id: product.id },
         update: {
           ...(input.title !== undefined ? { title: input.title } : {}),
+          ...(input.description !== undefined ? { description: input.description || null } : {}),
           ...(input.images !== undefined ? { images: input.images.map((url) => ({ url })), thumbnail: input.images[0] ?? null } : {}),
           metadata,
         },
@@ -54,7 +57,7 @@ const prepareSellerProductUpdateStep = createStep(
   }
 )
 
-/** Updates one of the seller's own products: name, price, cost price and stock. */
+/** Updates one of the seller's own products: name, description, price, cost price, stock and photos. */
 export const updateSellerProductWorkflow = createWorkflow(
   "update-seller-product",
   function (input: UpdateSellerProductInput) {

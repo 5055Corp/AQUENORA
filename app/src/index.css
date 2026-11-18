@@ -806,3 +806,14 @@ button.ob-photo { width: 100%; cursor: pointer; font: inherit; font-family: var(
 /* Payouts not open yet in the seller's country */
 .soon-pill { display: inline-block; vertical-align: middle; margin-left: 6px; background: #F3EEFF; color: #5B21B6; font-size: 11.5px; font-weight: 800; border-radius: 999px; padding: 3px 9px; letter-spacing: 0.02em; }
 .soon-list { margin: 12px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; color: var(--muted-2); font-size: 14px; line-height: 1.45; }
+
+/* ---------- edit product ---------- */
+.prod-photos-link { display: flex; align-items: center; gap: 14px; }
+.prod-edit-btn { padding: 6px 14px; }
+.pe-opt { font-weight: 500; color: var(--muted); }
+.pe-desc { font-family: inherit; font-size: 16px; resize: vertical; min-height: 96px; }
+.pe-soldout { align-self: flex-start; margin-top: -6px; }
+.pe-actions { align-items: center; flex-wrap: wrap; }
+.pe-spacer { flex: 1; }
+.pe-delete { color: var(--alert); }
+.pe-danger { background: #b42318; }

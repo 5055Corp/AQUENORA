@@ -115,6 +115,11 @@ export default defineMiddlewares({
       middlewares: [sellerAuth, validateAndTransformBody(UpdateSellerProductSchema)],
     },
     {
+      methods: ["DELETE"],
+      matcher: "/sellers/me/products/:id",
+      middlewares: [sellerAuth],
+    },
+    {
       methods: ["POST"],
       matcher: "/sellers/me/orders/:id",
       middlewares: [sellerAuth, validateAndTransformBody(UpdateSellerOrderSchema)],
