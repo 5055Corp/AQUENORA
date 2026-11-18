@@ -289,3 +289,6 @@ export const ReviewVerificationSchema = z
   .strict()
   .refine((v) => v.decision === "approve" || !!v.reason, "Say why, so the seller can fix it.")
 export type ReviewVerificationBody = z.infer<typeof ReviewVerificationSchema>
+
+export const StoreVisitSchema = z.object({ source: z.enum(["whatsapp", "instagram", "facebook", "tiktok", "google", "aquenora", "direct", "other"]) }).strict()
+export type StoreVisitBody = z.infer<typeof StoreVisitSchema>

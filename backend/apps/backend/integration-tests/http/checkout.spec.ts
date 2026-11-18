@@ -252,7 +252,7 @@ medusaIntegrationTestRunner({
       expect((await err(api.get(`/store/orders/track/${verified.track_token.slice(0, -2)}xx`, store))).status).toBe(404)
       // The buyer got an "order confirmed" email from orders@ with the tracking link.
       const mail = (await getContainer().resolve(Modules.NOTIFICATION).listNotifications({ to: "buyer@example.com" }))
-        .find((n: { template: string }) => n.template === "aquenora-order-confirmed") as { from?: string; data: { subject: string; text: string } }
+        .find((n: { template: string }) => n.template === "aquenora-order-confirmed") as unknown as { from?: string; data: { subject: string; text: string } }
       expect(mail.from).toContain("orders@aquenora.com")
       expect(mail.data.subject).toContain("confirmed")
       expect(mail.data.text).toContain(`track=${encodeURIComponent(verified.track_token)}`)
