@@ -201,5 +201,67 @@ medusaIntegrationTestRunner({
       expect((await api.get("/sellers/me/orders", { headers })).data.orders).toHaveLength(0)
       expect((await err(api.post("/store/payments/verify", { reference: "aq_nope" }, store))).status).toBe(404)
     })
+
+    it("prices options, keeps stock per choice and records the buyer's choices and note", async () => {
+      const { headers, store } = await setup()
+      await api.post("/sellers/me/payouts", { bank_code: "044", account_number: "0123456789" }, { headers })
+
+      // Up to 7 options; 8 is too many.
+      const many = Array.from({ length: 8 }, (_, i) => ({ name: `Option ${i}`, choices: [{ label: "A" }] }))
+      expect((await err(api.post("/sellers/me/products", { title: "Too many", price: 1000, options: { groups: many } }, { headers }))).status).toBe(400)
+
+      const wig = (await api.post("/sellers/me/products", {
+        title: "Wig",
+        price: 45000,
+        note_prompt: "Head size, or any special requests",
+        options: {
+          stock_per_choice: true,
+          groups: [
+            { name: "Length", choices: [{ label: "12 inch", price: 45000, stock: 2 }, { label: "20 inch", price: 60000, stock: 1 }] },
+            { name: "Colour", choices: [{ label: "Black" }, { label: "Blonde", extra: 5000 }] },
+          ],
+        },
+      }, { headers })).data.product
+      expect(wig).toMatchObject({ stock: 3, from_price: 45000, note_prompt: "Head size, or any special requests" })
+      const shown = (await api.get("/store/sellers/adirehouse", store)).data.products.find((p: { id: string }) => p.id === wig.id)
+      expect(shown.options.groups.map((g: { name: string }) => g.name)).toEqual(["Length", "Colour"])
+
+      const bag = (items: unknown[]) => ({ ...buyer(wig.id), items })
+      // Choices are required, must exist, and stock is per length.
+      expect((await err(api.post("/store/sellers/adirehouse/checkout", bag([{ product_id: wig.id, quantity: 1 }]), store))).data.message).toBe("Choose length, colour for Wig.")
+      expect((await err(api.post("/store/sellers/adirehouse/checkout", bag([{ product_id: wig.id, quantity: 1, choices: ["30 inch", "Black"] }]), store))).status).toBe(400)
+      expect((await err(api.post("/store/sellers/adirehouse/checkout", bag([
+        { product_id: wig.id, quantity: 1, choices: ["20 inch", "Black"] },
+        { product_id: wig.id, quantity: 1, choices: ["20 inch", "Blonde"] },
+      ]), store))).data.message).toBe("Only 1 left of Wig (20 inch, Blonde).")
+
+      // 20" blonde (60,000 + 5,000) + 12" black (45,000): the server works out the price.
+      const started = (await api.post("/store/sellers/adirehouse/checkout", bag([
+        { product_id: wig.id, quantity: 1, choices: ["20 inch", "Blonde"], note: "Medium cap, baby hairs please" },
+        { product_id: wig.id, quantity: 1, choices: ["12 inch", "Black"] },
+      ]), store)).data
+      expect(started.amount).toBe(110000)
+      await api.post("/store/payments/verify", { reference: started.reference }, store)
+
+      const [order] = (await api.get("/sellers/me/orders", { headers })).data.orders
+      expect(order.items).toEqual(expect.arrayContaining([
+        expect.objectContaining({ title: "Wig (20 inch, Blonde)", unit_price: 65000, note: "Medium cap, baby hairs please", options: [{ name: "Length", value: "20 inch" }, { name: "Colour", value: "Blonde" }] }),
+        expect.objectContaining({ title: "Wig (12 inch, Black)", unit_price: 45000, note: null }),
+      ]))
+      // Each length's own stock went down.
+      const after = (await api.get("/sellers/me/products", { headers })).data.products.find((p: { id: string }) => p.id === wig.id)
+      expect(after.options.groups[0].choices.map((c: { stock: number }) => c.stock)).toEqual([1, 0])
+      expect(after.stock).toBe(1)
+
+      // Made to order: no stock needed, never sold out.
+      const dress = (await api.post("/sellers/me/products", { title: "Tailored dress", price: 30000, stock: 0, made_to_order_days: 7 }, { headers })).data.product
+      expect(dress.made_to_order_days).toBe(7)
+      const made = (await api.post("/store/sellers/adirehouse/checkout", { ...buyer(dress.id), items: [{ product_id: dress.id, quantity: 3 }] }, store)).data
+      expect(made.amount).toBe(90000)
+
+      // Editing options: removing them goes back to one price.
+      const plain = (await api.post(`/sellers/me/products/${wig.id}`, { options: null }, { headers })).data.product
+      expect(plain.options).toBeNull()
+    })
   },
 })

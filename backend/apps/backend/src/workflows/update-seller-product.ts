@@ -1,6 +1,7 @@
 import { MedusaError } from "@medusajs/framework/utils"
 import { createStep, createWorkflow, StepResponse, transform, when, WorkflowResponse } from "@medusajs/framework/workflows-sdk"
 import { updateProductsWorkflow, updateProductVariantsWorkflow, useQueryGraphStep } from "@medusajs/medusa/core-flows"
+import { optionMetadata, type ProductOptions } from "../lib/product-options"
 
 export type UpdateSellerProductInput = {
   seller_id: string
@@ -15,6 +16,10 @@ export type UpdateSellerProductInput = {
   images?: string[]
   /** Shown to buyers on the product's page. "" clears it. */
   description?: string
+  /** Sizes, lengths, colours... null removes them (see lib/product-options). */
+  options?: ProductOptions | null
+  made_to_order_days?: number | null
+  note_prompt?: string | null
 }
 
 type OwnedProduct = {
@@ -41,6 +46,8 @@ const prepareSellerProductUpdateStep = createStep(
     if (input.cost_price !== undefined) {
       metadata.cost_price = input.cost_price
     }
+    // Options last: with stock per choice, the product's stock is the total of its choices.
+    Object.assign(metadata, optionMetadata(input))
     return new StepResponse({
       product,
       currency_code: seller.currency_code,

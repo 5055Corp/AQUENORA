@@ -71,12 +71,16 @@ export function toSellerOrder(raw: unknown) {
       postal_code?: string | null
       country_code?: string | null
     } | null
-    items?: ({ title: string; quantity: unknown; unit_price: unknown } | null)[] | null
+    items?: ({ title: string; quantity: unknown; unit_price: unknown; metadata?: Record<string, unknown> | null } | null)[] | null
   }
   const items = (o.items ?? []).filter(Boolean).map((i) => ({
     title: i!.title,
     quantity: Number(i!.quantity) || 0,
     unit_price: Number(i!.unit_price) || 0,
+    /** What the buyer chose, e.g. [{ name: "Length", value: "20 inch" }]. */
+    options: Array.isArray(i!.metadata?.options) ? (i!.metadata!.options as { name: string; value: string }[]) : [],
+    /** The buyer's measurements or special requests. */
+    note: typeof i!.metadata?.note === "string" ? i!.metadata.note : null,
   }))
   const name = [o.shipping_address?.first_name, o.shipping_address?.last_name].filter(Boolean).join(" ")
   return {
@@ -135,6 +139,8 @@ type RawProduct = {
  * shape the seller app and storefront use. Typed loosely because query.graph's generated types
  * differ by entry point (seller.products vs product).
  */
+import { fromPrice, madeToOrderDays, notePrompt, readOptions } from "../../lib/product-options"
+
 export function toSellerProduct(raw: unknown) {
   const p = raw as RawProduct
   const price = p.variants?.[0]?.prices?.[0]
@@ -157,6 +163,11 @@ export function toSellerProduct(raw: unknown) {
     currency_code: price?.currency_code ?? null,
     stock: Number.isFinite(stock) ? stock : 0,
     cost_price: costPrice != null && Number.isFinite(costPrice) ? costPrice : null,
+    options: readOptions(p.metadata),
+    made_to_order_days: madeToOrderDays(p.metadata),
+    note_prompt: notePrompt(p.metadata),
+    /** Lowest price with options ("From ₦45,000"); the same as price without. */
+    from_price: fromPrice(readOptions(p.metadata), price ? Number(price.amount) : 0),
     created_at: p.created_at,
   }
 }

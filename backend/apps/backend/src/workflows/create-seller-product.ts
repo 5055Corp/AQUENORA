@@ -7,6 +7,7 @@ import {
   useQueryGraphStep,
 } from "@medusajs/medusa/core-flows"
 import { SELLER_MODULE } from "../modules/seller"
+import { optionMetadata, type ProductOptions } from "../lib/product-options"
 
 function productHandle(title: string): string {
   const base = title.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "item"
@@ -25,6 +26,10 @@ export type CreateSellerProductInput = {
   cost_price?: number
   /** Photo addresses (already uploaded); the first is the main photo. */
   images?: string[]
+  /** Sizes, lengths, colours... (see lib/product-options). */
+  options?: ProductOptions | null
+  made_to_order_days?: number | null
+  note_prompt?: string | null
 }
 
 /**
@@ -70,7 +75,11 @@ export const createSellerProductWorkflow = createWorkflow(
               },
             ],
             sales_channels: salesChannelId ? [{ id: salesChannelId }] : [],
-            metadata: input.cost_price != null ? { stock, cost_price: input.cost_price } : { stock },
+            metadata: {
+              stock,
+              ...(input.cost_price != null ? { cost_price: input.cost_price } : {}),
+              ...optionMetadata(input),
+            },
           },
         ],
       }

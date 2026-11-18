@@ -3,6 +3,7 @@ import { isOwnFileUrl } from "../../lib/files"
 import { z } from "@medusajs/framework/zod"
 import { SELLER_COUNTRIES } from "../../modules/seller/currency"
 import { StoreDesignSchema } from "../../modules/seller/design"
+import { productOptionFields } from "../../lib/product-options"
 import { PickupSchema } from "../../modules/seller/pickup"
 import { ShippingSchema } from "../../modules/seller/shipping"
 
@@ -60,6 +61,9 @@ export const CreateSellerProductSchema = z.object({
   stock: z.number().int().min(0).max(1_000_000).optional(),
   cost_price: money.optional(),
   images: productImages.optional(),
+  options: productOptionFields.options.optional(),
+  made_to_order_days: productOptionFields.made_to_order_days.optional(),
+  note_prompt: productOptionFields.note_prompt.optional(),
 })
 
 export const UpdateSellerProductSchema = z
@@ -70,6 +74,7 @@ export const UpdateSellerProductSchema = z
     cost_price: money.nullable(),
     images: productImages,
     description: z.string().trim().max(2000),
+    ...productOptionFields,
   })
   .partial()
   .strict()
@@ -168,7 +173,18 @@ export const CheckoutSchema = z
     /** Where Paystack sends the buyer back to (the store page). Only http(s). */
     return_url: z.string().url().max(500).refine((u) => /^https?:\/\//.test(u), "Invalid return address"),
     items: z
-      .array(z.object({ product_id: z.string().min(1).max(100), quantity: z.number().int().min(1).max(100) }).strict())
+      .array(
+        z
+          .object({
+            product_id: z.string().min(1).max(100),
+            quantity: z.number().int().min(1).max(100),
+            /** The buyer's choices (e.g. ["20 inch", "Natural black"]), in option order. */
+            choices: z.array(z.string().trim().max(40)).max(7).optional(),
+            /** Measurements or special requests, when the product asks for them. */
+            note: z.string().trim().max(500).optional(),
+          })
+          .strict()
+      )
       .min(1, "Your bag is empty")
       .max(50),
   })

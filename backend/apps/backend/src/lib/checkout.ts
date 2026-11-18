@@ -30,6 +30,7 @@ import {
 import { resolvePlan } from "./plans"
 import { WORLD_BY_CODE } from "./countries"
 import { homeCountry, optionsFor, type Shipping } from "../modules/seller/shipping"
+import { availableStock, notePrompt, priceWithChoices } from "./product-options"
 
 type CheckoutSeller = {
   id: string
@@ -63,7 +64,18 @@ type CheckoutData = {
   shipping?: { id: string; carrier: string; name: string; price: number; days: string }
   display_currency?: string
   marketing_opt_in: boolean
-  items: { product_id: string; title: string; quantity: number; unit_price: number }[]
+  items: {
+    product_id: string
+    title: string
+    quantity: number
+    unit_price: number
+    /** What the buyer chose, e.g. [{ name: "Length", value: "20 inch" }]. */
+    options?: { name: string; value: string }[]
+    /** Index of the first option's choice (stock per choice). */
+    first_choice?: number | null
+    /** Measurements or special requests. */
+    note?: string
+  }[]
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100
@@ -160,23 +172,45 @@ export async function startCheckout(container: MedusaContainer, handle: string, 
     const sp = toSellerProduct(p)
     return [sp.id, sp]
   }))
-  const qty = new Map<string, number>()
+  // Same product with the same choices and note = one line.
+  const lines = new Map<string, { product_id: string; quantity: number; choices?: string[]; note?: string }>()
   for (const i of body.items) {
-    qty.set(i.product_id, (qty.get(i.product_id) ?? 0) + i.quantity)
+    const note = i.note?.trim() || undefined
+    const key = JSON.stringify([i.product_id, (i.choices ?? []).map((c) => c.trim().toLowerCase()), note ?? ""])
+    const line = lines.get(key)
+    if (line) line.quantity += i.quantity
+    else lines.set(key, { product_id: i.product_id, quantity: i.quantity, choices: i.choices, note })
   }
   const items: CheckoutData["items"] = []
-  for (const [id, quantity] of qty) {
-    const p = products.get(id)
+  // Stock is checked across lines: two lengths of one wig share its stock unless each length has its own.
+  const wanted = new Map<string, number>()
+  for (const line of lines.values()) {
+    const p = products.get(line.product_id)
     if (!p || p.status !== "published") {
       throw new MedusaError(MedusaError.Types.INVALID_DATA, "Something in your bag is no longer for sale. Please remove it and try again.")
     }
-    if (quantity > p.stock) {
+    const raw = (seller.products ?? []).find((x) => (x as { id?: string } | null)?.id === p.id) as { metadata?: Record<string, unknown> | null }
+    const metadata = raw?.metadata ?? null
+    const priced = priceWithChoices({ title: p.title, price: p.price, metadata }, line.choices)
+    const left = availableStock({ stock: p.stock, metadata }, priced.first_choice)
+    const stockKey = `${p.id}:${p.options?.stock_per_choice ? priced.first_choice : ""}`
+    const total = (wanted.get(stockKey) ?? 0) + line.quantity
+    wanted.set(stockKey, total)
+    if (total > left) {
       throw new MedusaError(
         MedusaError.Types.INVALID_DATA,
-        p.stock > 0 ? `Only ${p.stock} left of ${p.title}.` : `${p.title} is sold out.`
+        left > 0 ? `Only ${left} left of ${priced.title}.` : `${priced.title} is sold out.`
       )
     }
-    items.push({ product_id: id, title: p.title, quantity, unit_price: p.price })
+    items.push({
+      product_id: p.id,
+      title: priced.title,
+      quantity: line.quantity,
+      unit_price: priced.unit_price,
+      ...(priced.options.length ? { options: priced.options, first_choice: priced.first_choice } : {}),
+      // Notes only for products that ask for them.
+      ...(line.note && notePrompt(metadata) ? { note: line.note } : {}),
+    })
   }
 
   const itemsTotal = round2(items.reduce((a, i) => a + i.quantity * i.unit_price, 0))
@@ -355,7 +389,15 @@ async function confirmLocked(container: MedusaContainer, reference: string): Pro
       international,
       marketing_opt_in: data.marketing_opt_in,
       fulfillment: data.fulfillment,
-      items: data.items.map((i) => ({ product_id: i.product_id, quantity: i.quantity, unit_price: i.unit_price })),
+      items: data.items.map((i) => ({
+        product_id: i.product_id,
+        quantity: i.quantity,
+        unit_price: i.unit_price,
+        title: i.title,
+        options: i.options,
+        first_choice: i.first_choice,
+        note: i.note,
+      })),
       reduce_stock: true,
       payment: {
         reference,
