@@ -191,6 +191,19 @@ export function parseLineKey(key: string): BagLine {
   return { product: key, choices: [], note: '' };
 }
 
+/** The bag in a reminder email's link (?bag=<base64url JSON>), or null. */
+function bagFromLink(): Bag | null {
+  try {
+    const raw = new URLSearchParams(window.location.search).get('bag');
+    if (!raw) return null;
+    const bytes = Uint8Array.from(atob(raw.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
+    const v = JSON.parse(new TextDecoder().decode(bytes));
+    return v && typeof v === 'object' && !Array.isArray(v) ? v : null;
+  } catch {
+    return null;
+  }
+}
+
 function loadBag(handle: string): Bag {
   try {
     const v = JSON.parse(localStorage.getItem(bagKey(handle)) ?? '{}');
@@ -419,7 +432,8 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
   }, [byKey]);
   const [bag, setBag] = useState<Bag>(() => {
     // Drop anything no longer for sale, and cap quantities at what's in stock.
-    const saved = loadBag(data.handle);
+    // A "you left something in your bag" email link (?bag=...) puts those items back.
+    const saved = (!embedded && bagFromLink()) || loadBag(data.handle);
     const clean: Bag = {};
     for (const [k, q] of Object.entries(saved)) {
       const line = lineOf(k);
@@ -427,7 +441,14 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
     }
     return clean;
   });
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(() => !embedded && !!bagFromLink());
+  useEffect(() => {
+    // Once refilled, take the bag out of the address so a refresh doesn't undo later changes.
+    if (embedded || !bagFromLink()) return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete('bag');
+    window.history.replaceState(null, '', url.toString());
+  }, [embedded]);
   const [note, setNote] = useState('');
   // Delivery or pickup, remembered for checkout. Pickup only while the seller offers it.
   const [choice, setChoice] = useState<Fulfillment>(() => (data.pickup ? loadFulfillment(data.handle) : 'delivery'));

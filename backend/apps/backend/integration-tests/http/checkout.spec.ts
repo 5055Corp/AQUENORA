@@ -313,6 +313,36 @@ medusaIntegrationTestRunner({
       expect((await api.get("/sellers/me/stock-alerts", { headers })).data.waiting).toEqual({})
     })
 
+    it("abandoned bags: one reminder an hour later with a link that refills the bag; none if they paid", async () => {
+      const { remindAbandonedBagsWorkflow } = await import("../../src/workflows/abandoned-bags")
+      const { headers, product, store } = await setup()
+      await api.post("/sellers/me/payouts", { bank_code: "044", account_number: "0123456789" }, { headers })
+      const later = (h: number) => new Date(Date.now() + h * 3600000).toISOString()
+      const remind = async (h: number) => (await remindAbandonedBagsWorkflow(getContainer()).run({ input: { now: later(h) } })).result
+      const sent = async () => (await getContainer().resolve(Modules.NOTIFICATION).listNotifications({ template: "aquenora-abandoned-bag" })) as unknown as { to: string; data: { subject: string; text: string } }[]
+
+      // Kwame starts paying twice and stops; Ada starts and then pays.
+      await api.post("/store/sellers/adirehouse/checkout", buyer(product.id, 1), store)
+      await api.post("/store/sellers/adirehouse/checkout", buyer(product.id, 2), store)
+      const ada = (await api.post("/store/sellers/adirehouse/checkout", { ...buyer(product.id, 1), email: "ada@example.com", name: "Ada Obi" }, store)).data
+      await api.post("/store/payments/verify", { reference: ada.reference }, store)
+
+      expect(await remind(0.5)).toBe(0) // too soon: they may still be paying
+      expect(await remind(2)).toBe(1)
+      const [mail] = await sent()
+      expect(mail.to).toBe("buyer@example.com")
+      expect(mail.data.subject).toBe("You left something in your bag at Adire House")
+      expect(mail.data.text).toContain("Hi Kwame")
+      expect(mail.data.text).toContain("2 × Kimono")
+      const bag = new URL(mail.data.text.match(/https?:\/\/\S+/)![0]).searchParams.get("bag")!
+      expect(JSON.parse(Buffer.from(bag, "base64url").toString())).toEqual({ [product.id]: 2 })
+      // Only once, and not again for the next 7 days.
+      expect(await remind(3)).toBe(0)
+      await api.post("/store/sellers/adirehouse/checkout", buyer(product.id, 1), store)
+      expect(await remind(2.5)).toBe(0)
+      expect(await sent()).toHaveLength(1)
+    })
+
     it("disputes: buyer reports, seller refunds directly, buyer confirms; AQUENORA can step in and moderate", async () => {
       const { headers, product, store } = await setup()
       await api.post("/sellers/me/payouts", { bank_code: "044", account_number: "0123456789" }, { headers })
