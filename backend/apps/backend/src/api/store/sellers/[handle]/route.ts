@@ -31,6 +31,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       "paystack_subaccount_code",
       "verification_status",
       "suspended_at",
+      "collections",
       "shipping",
       "trial_ends_at",
       "pro_paid_until",

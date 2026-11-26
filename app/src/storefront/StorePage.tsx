@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError, isOwnDomain, fetchHandleForDomain, fetchPublicStore, LIVE, RESERVED_SUBDOMAINS, startCheckout, STORE_DOMAIN, verifyPayment, type PaymentResult } from '../api';
 import { COUNTRIES } from '../data';
 import * as persist from '../persist';
@@ -43,7 +43,7 @@ function countVisit(handle: string, embedded: boolean) {
   }
   recordVisit(handle, visitSource(embedded));
 }
-import { fromPrice, pickedFromLabels, priceFor, stockFor, variesInPrice } from '../options';
+import { fromPrice, photosFor, pickedFromLabels, priceFor, stockFor, variesInPrice } from '../options';
 import { TAGLINE } from '../brand';
 import { Logo, Mark } from '../components/Logo';
 import { DAY_NAMES, DAYS, hoursText, isOpenNow, normalizePickup, shopNow, type Pickup } from '../pickup';
@@ -66,6 +66,8 @@ export interface StoreData {
   acceptsPayments: boolean;
   /** AQUENORA has verified the seller. */
   verified: boolean;
+  /** Collections inside the store, shown as tabs. */
+  collections: { id: string; name: string }[];
   /** Delivery options (DHL, local courier...) and the country the shop ships from. */
   shipping: Shipping;
   shipsFrom: string | null;
@@ -101,12 +103,13 @@ function demoStore(): StoreData {
     name,
     country: s.country,
     design: normalizeDesign(s.design, designFromLegacy({ theme: s.theme, accent: s.accent, font: s.font, announce: s.announce, country: country.id === 'DI' ? 'Africa' : country.name })),
-    items: demoProducts(s, usdConverter(country.rate)).map((p, i) => ({ key: `demo-${i}`, name: p.name, price: p.price, stock: p.stock, images: p.images ?? [], description: p.description ?? null, options: p.options ?? null, madeToOrderDays: p.madeToOrderDays ?? null, notePrompt: p.notePrompt ?? null })),
+    items: demoProducts(s, usdConverter(country.rate)).map((p, i) => ({ key: `demo-${i}`, name: p.name, price: p.price, stock: p.stock, images: p.images ?? [], description: p.description ?? null, options: p.options ?? null, madeToOrderDays: p.madeToOrderDays ?? null, notePrompt: p.notePrompt ?? null, collections: p.collections ?? [] })),
     sellsAbroad: s.intl,
     showBadge: true,
     pickup: offered(s.pickup),
     acceptsPayments: true,
     verified: true,
+    collections: s.collections ?? [],
     shipping: normalizeShipping(s.shipping),
     shipsFrom: homeCountry(s.country, normalizeShipping(s.shipping)),
   };
@@ -139,12 +142,13 @@ export async function liveStore(handle: string): Promise<StoreData> {
         country: liveCountryName(store.country_code),
       }),
     ),
-    items: products.map(p => ({ key: p.id, name: p.title, price: p.price, stock: p.stock, images: p.images ?? [], description: p.description ?? null, options: p.options ?? null, madeToOrderDays: p.made_to_order_days ?? null, notePrompt: p.note_prompt ?? null })),
+    items: products.map(p => ({ key: p.id, name: p.title, price: p.price, stock: p.stock, images: p.images ?? [], description: p.description ?? null, options: p.options ?? null, madeToOrderDays: p.made_to_order_days ?? null, notePrompt: p.note_prompt ?? null, collections: p.collections ?? [] })),
     sellsAbroad: store.sells_abroad,
     showBadge: store.show_badge !== false,
     pickup: offered(store.pickup),
     acceptsPayments: store.accepts_payments === true,
     verified: store.verified === true,
+    collections: store.collections ?? [],
     shipping: normalizeShipping({ from: null, options: store.shipping?.options ?? [] }),
     shipsFrom: store.shipping?.ships_from ?? (store.country_code === 'DI' ? null : store.country_code),
   };
@@ -447,7 +451,16 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
     if (!w.length) return null;
     return new Set(data.items.filter(i => w.every(x => plain(`${i.name} ${i.description ?? ''}`).includes(x))).map(i => i.key));
   }, [query, data.items]);
-  const shown = useMemo(() => (found ? [...data.items.filter(i => found.has(i.key)), ...data.items.filter(i => !found.has(i.key))] : data.items), [found, data.items]);
+  const [collection, setCollection] = useState('all');
+  const [sort, setSort] = useState<'newest' | 'low' | 'high'>('newest');
+  const shown = useMemo(() => {
+    const searched = found ? [...data.items.filter(i => found.has(i.key)), ...data.items.filter(i => !found.has(i.key))] : data.items;
+    const inCollection = collection === 'all' ? searched : searched.filter(i => i.collections?.includes(collection));
+    if (sort === 'newest') return inCollection;
+    const price = (i: StoreItem) => fromPrice(i.price, i.options);
+    return [...inCollection].sort((a, b) => (sort === 'low' ? price(a) - price(b) : price(b) - price(a)));
+  }, [found, data.items, collection, sort]);
+  const usedCollections = data.collections.filter(c => data.items.some(i => i.collections?.includes(c.id)));
 
   // Back from Paystack: ask the shop whether the payment went through.
   const checkPayment = useCallback((reference: string) => {
@@ -628,6 +641,30 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
         variant="page"
         name={data.name}
         verified={data.verified}
+        toolbar={data.items.length > 1 ? (
+          <div className="sp-tools">
+            {usedCollections.length > 0 && (
+              <div className="sp-tabs" role="tablist" aria-label="Collections">
+                {[{ id: 'all', name: 'All' }, ...usedCollections].map(c => (
+                  <button key={c.id} type="button" role="tab" aria-selected={collection === c.id} className="sp-tab"
+                    style={collection === c.id ? { background: d.colors.text, color: d.colors.background, borderColor: d.colors.text } : { color: d.colors.text, borderColor: d.colors.text + '33' }}
+                    onClick={() => setCollection(c.id)}>{c.name}</button>
+                ))}
+              </div>
+            )}
+            <div className="sp-sortbar">
+              <span>{shown.length} {shown.length === 1 ? 'product' : 'products'}</span>
+              <label className="sp-sort" style={{ color: d.colors.text, borderColor: d.colors.text + '33' }}>
+                <span className="sr-only">Sort</span>
+                <select value={sort} onChange={e => setSort(e.target.value as typeof sort)} style={{ color: d.colors.text }}>
+                  <option value="newest">Newest</option>
+                  <option value="low">Price: low to high</option>
+                  <option value="high">Price: high to low</option>
+                </select>
+              </label>
+            </div>
+          </div>
+        ) : null}
         design={d}
         narrow={width < 600}
         items={shown}
@@ -1017,7 +1054,14 @@ function ProductPhotos({ item, show, design: d, onClose, onAdd }: {
   const [picked, setPicked] = useState<number[]>(() => groups.map(() => -1));
   const [buyerNote, setBuyerNote] = useState('');
   const [tried, setTried] = useState(false);
-  const images = item.images ?? [];
+  const images = photosFor(item.images ?? [], item.options, picked);
+  // Picking a colour with its own photo jumps back to the first photo.
+  const gallery = useRef<HTMLDivElement>(null);
+  const lead = images[0];
+  useEffect(() => {
+    gallery.current?.scrollTo({ left: 0, behavior: 'smooth' });
+    setAt(0);
+  }, [lead]);
   const perChoice = !!item.options?.stock_per_choice && !item.madeToOrderDays;
   const allPicked = picked.every(i => i >= 0);
   const price = allPicked ? priceFor(item.price, item.options, picked) : fromPrice(item.price, item.options);
@@ -1038,7 +1082,7 @@ function ProductPhotos({ item, show, design: d, onClose, onAdd }: {
       <div className="pp-card" style={{ background: d.colors.card, color: d.colors.text }}>
         <button type="button" className="pp-close" aria-label="Close" onClick={onClose}>×</button>
         {images.length > 0 && (
-          <div className="pp-gallery" onScroll={e => { const el = e.currentTarget; setAt(Math.round(el.scrollLeft / el.clientWidth)); }}>
+          <div className="pp-gallery" ref={gallery} onScroll={e => { const el = e.currentTarget; setAt(Math.round(el.scrollLeft / el.clientWidth)); }}>
             {images.map((url, i) => <img key={url} src={url} alt={`${item.name}, photo ${i + 1} of ${images.length}`} />)}
           </div>
         )}
@@ -1073,6 +1117,7 @@ function ProductPhotos({ item, show, design: d, onClose, onAdd }: {
                       style={on ? { background: d.colors.text, color: d.colors.card, borderColor: d.colors.text } : { borderColor: d.colors.text + '33', color: d.colors.text }}
                       onClick={() => setPicked(p => p.map((x, i) => (i === gi ? ci : x)))}
                     >
+                      {c.image && <img className="pp-chip-img" src={c.image} alt="" />}
                       {c.label}{extra}{out ? ' · sold out' : ''}
                     </button>
                   );

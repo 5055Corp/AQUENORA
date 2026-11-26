@@ -40,6 +40,13 @@ export const UpdateSellerSchema = z
     design: StoreDesignSchema,
     pickup: PickupSchema,
     shipping: ShippingSchema,
+    /** Collections inside the store, in display order. */
+    collections: z
+      .array(z.object({ id: z.string().regex(/^[a-z0-9-]{1,40}$/), name: z.string().trim().min(1, "Name the collection").max(30) }).strict())
+      .max(20, "A store can have up to 20 collections.")
+      .refine((c) => new Set(c.map((x) => x.id)).size === c.length, "Two collections have the same id.")
+      .refine((c) => new Set(c.map((x) => x.name.toLowerCase())).size === c.length, "Two collections have the same name.")
+      .nullable(),
   })
   .partial()
   .strict()
@@ -64,6 +71,7 @@ export const CreateSellerProductSchema = z.object({
   options: productOptionFields.options.optional(),
   made_to_order_days: productOptionFields.made_to_order_days.optional(),
   note_prompt: productOptionFields.note_prompt.optional(),
+  collections: z.array(z.string().regex(/^[a-z0-9-]{1,40}$/)).max(20).optional(),
 })
 
 export const UpdateSellerProductSchema = z
@@ -74,6 +82,8 @@ export const UpdateSellerProductSchema = z
     cost_price: money.nullable(),
     images: productImages,
     description: z.string().trim().max(2000),
+    /** Ids of the store's collections this product is in. */
+    collections: z.array(z.string().regex(/^[a-z0-9-]{1,40}$/)).max(20),
     ...productOptionFields,
   })
   .partial()

@@ -11,6 +11,8 @@ export interface OptionChoice {
   extra?: number | null;
   /** Left in stock (first option, when stock is per choice). */
   stock?: number | null;
+  /** A photo for this choice (shown first when the buyer picks it). */
+  image?: string | null;
 }
 
 export interface ProductOptions {
@@ -61,4 +63,14 @@ export function choiceLabels(options: ProductOptions | null | undefined, picked:
 /** Picked indexes from saved labels (e.g. from the bag); -1 for anything no longer offered. */
 export function pickedFromLabels(options: ProductOptions | null | undefined, labels: string[]): Picked {
   return (options?.groups ?? []).map((g, gi) => g.choices.findIndex(c => c.label.toLowerCase() === (labels[gi] ?? '').toLowerCase()));
+}
+
+/** Photos to show: the photo of the last picked choice that has one comes first. */
+export function photosFor(images: string[], options: ProductOptions | null | undefined, picked: Picked): string[] {
+  let lead: string | null = null;
+  (options?.groups ?? []).forEach((g, gi) => {
+    const img = g.choices[picked[gi]]?.image;
+    if (img) lead = img;
+  });
+  return lead ? [lead, ...images.filter(u => u !== lead)] : images;
 }

@@ -181,6 +181,8 @@ export interface Product {
   notePrompt?: string | null;
   /** Hidden by AQUENORA (moderation): the reason the seller was given. */
   hiddenReason?: string | null;
+  /** Ids of the store's collections this product is in. */
+  collections?: string[];
 }
 
 export const HELP = {

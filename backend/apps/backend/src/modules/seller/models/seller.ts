@@ -49,6 +49,9 @@ const Seller = model.define("seller", {
   // { authorization_code, signature, email, brand, last4, exp_month, exp_year, auto_renew,
   //   failures, last_error, last_attempt_at }
   pro_billing: model.json().nullable(),
+  // Collections inside the store ("Wigs", "Bundles"...), in the seller's order: [{ id, name }].
+  // Products list the ids they belong to in metadata.collections.
+  collections: model.json().nullable(),
   // ---- moderation ----
   // A suspended store is hidden everywhere and can't take payments (AQUENORA admin decision).
   suspended_at: model.dateTime().nullable(),

@@ -5,6 +5,7 @@ import { useStore } from '../store';
 import { PhotoStrip } from './PhotoStrip';
 import { cleanSettings, OptionsEditor, optionsProblem, type OptionSettings } from './OptionsEditor';
 import { fromPrice, variesInPrice } from '../options';
+import { CollectionPicker, CollectionsCard } from './Collections';
 
 export function Products() {
   const { s, set, addProduct, setProductCost, setProductImages, products, fmt, country, h1Size, live } = useStore();
@@ -75,6 +76,7 @@ export function Products() {
         {more && <OptionsEditor value={extras} onChange={setExtras} sym={sym} basePrice={Number(s.newPrice) || 0} />}
         {addError && <div className="form-error" role="alert">{addError}</div>}
       </form>
+      <CollectionsCard />
       {products.length === 0 && <div className="empty">No products yet. Add your first one above.</div>}
       <div className="list">
         {products.map((p, i) => (
@@ -184,6 +186,7 @@ function EditProductSheet({ index, product: p, cost, sym, onClose }: {
   const [error, setError] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [extras, setExtras] = useState<OptionSettings>({ options: p.options ?? null, madeToOrderDays: p.madeToOrderDays ?? null, notePrompt: p.notePrompt ?? '' });
+  const [collections, setCollections] = useState<string[]>(p.collections ?? []);
   const perChoice = !!extras.options?.stock_per_choice;
   const digits = (v: string) => v.replace(/[^0-9]/g, '');
 
@@ -205,6 +208,7 @@ function EditProductSheet({ index, product: p, cost, sym, onClose }: {
       options: clean.options,
       madeToOrderDays: clean.madeToOrderDays,
       notePrompt: clean.notePrompt,
+      collections,
     });
     setBusy(false);
     if (msg) setError(msg);
@@ -260,6 +264,7 @@ function EditProductSheet({ index, product: p, cost, sym, onClose }: {
             <label className="ob-label"><span>Cost price ({sym}) <span className="pe-opt">(optional, only you see it)</span></span>
               <input className="field ob-input" inputMode="numeric" value={costValue} placeholder="What one costs you" onChange={e => setCostValue(digits(e.target.value))} />
             </label>
+            <CollectionPicker value={collections} onChange={setCollections} />
             <OptionsEditor value={extras} onChange={setExtras} sym={sym} basePrice={Number(price) || 0} />
             <PhotoStrip images={p.images ?? []} onChange={imgs => setProductImages(index, imgs)} />
             {error && <div className="form-error" role="alert">{error}</div>}

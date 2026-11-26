@@ -12,6 +12,7 @@ export const SELLER_FIELDS = [
   "payout",
   "suspended_at",
   "suspend_reason",
+  "collections",
   "theme",
   "accent",
   "font",
@@ -168,6 +169,7 @@ export function toSellerProduct(raw: unknown) {
     /** Hidden from buyers by AQUENORA (moderation), with the reason the seller was given. */
     hidden: !!p.metadata?.hidden_by_aquenora,
     hidden_reason: (p.metadata?.hidden_by_aquenora as { reason?: string } | undefined)?.reason ?? null,
+    collections: Array.isArray(p.metadata?.collections) ? (p.metadata!.collections as string[]) : [],
     options: readOptions(p.metadata),
     made_to_order_days: madeToOrderDays(p.metadata),
     note_prompt: notePrompt(p.metadata),

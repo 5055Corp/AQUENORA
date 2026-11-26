@@ -6,7 +6,7 @@ import { prepareImage, type ImageKind } from './images';
 import type { ProductOptions } from './options';
 import type { Settings } from './settings';
 import * as persist from './persist';
-import { api, ApiError, LIVE, sellerIdFromToken, storeLink, type ApiOrder, type ApiProduct, type ApiSeller, type PlanResponse, type VerificationBody, type PhotoFile } from './api';
+import { api, ApiError, LIVE, sellerIdFromToken, storeLink, type ApiOrder, type ApiProduct, type ApiSeller, type PlanResponse, type VerificationBody, type PhotoFile, type StoreCollection } from './api';
 import { demoCost } from './demo';
 import { designFromLegacy, normalizeDesign, type StoreDesign } from './design';
 import { demoPlan } from './plan';
@@ -39,7 +39,7 @@ async function dataUrlToFile(url: string): Promise<File> {
   return new File([blob], 'product.jpg', { type: blob.type || 'image/jpeg' });
 }
 
-const toProduct = (p: ApiProduct): Product => ({ id: p.id, name: p.title, price: p.price, stock: p.stock, cost: p.cost_price, images: p.images ?? [], description: p.description ?? null, options: p.options ?? null, madeToOrderDays: p.made_to_order_days ?? null, notePrompt: p.note_prompt ?? null, hiddenReason: p.hidden ? p.hidden_reason || 'It breaks AQUENORA rules.' : null });
+const toProduct = (p: ApiProduct): Product => ({ id: p.id, name: p.title, price: p.price, stock: p.stock, cost: p.cost_price, images: p.images ?? [], description: p.description ?? null, options: p.options ?? null, madeToOrderDays: p.made_to_order_days ?? null, notePrompt: p.note_prompt ?? null, hiddenReason: p.hidden ? p.hidden_reason || 'It breaks AQUENORA rules.' : null, collections: p.collections ?? [] });
 
 function fromSeller(se: ApiSeller): Partial<State> {
   return {
@@ -61,6 +61,7 @@ function fromSeller(se: ApiSeller): Partial<State> {
     listed: se.marketplace_listed !== false,
     verification: se.verification_status ?? 'verified',
     suspended: se.suspended_at ? se.suspend_reason || 'Contact AQUENORA support.' : '',
+    collections: se.collections ?? [],
   };
 }
 
@@ -191,6 +192,20 @@ function useStoreValue(settings: Settings) {
     } catch (e) {
       set({ listed: before });
       fail(e);
+    }
+  };
+
+  /** Saves the store's collections ("Wigs", "Bundles"...). Returns an error message, or '' when saved. */
+  const setCollections = async (collections: StoreCollection[]): Promise<string> => {
+    const before = s.collections;
+    set({ collections });
+    if (!LIVE) return '';
+    try {
+      await api.updateMe(s.token, { collections });
+      return '';
+    } catch (e) {
+      set({ collections: before });
+      return e instanceof Error ? e.message : 'Could not save. Please try again.';
     }
   };
 
@@ -396,7 +411,7 @@ function useStoreValue(settings: Settings) {
   };
 
   /** Saves changes to a product (name, price, stock, description, cost). Returns an error message, or '' when saved. */
-  const editProduct = async (index: number, changes: { name?: string; price?: number; stock?: number; description?: string; cost?: number | null; options?: ProductOptions | null; madeToOrderDays?: number | null; notePrompt?: string }): Promise<string> => {
+  const editProduct = async (index: number, changes: { name?: string; price?: number; stock?: number; description?: string; cost?: number | null; options?: ProductOptions | null; madeToOrderDays?: number | null; notePrompt?: string; collections?: string[] }): Promise<string> => {
     const target = products[index];
     if (!target) return 'Product not found.';
     if (changes.name !== undefined && !changes.name.trim()) return 'Add a product name.';
@@ -423,6 +438,7 @@ function useStoreValue(settings: Settings) {
         ...(changes.options !== undefined ? { options: changes.options } : {}),
         ...(changes.madeToOrderDays !== undefined ? { made_to_order_days: changes.madeToOrderDays } : {}),
         ...(changes.notePrompt !== undefined ? { note_prompt: changes.notePrompt || null } : {}),
+        ...(changes.collections !== undefined ? { collections: changes.collections } : {}),
       });
       set(st => ({ products: (st.products ?? []).map(p => (p.id === product.id ? toProduct(product) : p)) }));
       flash('Product saved');
@@ -753,7 +769,7 @@ function useStoreValue(settings: Settings) {
     pickup, savePickup, savePayout,
     s, set, settings, toast, flash, isMobile, framed, country, fmt, fromUsd, slug, shopNameShown, storeUrl,
     products, toggleHelp, advanceOrder, copyLink, shareWhatsApp, startOver,
-    design, setDesign, planInfo, refreshPlan, startTrial, requestUpgrade, setAutoRenew, connectDomain, checkDomain, removeDomain, live: LIVE, submitAuth, finishOnboarding, addProduct, setProductCost, publishDesign, logOut, deleteAccount, setListed, retryLoad, submitVerification, disputeAction,
+    design, setDesign, planInfo, refreshPlan, startTrial, requestUpgrade, setAutoRenew, connectDomain, checkDomain, removeDomain, live: LIVE, submitAuth, finishOnboarding, addProduct, setProductCost, publishDesign, logOut, deleteAccount, setListed, retryLoad, submitVerification, disputeAction, setCollections,
     showHints: settings.showHelpHints,
     h1Size: isMobile ? '30px' : '40px',
   };

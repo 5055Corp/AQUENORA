@@ -39,6 +39,8 @@ export function storeLink(handle: string): string {
 
 export type Accent = 'terracotta' | 'leaf' | 'indigo' | 'hibiscus';
 
+export interface StoreCollection { id: string; name: string }
+
 export type VerificationStatus = 'unverified' | 'pending' | 'verified' | 'rejected';
 export type IdType = 'nin' | 'drivers_licence' | 'passport' | 'voters_card' | 'national_id';
 export interface VerificationInfo {
@@ -74,6 +76,8 @@ export interface ApiSeller {
   marketplace_listed?: boolean;
   /** Anti-scam check by AQUENORA: only verified sellers can take payments. */
   verification_status?: VerificationStatus;
+  /** Collections inside the store, in display order. */
+  collections?: StoreCollection[] | null;
   /** Paused by AQUENORA (moderation). */
   suspended_at?: string | null;
   suspend_reason?: string | null;
@@ -118,6 +122,8 @@ export interface ApiProduct {
   note_prompt?: string | null;
   /** Lowest price with options. */
   from_price?: number;
+  /** Ids of the store's collections this product is in. */
+  collections?: string[];
   /** Hidden from buyers by AQUENORA, with the reason. */
   hidden?: boolean;
   hidden_reason?: string | null;
@@ -288,7 +294,7 @@ export function sellerIdFromToken(token: string): string {
 const PUBLISHABLE_KEY: string = import.meta.env.VITE_MEDUSA_PUBLISHABLE_KEY ?? '';
 
 export interface PublicStore {
-  store: Pick<ApiSeller, 'id' | 'name' | 'handle' | 'category' | 'country_code' | 'currency_code' | 'sells_abroad' | 'theme' | 'accent' | 'font' | 'announcement' | 'design'> & { show_badge?: boolean; pickup?: unknown; accepts_payments?: boolean; verified?: boolean; shipping?: { ships_from: string | null; options: unknown[] } };
+  store: Pick<ApiSeller, 'id' | 'name' | 'handle' | 'category' | 'country_code' | 'currency_code' | 'sells_abroad' | 'theme' | 'accent' | 'font' | 'announcement' | 'design' | 'collections'> & { show_badge?: boolean; pickup?: unknown; accepts_payments?: boolean; verified?: boolean; shipping?: { ships_from: string | null; options: unknown[] } };
   products: ApiProduct[];
 }
 
@@ -488,9 +494,9 @@ export const api = {
     request<{ seller: ApiSeller }>('/sellers/me', { body, token }),
 
   products: (token: string) => request<{ products: ApiProduct[] }>('/sellers/me/products', { token }),
-  addProduct: (token: string, body: { title: string; price: number; stock?: number; cost_price?: number; images?: string[]; options?: import('./options').ProductOptions | null; made_to_order_days?: number | null; note_prompt?: string | null }) =>
+  addProduct: (token: string, body: { title: string; price: number; stock?: number; cost_price?: number; images?: string[]; options?: import('./options').ProductOptions | null; made_to_order_days?: number | null; note_prompt?: string | null; collections?: string[] }) =>
     request<{ product: ApiProduct }>('/sellers/me/products', { body, token }),
-  updateProduct: (token: string, id: string, body: { title?: string; price?: number; stock?: number; cost_price?: number | null; images?: string[]; description?: string; options?: import('./options').ProductOptions | null; made_to_order_days?: number | null; note_prompt?: string | null }) =>
+  updateProduct: (token: string, id: string, body: { title?: string; price?: number; stock?: number; cost_price?: number | null; images?: string[]; description?: string; options?: import('./options').ProductOptions | null; made_to_order_days?: number | null; note_prompt?: string | null; collections?: string[] }) =>
     request<{ product: ApiProduct }>(`/sellers/me/products/${encodeURIComponent(id)}`, { body, token }),
   deleteProduct: (token: string, id: string) => request<{ id: string; deleted: true }>(`/sellers/me/products/${id}`, { token, method: 'DELETE' }),
   disputes: (token: string) => request<{ disputes: Dispute[] }>('/sellers/me/disputes', { token }),

@@ -20,6 +20,7 @@ export type UpdateSellerProductInput = {
   options?: ProductOptions | null
   made_to_order_days?: number | null
   note_prompt?: string | null
+  collections?: string[]
 }
 
 type OwnedProduct = {
@@ -45,6 +46,9 @@ const prepareSellerProductUpdateStep = createStep(
     }
     if (input.cost_price !== undefined) {
       metadata.cost_price = input.cost_price
+    }
+    if (input.collections !== undefined) {
+      metadata.collections = input.collections
     }
     // Options last: with stock per choice, the product's stock is the total of its choices.
     Object.assign(metadata, optionMetadata(input))

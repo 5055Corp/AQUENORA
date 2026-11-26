@@ -1,4 +1,4 @@
-import { useEffect, type CSSProperties } from 'react';
+import { useEffect, type CSSProperties, type ReactNode } from 'react';
 import { fromPrice, variesInPrice, type ProductOptions } from '../options';
 import { BUTTON_RADIUS, loadFonts, RADIUS, STORE_FONTS, type StoreDesign } from '../design';
 
@@ -16,6 +16,8 @@ export interface StoreItem {
   madeToOrderDays?: number | null;
   /** Question for the buyer's notes box. */
   notePrompt?: string | null;
+  /** Ids of the store's collections this product is in. */
+  collections?: string[];
 }
 
 /** Buyers choose options or write a note on the product's own view before adding it. */
@@ -38,6 +40,8 @@ interface Props {
   maxWidth?: number | string;
   /** AQUENORA has checked this seller's ID or CAC documents. */
   verified?: boolean;
+  /** Shown above the products (collection tabs and sort). */
+  toolbar?: ReactNode;
 }
 
 /** Mixes a colour with the background (for subtle stripes and borders). */
@@ -51,7 +55,7 @@ function mix(a: string, b: string, t: number) {
  * The store as buyers see it. The theme editor's preview and the public store page both draw
  * with this, so the preview always matches the real thing.
  */
-export function StoreView({ name, design: d, items, fmt, variant, narrow, bagCount = 0, onAdd, onOpenBag, onOpen, maxWidth, verified }: Props) {
+export function StoreView({ name, design: d, items, fmt, variant, narrow, bagCount = 0, onAdd, onOpenBag, onOpen, maxWidth, verified, toolbar }: Props) {
   const page = variant === 'page';
   const { background: bg, text, accent, accent_text: onAccent, card } = d.colors;
   const heading = STORE_FONTS[d.fonts.heading].family;
@@ -120,6 +124,7 @@ export function StoreView({ name, design: d, items, fmt, variant, narrow, bagCou
         </div>
       )}
 
+      {toolbar}
       {page && items.length === 0 && <div className="sf-empty">New products are coming soon. Check back shortly.</div>}
 
       <div className="sf-grid" style={{ gridTemplateColumns: `repeat(${columns},minmax(0,1fr))` }}>

@@ -63,6 +63,8 @@ export interface State {
   verification: 'unverified' | 'pending' | 'verified' | 'rejected';
   /** Why AQUENORA couldn't verify the seller last time (shown so they can fix it). */
   verifyReason: string;
+  /** Collections inside the store ("Wigs", "Bundles"...), in display order. */
+  collections: import('./api').StoreCollection[];
   /** Paused by AQUENORA: the reason ('' = not paused). */
   suspended: string;
   password: string;
@@ -126,6 +128,7 @@ export function initialState(settings: Settings): State {
     verification: 'verified',
     verifyReason: '',
     suspended: '',
+    collections: [],
     password: '',
     token: '',
     handle: '',

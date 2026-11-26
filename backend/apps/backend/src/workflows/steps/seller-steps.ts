@@ -18,6 +18,7 @@ export type UpdateSellerData = Partial<Omit<CreateSellerData, "email">> & {
   payout?: Record<string, unknown> | null
   pro_billing?: Record<string, unknown> | null
   shipping?: Record<string, unknown> | null
+  collections?: { id: string; name: string }[] | null
   theme?: "harmattan" | "lagos" | "savanna"
   accent?: "terracotta" | "leaf" | "indigo" | "hibiscus"
   font?: "classic" | "modern" | "friendly"
@@ -88,7 +89,7 @@ export const updateSellerStep = createStep(
   async (input: { id: string; data: UpdateSellerData }, { container }) => {
     const sellers: SellerModuleService = container.resolve(SELLER_MODULE)
     const before = await sellers.retrieveSeller(input.id)
-    const updated = await sellers.updateSellers({ id: input.id, ...input.data })
+    const updated = await sellers.updateSellers({ id: input.id, ...input.data } as never)
 
     // Keep only the fields we changed so compensation restores exactly those.
     const previous: Record<string, unknown> = { id: input.id }
