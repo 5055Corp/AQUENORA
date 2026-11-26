@@ -241,10 +241,36 @@ export interface Campaign {
 /** An error from the backend, with a message that's fine to show the seller. */
 export class ApiError extends Error {
   status: number;
-  constructor(status: number, message: string) {
+  /** e.g. 'device_unverified': this phone or computer must be confirmed with an emailed code. */
+  type: string;
+  constructor(status: number, message: string, type = '') {
     super(message);
     this.status = status;
+    this.type = type;
   }
+}
+
+/** This device's random id, so AQUENORA can ask for an emailed code when a seller signs in somewhere new. */
+export function deviceId(): string {
+  try {
+    let id = localStorage.getItem('aq-device');
+    if (!id || !/^[A-Za-z0-9-]{16,64}$/.test(id)) {
+      id = crypto.randomUUID();
+      localStorage.setItem('aq-device', id);
+    }
+    return id;
+  } catch {
+    return 'nostorage-' + Math.random().toString(36).slice(2).padEnd(12, '0');
+  }
+}
+
+/** "iPhone", "Chrome on Mac"... shown in the sign-in code email. */
+export function deviceName(): string {
+  const ua = navigator.userAgent;
+  const os = /iPhone/.test(ua) ? 'iPhone' : /iPad/.test(ua) ? 'iPad' : /Android/.test(ua) ? 'Android' : /Mac/.test(ua) ? 'Mac' : /Windows/.test(ua) ? 'Windows' : '';
+  const app = (window as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.() ? 'AQUENORA app'
+    : /Edg\//.test(ua) ? 'Edge' : /Chrome\//.test(ua) ? 'Chrome' : /Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : 'a browser';
+  return os ? `${app} on ${os}` : app;
 }
 
 async function request<T>(path: string, init: { method?: string; body?: unknown; token?: string } = {}): Promise<T> {
@@ -255,6 +281,7 @@ async function request<T>(path: string, init: { method?: string; body?: unknown;
       headers: {
         ...(init.body ? { 'content-type': 'application/json' } : {}),
         ...(init.token ? { authorization: `Bearer ${init.token}` } : {}),
+        ...(path.startsWith('/sellers') ? { 'x-aq-device': deviceId() } : {}),
       },
       body: init.body ? JSON.stringify(init.body) : undefined,
     });
@@ -263,7 +290,7 @@ async function request<T>(path: string, init: { method?: string; body?: unknown;
   }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new ApiError(res.status, friendly(res.status, path, data?.message));
+    throw new ApiError(res.status, friendly(res.status, path, data?.message), typeof data?.type === 'string' ? data.type : '');
   }
   return data as T;
 }
@@ -486,7 +513,12 @@ export const api = {
   /** A fresh token; after creating the store it carries the new seller id. */
   refresh: (token: string) => request<{ token: string }>('/auth/token/refresh', { method: 'POST', token }),
 
-  createSeller: (token: string, body: { name: string; category: string; country_code: CountryId; sells_abroad: boolean }) =>
+  /** Email a 6-digit code to confirm this device. */
+  sendDeviceCode: (token: string) => request<{ sent_to: string }>('/sellers/me/device-code', { token, body: { device_name: deviceName() } }),
+  verifyDeviceCode: (token: string, code: string) => request<{ trusted: true }>('/sellers/me/device-code/verify', { token, body: { code } }),
+  /** The seller's invite link and how many friends joined / made a first sale. */
+  referrals: (token: string) => request<{ link: string; joined: number; rewarded: number }>('/sellers/me/referrals', { token }),
+  createSeller: (token: string, body: { name: string; category: string; country_code: CountryId; sells_abroad: boolean; referral?: string }) =>
     request<{ seller: ApiSeller }>('/sellers', { body, token }),
   me: (token: string) => request<{ seller: ApiSeller }>('/sellers/me', { token }),
   deleteAccount: (token: string) => request<{ deleted: true }>('/sellers/me', { method: 'DELETE', token }),
@@ -512,7 +544,7 @@ export const api = {
     request<{ dispute: Dispute }>(`/sellers/me/disputes/${id}`, { token, body }),
   /** A dispute photo as an object URL (the request needs the seller's login). */
   disputeFile: async (token: string, id: string, file: string) => {
-    const res = await fetch(`${API_URL}/sellers/me/disputes/${id}/files/${file}`, { headers: { authorization: `Bearer ${token}` } });
+    const res = await fetch(`${API_URL}/sellers/me/disputes/${id}/files/${file}`, { headers: { authorization: `Bearer ${token}`, 'x-aq-device': deviceId() } });
     if (!res.ok) throw new ApiError(res.status, 'Could not load the photo.');
     return URL.createObjectURL(await res.blob());
   },

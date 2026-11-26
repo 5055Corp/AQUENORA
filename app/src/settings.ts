@@ -5,7 +5,7 @@
 //   &reset=1   (clears the saved demo store, e.g. between seller interviews)
 
 export interface Settings {
-  startScreen: 'onboarding' | 'dashboard' | 'theme-editor';
+  startScreen: 'onboarding' | 'dashboard' | 'theme-editor' | 'device';
   /** True when ?screen= was given; it then wins over the screen saved from last time. */
   screenFromUrl: boolean;
   device: 'auto' | 'mobile' | 'desktop';
@@ -19,7 +19,7 @@ function pick<T extends string>(value: string | null, options: readonly T[], fal
 
 export function readSettings(search = window.location.search): Settings {
   const q = new URLSearchParams(search);
-  const screens = ['onboarding', 'dashboard', 'theme-editor'] as const;
+  const screens = ['onboarding', 'dashboard', 'theme-editor', 'device'] as const;
   return {
     startScreen: pick(q.get('screen'), screens, 'onboarding'),
     screenFromUrl: screens.includes(q.get('screen') as (typeof screens)[number]),

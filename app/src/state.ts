@@ -8,7 +8,7 @@ import { LIVE, type Accent, type Campaign, type Payout, type PlanResponse } from
 
 export interface State {
   /** 'auth' and 'loading' are only used when connected to the backend (live mode). */
-  screen: 'auth' | 'loading' | 'onboarding' | 'app';
+  screen: 'auth' | 'loading' | 'device' | 'onboarding' | 'app';
   tab: Tab;
   step: number;
   category: string;
@@ -70,6 +70,11 @@ export interface State {
   /** Paused by AQUENORA: the reason ('' = not paused). */
   suspended: string;
   password: string;
+  /** Sign-in on a new device: where the code was emailed (masked), and any error. */
+  deviceSentTo: string;
+  deviceError: string;
+  /** The web address of the seller who invited this one (from an invite link ?ref=), sent when the store is created. */
+  referral: string;
   token: string;
   /** The store's web address as saved on the server (may differ from the name-derived one). */
   handle: string;
@@ -83,9 +88,20 @@ export interface State {
 
 export const ACCENT_KEYS: Accent[] = ['terracotta', 'leaf', 'indigo', 'hibiscus'];
 
+/** An invite link (?ref=adirehouse) is remembered until the store is created. */
+function inviteRef(): string {
+  try {
+    const fromUrl = new URLSearchParams(window.location.search).get('ref')?.toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 40) ?? '';
+    if (fromUrl) localStorage.setItem('aq-ref', fromUrl);
+    return fromUrl || localStorage.getItem('aq-ref') || '';
+  } catch {
+    return '';
+  }
+}
+
 export function initialState(settings: Settings): State {
   const base: State = {
-    screen: settings.startScreen === 'onboarding' ? 'onboarding' : 'app',
+    screen: settings.startScreen === 'onboarding' ? 'onboarding' : settings.startScreen === 'device' ? 'device' : 'app',
     tab: settings.startScreen === 'theme-editor' ? 'design' : 'home',
     step: 0,
     category: 'Fashion & clothing',
@@ -134,6 +150,9 @@ export function initialState(settings: Settings): State {
     suspended: '',
     collections: [],
     password: '',
+    deviceSentTo: settings.startScreen === 'device' ? 'a******@gmail.com' : '',
+    deviceError: '',
+    referral: inviteRef(),
     token: '',
     handle: '',
     busy: false,

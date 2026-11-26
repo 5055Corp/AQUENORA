@@ -127,7 +127,25 @@ function StepName() {
       <div className="ob-note">Your web address: <strong>{slug}.aquenora.com</strong></div>
       {s.nameError && <div className="field-error" role="alert">{s.nameError}</div>}
       <Help id="url" text={HELP.url} />
+      <InvitedBy />
     </div>
+  );
+}
+
+/** "Invited by another seller?": filled in from an invite link, or typed (App Store installs lose the link). */
+function InvitedBy() {
+  const { s, set } = useStore();
+  const [open, setOpen] = useState(!!s.referral);
+  if (!open) return <button type="button" className="link-btn ob-invited-btn" onClick={() => setOpen(true)}>Invited by another seller?</button>;
+  return (
+    <label className="ob-invited">
+      <span>Invited by (their shop's web address)</span>
+      <span className="ob-invited-row">
+        <input className="field" value={s.referral} placeholder="adirehouse" autoCapitalize="none" autoCorrect="off"
+          onChange={e => set({ referral: e.target.value.toLowerCase().replace(/\.aquenora\.com.*$/, '').replace(/[^a-z0-9-]/g, '').slice(0, 40) })} />
+        <span>.aquenora.com</span>
+      </span>
+    </label>
   );
 }
 

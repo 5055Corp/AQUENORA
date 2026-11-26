@@ -1,3 +1,4 @@
+import { maybeAskForRating } from './native';
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { COUNTRIES, nextStep, type Order, type Product } from './data';
 import { DAY_NAMES, DAYS, normalizePickup, type Pickup } from './pickup';
@@ -236,6 +237,8 @@ function useStoreValue(settings: Settings) {
       busy: false,
       loadError: '',
     });
+    // Happy sellers (3+ paid orders) are asked once to rate the iPhone app.
+    maybeAskForRating(orders.filter(o => o.status !== 'canceled').length);
     // Problems buyers reported (shown on Orders).
     api.disputes(token).then(r => set({ disputes: r.disputes })).catch(() => {});
     // Shoppers waiting for sold-out products (shown on Products).
@@ -263,10 +266,42 @@ function useStoreValue(settings: Settings) {
     }
   };
 
+  /** A new device: email a code and show the code screen. */
+  const askDeviceCode = async (token: string) => {
+    if (!LIVE) return set({ deviceSentTo: 'a******@gmail.com' });
+    set({ token, screen: 'device', busy: false, deviceError: '', deviceSentTo: '' });
+    try {
+      const { sent_to } = await api.sendDeviceCode(token);
+      set({ deviceSentTo: sent_to });
+    } catch (e) {
+      set({ deviceError: e instanceof Error ? e.message : 'Could not send the code. Try again.' });
+    }
+  };
+  const isNewDevice = (e: unknown) => e instanceof ApiError && e.type === 'device_unverified';
+
+  /** Checks the emailed code; the right one opens the store. Returns an error message, or ''. */
+  const confirmDevice = async (code: string): Promise<string> => {
+    if (!LIVE) {
+      set({ screen: 'app' });
+      return '';
+    }
+    set({ busy: true, deviceError: '' });
+    try {
+      await api.verifyDeviceCode(s.token, code);
+      await loadStore(s.token);
+      return '';
+    } catch (e) {
+      set({ busy: false });
+      return e instanceof Error ? e.message : 'Something went wrong. Please try again.';
+    }
+  };
+  const resendDeviceCode = () => askDeviceCode(s.token);
+
   const retryLoad = () => {
     set({ loadError: '' });
     loadStore(s.token).catch(e => {
-      if (e instanceof ApiError && e.status === 401) logOut('Please log in again.');
+      if (isNewDevice(e)) askDeviceCode(s.token);
+      else if (e instanceof ApiError && e.status === 401) logOut('Please log in again.');
       else set({ loadError: e instanceof Error ? e.message : 'Could not load your store.' });
     });
   };
@@ -287,10 +322,11 @@ function useStoreValue(settings: Settings) {
     if (!s.password) return set({ authError: 'Enter your password.' });
 
     set({ busy: true, authError: '' });
+    let token = '';
     try {
-      const { token } = s.authMode === 'signup'
+      ({ token } = s.authMode === 'signup'
         ? await api.register(email, s.password)
-        : await api.login(email, s.password);
+        : await api.login(email, s.password));
       set({ password: '', email });
       if (sellerIdFromToken(token)) {
         await loadStore(token);
@@ -299,6 +335,7 @@ function useStoreValue(settings: Settings) {
         set({ token, screen: 'onboarding', step: 0, busy: false });
       }
     } catch (e) {
+      if (isNewDevice(e) && token) return askDeviceCode(token);
       set({ busy: false, authError: e instanceof Error ? e.message : 'Something went wrong. Please try again.' });
     }
   };
@@ -317,7 +354,8 @@ function useStoreValue(settings: Settings) {
       let token = s.token;
       const details = { name: s.shopName.trim(), category: s.category, country_code: s.country, sells_abroad: s.intl };
       if (!sellerIdFromToken(token)) {
-        await api.createSeller(token, details);
+        await api.createSeller(token, { ...details, ...(s.referral ? { referral: s.referral } : {}) });
+        try { localStorage.removeItem('aq-ref'); } catch { /* storage unavailable */ }
         // The old token was issued before the store existed; the refreshed one carries the store id.
         token = (await api.refresh(token)).token;
         set({ token });
@@ -789,7 +827,7 @@ function useStoreValue(settings: Settings) {
     pickup, savePickup, savePayout,
     s, set, settings, toast, flash, isMobile, framed, country, fmt, fromUsd, slug, shopNameShown, storeUrl,
     products, toggleHelp, advanceOrder, copyLink, shareWhatsApp, startOver,
-    design, setDesign, planInfo, refreshPlan, startTrial, requestUpgrade, setAutoRenew, connectDomain, checkDomain, removeDomain, live: LIVE, submitAuth, finishOnboarding, addProduct, importProducts, setProductCost, publishDesign, logOut, deleteAccount, setListed, retryLoad, submitVerification, disputeAction, setCollections,
+    design, setDesign, planInfo, refreshPlan, startTrial, requestUpgrade, setAutoRenew, connectDomain, checkDomain, removeDomain, live: LIVE, submitAuth, confirmDevice, resendDeviceCode, finishOnboarding, addProduct, importProducts, setProductCost, publishDesign, logOut, deleteAccount, setListed, retryLoad, submitVerification, disputeAction, setCollections,
     showHints: settings.showHelpHints,
     h1Size: isMobile ? '30px' : '40px',
   };
