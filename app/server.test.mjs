@@ -61,6 +61,7 @@ test('serves the seller app and store pages by address', async () => {
   // Privacy policy and support pages (App Store listing, Settings).
   assert.match((await get('/privacy', 'app.aquenora.com')).body, /<title>Privacy policy · AQUENORA<\/title>/);
   assert.match((await get('/seller-agreement', 'app.aquenora.com')).body, /<title>Seller agreement · AQUENORA<\/title>/);
+  assert.match((await get('/help', 'app.aquenora.com')).body, /<title>Help centre · AQUENORA<\/title>/);
   assert.match((await get('/support', 'app.aquenora.com')).body, /<title>Support · AQUENORA<\/title>/);
   assert.match((await get('/privacy', 'adirehouse.aquenora.com')).body, /<title>AQUENORA store<\/title>/);
 });
