@@ -389,6 +389,18 @@ medusaIntegrationTestRunner({
       expect((await err(api.post("/sellers/me/device-code/verify", { code }, laptop))).status).toBe(400)
     })
 
+    it("push notifications: the app saves this iPhone, and forgets it on log-out", async () => {
+      const { headers } = await setup()
+      const token = "a".repeat(64)
+      expect((await err(api.post("/sellers/me/push-token", { token: "not-a-token" }, { headers }))).status).toBe(400)
+      await api.post("/sellers/me/push-token", { token }, { headers })
+      await api.post("/sellers/me/push-token", { token }, { headers }) // twice = once
+      const sellers = getContainer().resolve("seller") as { listSellers: (f: unknown) => Promise<{ push_tokens: { token: string }[] | null }[]> }
+      expect((await sellers.listSellers({ handle: "adirehouse" }))[0].push_tokens?.map((t) => t.token)).toEqual([token])
+      await api.delete("/sellers/me/push-token", { headers, data: { token } })
+      expect((await sellers.listSellers({ handle: "adirehouse" }))[0].push_tokens).toEqual([])
+    })
+
     it("referrals: both sellers get a free Pro month after the invited store's first sale", async () => {
       const { headers, store } = await setup()
       // A new seller signs up from Adire House's invite link.

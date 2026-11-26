@@ -42,6 +42,7 @@ import {
   ImportProductsSchema,
   DeviceCodeSchema,
   VerifyDeviceCodeSchema,
+  PushTokenSchema,
   UpdateSellerSchema,
 } from "./sellers/validators"
 
@@ -78,6 +79,11 @@ export default defineMiddlewares({
       // Sign-in safety: new devices confirm with an emailed code (see api/device-guard.ts).
       matcher: "/sellers/me*",
       middlewares: [deviceGuard],
+    },
+    {
+      methods: ["POST", "DELETE"],
+      matcher: "/sellers/me/push-token",
+      middlewares: [sellerAuth, validateAndTransformBody(PushTokenSchema)],
     },
     {
       methods: ["POST"],

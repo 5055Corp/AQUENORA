@@ -373,3 +373,7 @@ export const DeviceCodeSchema = z.object({ device_name: z.string().trim().max(60
 export type DeviceCodeBody = z.infer<typeof DeviceCodeSchema>
 export const VerifyDeviceCodeSchema = z.object({ code: z.string().trim().regex(/^\d{6}$/, "Enter the 6-digit code from the email.") }).strict()
 export type VerifyDeviceCodeBody = z.infer<typeof VerifyDeviceCodeSchema>
+
+/** An iPhone's APNs device token (64 hex characters today; allow some room). */
+export const PushTokenSchema = z.object({ token: z.string().regex(/^[a-fA-F0-9]{32,200}$/, "Not a valid device token") }).strict()
+export type PushTokenBody = z.infer<typeof PushTokenSchema>

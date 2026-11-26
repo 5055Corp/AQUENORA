@@ -61,6 +61,8 @@ const Seller = model.define("seller", {
   trusted_devices: model.json().nullable(),
   // The latest emailed code: { hash, device, expires_at, attempts, sends: [iso...] }.
   device_code: model.json().nullable(),
+  // iPhones to send push notifications to: [{ token, at }] (newest last, at most 5).
+  push_tokens: model.json().nullable(),
   // ---- referrals ----
   // The seller who invited this one (their id), and when both got their free Pro month.
   referred_by: model.text().nullable(),

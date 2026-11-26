@@ -17,6 +17,8 @@ import { SELLER_MODULE } from "../modules/seller"
 import type SellerModuleService from "../modules/seller/service"
 import { createSellerOrderWorkflow } from "../workflows/create-seller-order"
 import { rewardReferralWorkflow } from "../workflows/referrals"
+import { pushToSeller } from "./push"
+import { money } from "./order-email"
 import {
   fromSubunit,
   initializeTransaction,
@@ -422,6 +424,12 @@ async function confirmLocked(container: MedusaContainer, reference: string): Pro
   })
   await sellers.updateCheckouts({ id: checkout.id, status: "paid", order_id: order.id })
   await emailBuyer(container, { seller, data, order, currency: checkout.currency_code })
+  // The seller's iPhone: "New order".
+  await pushToSeller(container, seller.id, {
+    title: `New order #${order.display_id} 🎉`,
+    body: `${data.name.split(/\s+/)[0]} paid ${money(Number(checkout.amount), checkout.currency_code)} for ${data.items.map((i) => `${i.quantity} × ${i.title}`).join(", ")}`.slice(0, 180),
+    tab: "orders",
+  })
   // Invited sellers: their first sale gives them and their inviter a free Pro month (once).
   await rewardReferralWorkflow(container).run({ input: { seller_id: seller.id } }).catch(() => undefined)
   return { status: "paid", order: { id: order.id, display_id: order.display_id }, checkout: summary, track_token: trackToken(order.id) }
