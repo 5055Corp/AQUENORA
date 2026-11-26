@@ -292,3 +292,58 @@ export type ReviewVerificationBody = z.infer<typeof ReviewVerificationSchema>
 
 export const StoreVisitSchema = z.object({ source: z.enum(["whatsapp", "instagram", "facebook", "tiktok", "google", "aquenora", "direct", "other"]) }).strict()
 export type StoreVisitBody = z.infer<typeof StoreVisitSchema>
+
+// ---- disputes (a buyer's problem with an order) and moderation ----
+
+const disputeFiles = z
+  .array(z.object({ mime_type: z.enum(["image/jpeg", "image/png", "image/webp"]), data: z.string().max(2_100_000) }).strict())
+  .max(3, "Add up to 3 photos.")
+  .optional()
+
+export const OpenDisputeSchema = z
+  .object({
+    reason: z.enum(["not_arrived", "wrong_item", "damaged", "not_as_described", "other"]),
+    message: z.string().trim().min(3, "Tell the shop what happened.").max(1000),
+    files: disputeFiles,
+  })
+  .strict()
+export type OpenDisputeBody = z.infer<typeof OpenDisputeSchema>
+
+export const BuyerDisputeActionSchema = z
+  .object({ action: z.enum(["message", "confirm", "escalate"]), text: z.string().trim().max(1000).optional(), files: disputeFiles })
+  .strict()
+export type BuyerDisputeActionBody = z.infer<typeof BuyerDisputeActionSchema>
+
+export const SellerDisputeActionSchema = z
+  .object({
+    action: z.enum(["message", "refunded"]),
+    text: z.string().trim().max(1000).optional(),
+    amount: z.number().min(0).max(1_000_000_000).optional(),
+    files: disputeFiles,
+  })
+  .strict()
+export type SellerDisputeActionBody = z.infer<typeof SellerDisputeActionSchema>
+
+export const AdminDisputeActionSchema = z
+  .object({
+    action: z.enum(["decide", "message", "confirm"]),
+    outcome: z.enum(["refund_required", "seller"]).optional(),
+    text: z.string().trim().max(1000).optional(),
+    amount: z.number().min(0).max(1_000_000_000).optional(),
+  })
+  .strict()
+export type AdminDisputeActionBody = z.infer<typeof AdminDisputeActionSchema>
+
+export const ReportProductSchema = z
+  .object({ reason: z.enum(["counterfeit", "prohibited", "misleading", "offensive", "scam", "other"]), note: z.string().trim().max(500).optional() })
+  .strict()
+export type ReportProductBody = z.infer<typeof ReportProductSchema>
+
+export const ReviewReportSchema = z.object({ action: z.enum(["hide", "dismiss"]), reason: z.string().trim().max(300).optional() }).strict()
+export type ReviewReportBody = z.infer<typeof ReviewReportSchema>
+
+export const SuspendSellerSchema = z
+  .object({ suspend: z.boolean(), reason: z.string().trim().max(500).optional() })
+  .strict()
+  .refine((b) => !b.suspend || !!b.reason, { message: "Write the reason (the seller is emailed it).", path: ["reason"] })
+export type SuspendSellerBody = z.infer<typeof SuspendSellerSchema>

@@ -163,6 +163,9 @@ export function toSellerProduct(raw: unknown) {
     currency_code: price?.currency_code ?? null,
     stock: Number.isFinite(stock) ? stock : 0,
     cost_price: costPrice != null && Number.isFinite(costPrice) ? costPrice : null,
+    /** Hidden from buyers by AQUENORA (moderation), with the reason the seller was given. */
+    hidden: !!p.metadata?.hidden_by_aquenora,
+    hidden_reason: (p.metadata?.hidden_by_aquenora as { reason?: string } | undefined)?.reason ?? null,
     options: readOptions(p.metadata),
     made_to_order_days: madeToOrderDays(p.metadata),
     note_prompt: notePrompt(p.metadata),

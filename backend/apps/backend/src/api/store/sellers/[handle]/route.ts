@@ -30,6 +30,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       "pickup",
       "paystack_subaccount_code",
       "verification_status",
+      "suspended_at",
       "shipping",
       "trial_ends_at",
       "pro_paid_until",
@@ -43,12 +44,17 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     throw new MedusaError(MedusaError.Types.NOT_FOUND, `No store at ${req.params.handle}.aquenora.com`)
   }
 
-  const { products, trial_ends_at, pro_paid_until, paystack_subaccount_code, verification_status, shipping, ...store } = seller as typeof seller & {
+  const { products, trial_ends_at, pro_paid_until, paystack_subaccount_code, verification_status, suspended_at, shipping, ...store } = seller as typeof seller & {
+    suspended_at?: string | Date | null
     trial_ends_at?: string | null
     pro_paid_until?: string | null
     paystack_subaccount_code?: string | null
     verification_status?: string | null
     shipping?: Shipping | null
+  }
+  // A store AQUENORA has paused looks like no store at all to buyers.
+  if (suspended_at) {
+    throw new MedusaError(MedusaError.Types.NOT_FOUND, `No store at ${req.params.handle}.aquenora.com`)
   }
   const plan = await resolvePlan(req.scope, { trial_ends_at, pro_paid_until })
   const pickup = (store as unknown as { pickup?: { enabled?: boolean } | null }).pickup
@@ -71,7 +77,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       (products ?? [])
         .filter(Boolean)
         .map(toSellerProduct)
-        .filter((p) => p.status === "published")
+        .filter((p) => p.status === "published" && !p.hidden)
     ),
   })
 }

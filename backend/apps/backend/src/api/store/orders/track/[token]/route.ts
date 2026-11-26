@@ -1,6 +1,7 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys, MedusaError } from "@medusajs/framework/utils"
 import { orderIdFromToken } from "../../../../../lib/order-tracking"
+import { disputeForOrder, disputeView } from "../../../../../lib/dispute-access"
 
 type Raw = {
   id: string
@@ -48,6 +49,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const shipping = meta.shipping as { name?: string; price?: number; days?: string } | undefined
   const days = Math.max(0, ...items.map((i) => i.made_to_order_days ?? 0))
   res.json({
+    dispute: disputeView(await disputeForOrder(req.scope, o.id)),
     order: {
       display_id: o.display_id,
       created_at: o.created_at,

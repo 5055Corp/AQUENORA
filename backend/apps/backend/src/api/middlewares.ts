@@ -30,6 +30,13 @@ import {
   UpdateSellerOrderSchema,
   UpdateSellerProductSchema,
   StoreVisitSchema,
+  OpenDisputeSchema,
+  BuyerDisputeActionSchema,
+  SellerDisputeActionSchema,
+  AdminDisputeActionSchema,
+  ReportProductSchema,
+  ReviewReportSchema,
+  SuspendSellerSchema,
   UpdateSellerSchema,
 } from "./sellers/validators"
 
@@ -98,6 +105,46 @@ export default defineMiddlewares({
       methods: ["POST"],
       matcher: "/admin/verifications/:id",
       middlewares: [validateAndTransformBody(ReviewVerificationSchema)],
+    },
+    // ---- disputes (up to 3 photos, shrunk by the browser first) ----
+    {
+      methods: ["POST"],
+      matcher: "/store/orders/track/:token/dispute",
+      bodyParser: { sizeLimit: "8mb" },
+      middlewares: [validateAndTransformBody(OpenDisputeSchema)],
+    },
+    {
+      methods: ["PATCH"],
+      matcher: "/store/orders/track/:token/dispute",
+      bodyParser: { sizeLimit: "8mb" },
+      middlewares: [validateAndTransformBody(BuyerDisputeActionSchema)],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/sellers/me/disputes/:id",
+      bodyParser: { sizeLimit: "8mb" },
+      middlewares: [sellerAuth, validateAndTransformBody(SellerDisputeActionSchema)],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/admin/disputes/:id",
+      middlewares: [validateAndTransformBody(AdminDisputeActionSchema)],
+    },
+    // ---- moderation ----
+    {
+      methods: ["POST"],
+      matcher: "/store/products/:id/report",
+      middlewares: [validateAndTransformBody(ReportProductSchema)],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/admin/reports/:id",
+      middlewares: [validateAndTransformBody(ReviewReportSchema)],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/admin/sellers/:id/suspend",
+      middlewares: [validateAndTransformBody(SuspendSellerSchema)],
     },
     {
       // Delete account (Settings → Delete account).

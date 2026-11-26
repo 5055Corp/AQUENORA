@@ -277,5 +277,72 @@ medusaIntegrationTestRunner({
       const plain = (await api.post(`/sellers/me/products/${wig.id}`, { options: null }, { headers })).data.product
       expect(plain.options).toBeNull()
     })
+
+    it("disputes: buyer reports, seller refunds directly, buyer confirms; AQUENORA can step in and moderate", async () => {
+      const { headers, product, store } = await setup()
+      await api.post("/sellers/me/payouts", { bank_code: "044", account_number: "0123456789" }, { headers })
+      const started = (await api.post("/store/sellers/adirehouse/checkout", buyer(product.id, 1), store)).data
+      const { track_token: token } = (await api.post("/store/payments/verify", { reference: started.reference }, store)).data
+      const JPG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]).toString("base64")
+
+      // The buyer reports a problem from their tracking link (with a photo); only once.
+      const opened = (await api.post(`/store/orders/track/${token}/dispute`, { reason: "wrong_item", message: "I got the wrong colour.", files: [{ mime_type: "image/jpeg", data: JPG }] }, store)).data.dispute
+      expect(opened).toMatchObject({ status: "open", reason: "wrong_item", can_escalate: false })
+      expect((await err(api.post(`/store/orders/track/${token}/dispute`, { reason: "damaged", message: "Again" }, store))).status).toBe(400)
+      expect((await err(api.patch(`/store/orders/track/${token}/dispute`, { action: "escalate" }, store))).status).toBe(400)
+      // A tampered link can't see or open anything.
+      expect((await err(api.post(`/store/orders/track/${token.slice(0, -2)}xx/dispute`, { reason: "damaged", message: "Hello" }, store))).status).toBe(404)
+
+      // The seller sees it, opens the photo, replies, then marks it refunded.
+      const [mine] = (await api.get("/sellers/me/disputes", { headers })).data.disputes
+      expect(mine.id).toBe(opened.id)
+      const fileId = mine.messages[0].files[0]
+      const photo = await api.get(`/sellers/me/disputes/${mine.id}/files/${fileId}`, { headers, responseType: "arraybuffer" })
+      expect(photo.headers["content-type"]).toContain("image/jpeg")
+      expect(photo.headers["cache-control"]).toContain("no-store")
+      expect((await api.post(`/sellers/me/disputes/${mine.id}`, { action: "message", text: "So sorry! I'll refund you now." }, { headers })).data.dispute.status).toBe("replied")
+      const refunded = (await api.post(`/sellers/me/disputes/${mine.id}`, { action: "refunded", amount: 28000, text: "Sent by transfer" }, { headers })).data.dispute
+      expect(refunded).toMatchObject({ status: "refunded", refund: { amount: 28000, note: "Sent by transfer" }, can_escalate: true })
+
+      // The buyer sees it on the tracking page and confirms; the problem closes.
+      expect((await api.get(`/store/orders/track/${token}`, store)).data.dispute.status).toBe("refunded")
+      expect((await api.patch(`/store/orders/track/${token}/dispute`, { action: "confirm" }, store)).data.dispute.status).toBe("resolved")
+      expect((await err(api.post(`/sellers/me/disputes/${mine.id}`, { action: "message", text: "hi" }, { headers }))).status).toBe(400)
+      const mail = await getContainer().resolve(Modules.NOTIFICATION).listNotifications({ to: "shop@example.com" })
+      expect(mail.some((n: { template: string }) => n.template === "aquenora-dispute")).toBe(true)
+
+      // Admin: sees it, and needs a login.
+      const adminReg = await api.post("/auth/user/emailpass/register", { email: "owner@aquenora.com", password })
+      const { createUserAccountWorkflow } = await import("@medusajs/medusa/core-flows")
+      const authIdentityId = JSON.parse(Buffer.from(adminReg.data.token.split(".")[1], "base64").toString()).auth_identity_id
+      await createUserAccountWorkflow(getContainer()).run({ input: { authIdentityId, userData: { email: "owner@aquenora.com" } } })
+      const admin = { authorization: `Bearer ${(await api.post("/auth/user/emailpass", { email: "owner@aquenora.com", password })).data.token}` }
+      expect((await err(api.get("/admin/disputes"))).status).toBe(401)
+      expect((await api.get("/admin/disputes?status=all", { headers: admin })).data.disputes[0]).toMatchObject({ status: "resolved", seller: { name: "Adire House" } })
+
+      // Reports: a shopper reports the product; AQUENORA hides it; it leaves the store and can't be bought.
+      expect((await api.post(`/store/products/${product.id}/report`, { reason: "counterfeit", note: "Fake brand" }, store)).status).toBe(201)
+      const [report] = (await api.get("/admin/reports", { headers: admin })).data.reports
+      expect(report).toMatchObject({ count: 1, reasons: { counterfeit: 1 }, product: { title: "Kimono", hidden: false } })
+      await api.post(`/admin/reports/${report.report_id}`, { action: "hide", reason: "Counterfeit brand" }, { headers: admin })
+      expect((await api.get("/store/sellers/adirehouse", store)).data.products).toHaveLength(0)
+      expect((await err(api.post("/store/sellers/adirehouse/checkout", buyer(product.id, 1), store))).status).toBe(400)
+      expect((await api.get("/sellers/me/products", { headers })).data.products[0]).toMatchObject({ hidden: true, hidden_reason: "Counterfeit brand" })
+      await api.post(`/admin/products/${product.id}/unhide`, {}, { headers: admin })
+      expect((await api.get("/store/sellers/adirehouse", store)).data.products).toHaveLength(1)
+
+      // Suspending a store hides it completely; restoring brings it back.
+      const sellerId = (await api.get("/sellers/me", { headers })).data.seller.id
+      expect((await err(api.post(`/admin/sellers/${sellerId}/suspend`, { suspend: true }, { headers: admin }))).status).toBe(400)
+      await api.post(`/admin/sellers/${sellerId}/suspend`, { suspend: true, reason: "Unpaid refund" }, { headers: admin })
+      expect((await err(api.get("/store/sellers/adirehouse", store))).status).toBe(404)
+      await api.post(`/admin/sellers/${sellerId}/suspend`, { suspend: false }, { headers: admin })
+      expect((await api.get("/store/sellers/adirehouse", store)).status).toBe(200)
+
+      // Owner overview.
+      const overview = (await api.get("/admin/overview", { headers: admin })).data
+      expect(overview).toMatchObject({ orders: 1, sales: { ngn: 28000 }, sellers: { total: 1, new: 1 }, top_stores: [{ name: "Adire House", orders: 1 }] })
+      expect(overview.commission.ngn).toBeGreaterThan(0)
+    })
   },
 })
