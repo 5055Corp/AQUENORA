@@ -33,6 +33,8 @@ export interface State {
   orders: Order[];
   /** Problems buyers reported on orders (live: from the backend; demo: one sample). */
   disputes: import('./api').Dispute[];
+  /** Shoppers waiting for sold-out products: { productId: { choice ('' = the product): count } }. */
+  waiting: Record<string, Record<string, number>>;
   filter: OrderFilter;
   newName: string;
   newPrice: string;
@@ -110,6 +112,8 @@ export function initialState(settings: Settings): State {
       messages: [{ from: 'buyer', text: 'I ordered the indigo kimono in size L but got size M.', at: new Date().toISOString() }],
       refund: null, decision: null, reply_by: new Date(Date.now() + 2 * 86400000).toISOString(), can_escalate: false,
     }],
+    // Demo: shoppers waiting for the sold-out sample product.
+    waiting: { 'Silk head wrap': { '': 3 } },
     filter: 'all',
     newName: '',
     newPrice: '',
@@ -151,6 +155,7 @@ export function initialState(settings: Settings): State {
     products: [],
     orders: [],
     disputes: [],
+    waiting: {},
   };
 }
 

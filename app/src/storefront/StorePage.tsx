@@ -7,7 +7,7 @@ import { designFromLegacy, normalizeDesign, STORE_FONTS, type StoreDesign } from
 import type { CountryId } from '../data';
 import { StoreView, type StoreItem } from './StoreView';
 import { TrackOrder } from './TrackOrder';
-import { recordVisit, reportProduct, type VisitSource } from '../api';
+import { notifyWhenBack, recordVisit, reportProduct, type VisitSource } from '../api';
 
 /** Where a visitor came from: ?from=..., or the website that sent them. */
 function visitSource(embedded: boolean): VisitSource {
@@ -1041,6 +1041,39 @@ function ReportLink({ productId, ink }: { productId: string; ink: string }) {
   );
 }
 
+/** Sold out: "Email me when it's back" (for the chosen choice of the first option, if stock is per choice). */
+function NotifyBox({ productId, choice, ink, accent, accentText }: { productId: string; choice: string; ink: string; accent: string; accentText: string }) {
+  const [email, setEmail] = useState('');
+  const [state, setState] = useState<'' | 'sending' | 'sent'>('');
+  const [error, setError] = useState('');
+  useEffect(() => { setState(''); setError(''); }, [choice]);
+  if (state === 'sent') return <p className="pp-notify-done">✓ We'll email {email.trim()} when {choice || 'it'}'s back. Just once.</p>;
+  const send = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) return setError('Enter your email address.');
+    setState('sending');
+    setError('');
+    try {
+      if (LIVE) await notifyWhenBack(productId, { email: email.trim(), ...(choice ? { choice } : {}) });
+      setState('sent');
+    } catch (err) {
+      setState('');
+      setError(err instanceof Error ? err.message : 'Could not save. Please try again.');
+    }
+  };
+  return (
+    <form className="pp-notify" onSubmit={send} style={{ borderColor: ink + '33' }}>
+      <b>{choice ? `${choice} is sold out.` : 'Sold out.'} Want it when it's back?</b>
+      <div className="pp-notify-row">
+        <input type="email" inputMode="email" autoComplete="email" placeholder="Your email" aria-label="Your email" value={email}
+          onChange={e => setEmail(e.target.value)} style={{ color: ink, borderColor: ink + '33' }} />
+        <button type="submit" disabled={state === 'sending'} style={{ background: accent, color: accentText }}>{state === 'sending' ? 'Saving…' : 'Email me'}</button>
+      </div>
+      {error && <small className="pp-opt-need" role="alert">{error}</small>}
+    </form>
+  );
+}
+
 /** A product's photos, swipeable, with its name, price and description; buyers pick options here. */
 function ProductPhotos({ item, show, design: d, onClose, onAdd }: {
   item: StoreItem;
@@ -1066,7 +1099,9 @@ function ProductPhotos({ item, show, design: d, onClose, onAdd }: {
   const allPicked = picked.every(i => i >= 0);
   const price = allPicked ? priceFor(item.price, item.options, picked) : fromPrice(item.price, item.options);
   const left = stockFor(item.stock, item.options, picked, item.madeToOrderDays);
-  const soldOut = item.madeToOrderDays ? false : groups.length && perChoice ? (allPicked ? left <= 0 : item.stock <= 0) : item.stock <= 0;
+  // A sold-out choice of the first option can still be picked, to ask to be told when it's back.
+  const choiceOut = perChoice && picked[0] >= 0 && (groups[0].choices[picked[0]].stock ?? 0) <= 0;
+  const soldOut = item.madeToOrderDays ? false : choiceOut || (groups.length && perChoice ? (allPicked ? left <= 0 : item.stock <= 0) : item.stock <= 0);
   const accent = d.colors.accent;
   useEffect(() => {
     const key = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -1112,7 +1147,6 @@ function ProductPhotos({ item, show, design: d, onClose, onAdd }: {
                       type="button"
                       role="radio"
                       aria-checked={on}
-                      disabled={out}
                       className={'pp-chip' + (on ? ' on' : '') + (out ? ' out' : '')}
                       style={on ? { background: d.colors.text, color: d.colors.card, borderColor: d.colors.text } : { borderColor: d.colors.text + '33', color: d.colors.text }}
                       onClick={() => setPicked(p => p.map((x, i) => (i === gi ? ci : x)))}
@@ -1133,6 +1167,10 @@ function ProductPhotos({ item, show, design: d, onClose, onAdd }: {
             </label>
           )}
           {item.description && <p className="pp-desc">{item.description}</p>}
+          {soldOut && (
+            <NotifyBox productId={item.key} choice={choiceOut && item.stock > 0 ? groups[0].choices[picked[0]].label : ''}
+              ink={d.colors.text} accent={accent} accentText={d.colors.accent_text} />
+          )}
           <ReportLink productId={item.key} ink={d.colors.text} />
           <button type="button" className="pp-add" disabled={!!soldOut} onClick={add}
             style={{ background: soldOut ? 'transparent' : accent, color: soldOut ? d.colors.text : d.colors.accent_text, border: soldOut ? '1px solid currentColor' : 'none' }}>

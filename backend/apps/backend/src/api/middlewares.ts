@@ -37,6 +37,7 @@ import {
   ReportProductSchema,
   ReviewReportSchema,
   SuspendSellerSchema,
+  StockAlertSchema,
   UpdateSellerSchema,
 } from "./sellers/validators"
 
@@ -129,6 +130,11 @@ export default defineMiddlewares({
       methods: ["POST"],
       matcher: "/admin/disputes/:id",
       middlewares: [validateAndTransformBody(AdminDisputeActionSchema)],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/store/products/:id/notify",
+      middlewares: [validateAndTransformBody(StockAlertSchema)],
     },
     // ---- moderation ----
     {

@@ -238,6 +238,8 @@ function useStoreValue(settings: Settings) {
     });
     // Problems buyers reported (shown on Orders).
     api.disputes(token).then(r => set({ disputes: r.disputes })).catch(() => {});
+    // Shoppers waiting for sold-out products (shown on Products).
+    api.stockAlerts(token).then(r => set({ waiting: r.waiting })).catch(() => {});
     // A rejected seller sees why, so they can fix it and send again.
     if (seller.verification_status === 'rejected') {
       api.verification(token).then(({ verification: v }) => set({ verifyReason: v.details?.reject_reason ?? '' })).catch(() => {});

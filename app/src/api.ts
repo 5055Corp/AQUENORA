@@ -367,6 +367,9 @@ export const openDispute = (token: string, body: { reason: DisputeReason; messag
 export const buyerDisputeAction = (token: string, body: { action: 'message' | 'confirm' | 'escalate'; text?: string; files?: PhotoFile[] }) =>
   storeSend<{ dispute: Dispute }>(`/store/orders/track/${encodeURIComponent(token)}/dispute`, 'PATCH', body);
 export const buyerDisputeFileUrl = (token: string, file: string) => `${storeApi()}/store/orders/track/${encodeURIComponent(token)}/dispute/files/${file}`;
+/** "Email me when it's back": a shopper waits for a sold-out product (or one choice of it). */
+export const notifyWhenBack = (productId: string, body: { email: string; choice?: string }) =>
+  storeSend<{ waiting: true }>(`/store/products/${encodeURIComponent(productId)}/notify`, 'POST', body);
 export const reportProduct = (productId: string, body: { reason: 'counterfeit' | 'prohibited' | 'misleading' | 'offensive' | 'scam' | 'other'; note?: string }) =>
   storeSend<{ reported: true }>(`/store/products/${encodeURIComponent(productId)}/report`, 'POST', body);
 
@@ -500,6 +503,8 @@ export const api = {
     request<{ product: ApiProduct }>(`/sellers/me/products/${encodeURIComponent(id)}`, { body, token }),
   deleteProduct: (token: string, id: string) => request<{ id: string; deleted: true }>(`/sellers/me/products/${id}`, { token, method: 'DELETE' }),
   disputes: (token: string) => request<{ disputes: Dispute[] }>('/sellers/me/disputes', { token }),
+  /** Shoppers waiting for a sold-out product: { productId: { choice ('' = the product): count } }. */
+  stockAlerts: (token: string) => request<{ waiting: Record<string, Record<string, number>> }>('/sellers/me/stock-alerts', { token }),
   disputeAction: (token: string, id: string, body: { action: 'message' | 'refunded'; text?: string; amount?: number; files?: PhotoFile[] }) =>
     request<{ dispute: Dispute }>(`/sellers/me/disputes/${id}`, { token, body }),
   /** A dispute photo as an object URL (the request needs the seller's login). */

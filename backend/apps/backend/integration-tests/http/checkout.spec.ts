@@ -278,6 +278,41 @@ medusaIntegrationTestRunner({
       expect(plain.options).toBeNull()
     })
 
+    it("back in stock: shoppers ask to be told, and are emailed once when the seller restocks", async () => {
+      const { headers, product, store } = await setup()
+      // In stock: nothing to wait for.
+      expect((await err(api.post(`/store/products/${product.id}/notify`, { email: "a@example.com" }, store))).status).toBe(400)
+      await api.post(`/sellers/me/products/${product.id}`, { stock: 0 }, { headers })
+      expect((await err(api.post(`/store/products/${product.id}/notify`, { email: "not-an-email" }, store))).status).toBe(400)
+      await api.post(`/store/products/${product.id}/notify`, { email: "A@Example.com" }, store)
+      await api.post(`/store/products/${product.id}/notify`, { email: "a@example.com" }, store) // twice = once
+      await api.post(`/store/products/${product.id}/notify`, { email: "b@example.com" }, store)
+
+      // A wig whose 20 inch is sold out.
+      const groups = (stock20: number) => [{ name: "Length", choices: [{ label: "12 inch", stock: 2 }, { label: "20 inch", stock: stock20 }] }]
+      const wig = (await api.post("/sellers/me/products", { title: "Wig", price: 45000, options: { stock_per_choice: true, groups: groups(0) } }, { headers })).data.product
+      expect((await err(api.post(`/store/products/${wig.id}/notify`, { email: "c@example.com", choice: "12 inch" }, store))).status).toBe(400)
+      await api.post(`/store/products/${wig.id}/notify`, { email: "c@example.com", choice: "20 inch" }, store)
+
+      expect((await api.get("/sellers/me/stock-alerts", { headers })).data.waiting).toEqual({ [product.id]: { "": 2 }, [wig.id]: { "20 inch": 1 } })
+
+      const notifications = getContainer().resolve(Modules.NOTIFICATION)
+      const sent = async () => (await notifications.listNotifications({ template: "aquenora-back-in-stock" })).map((n: { to: string }) => n.to).sort()
+      // Editing something else doesn't email anyone; restocking does, once.
+      await api.post(`/sellers/me/products/${product.id}`, { title: "Kimono (indigo)" }, { headers })
+      expect(await sent()).toEqual([])
+      await api.post(`/sellers/me/products/${product.id}`, { stock: 4 }, { headers })
+      expect(await sent()).toEqual(["a@example.com", "b@example.com"])
+      await api.post(`/sellers/me/products/${product.id}`, { stock: 5 }, { headers })
+      expect(await sent()).toEqual(["a@example.com", "b@example.com"])
+      const mail = (await notifications.listNotifications({ template: "aquenora-back-in-stock" }))[0] as unknown as { data: { subject: string } }
+      expect(mail.data.subject).toBe("It's back: Kimono (indigo) at Adire House")
+
+      await api.post(`/sellers/me/products/${wig.id}`, { options: { stock_per_choice: true, groups: groups(3) } }, { headers })
+      expect(await sent()).toEqual(["a@example.com", "b@example.com", "c@example.com"])
+      expect((await api.get("/sellers/me/stock-alerts", { headers })).data.waiting).toEqual({})
+    })
+
     it("disputes: buyer reports, seller refunds directly, buyer confirms; AQUENORA can step in and moderate", async () => {
       const { headers, product, store } = await setup()
       await api.post("/sellers/me/payouts", { bank_code: "044", account_number: "0123456789" }, { headers })

@@ -357,3 +357,6 @@ export const SuspendSellerSchema = z
   .strict()
   .refine((b) => !b.suspend || !!b.reason, { message: "Write the reason (the seller is emailed it).", path: ["reason"] })
 export type SuspendSellerBody = z.infer<typeof SuspendSellerSchema>
+
+export const StockAlertSchema = z.object({ email: z.string().trim().email("Enter a valid email address").max(200), choice: z.string().trim().max(40).optional() }).strict()
+export type StockAlertBody = z.infer<typeof StockAlertSchema>

@@ -153,8 +153,8 @@ export function StoreView({ name, design: d, items, fmt, variant, narrow, bagCou
                   {soldOut ? 'Sold out' : needsChoosing(p) ? 'Choose options' : 'Add to bag'}
                 </div>
               ) : soldOut ? (
-                <button type="button" className="sf-add" disabled style={button({ background: 'transparent', color: text, border: `1px solid ${sa}`, opacity: 0.7 })}>
-                  Sold out
+                <button type="button" className="sf-add" disabled={!onOpen} onClick={() => onOpen?.(p)} style={button({ background: 'transparent', color: text, border: `1px solid ${sa}` })}>
+                  {onOpen ? 'Sold out · Notify me' : 'Sold out'}
                 </button>
               ) : (
                 <button type="button" className="sf-add" style={button()} onClick={() => (choose ? onOpen!(p) : onAdd?.(p))}>

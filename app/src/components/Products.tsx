@@ -80,7 +80,7 @@ export function Products() {
       {products.length === 0 && <div className="empty">No products yet. Add your first one above.</div>}
       <div className="list">
         {products.map((p, i) => (
-          <ProductRow key={p.id ?? i + p.name} product={p} cost={costOf(p, i)} fmt={fmt} sym={sym} onSaveCost={c => setProductCost(i, c)} onSaveImages={imgs => setProductImages(i, imgs)} onEdit={() => setEditing(i)} />
+          <ProductRow key={p.id ?? i + p.name} product={p} cost={costOf(p, i)} fmt={fmt} sym={sym} onSaveCost={c => setProductCost(i, c)} onSaveImages={imgs => setProductImages(i, imgs)} onEdit={() => setEditing(i)} waiting={s.waiting[p.id ?? p.name]} />
         ))}
       </div>
       {editing !== null && products[editing] && (
@@ -90,7 +90,19 @@ export function Products() {
   );
 }
 
-function ProductRow({ product: p, cost, fmt, sym, onSaveCost, onSaveImages, onEdit }: {
+/** "3 people waiting" / "2 waiting for 20 inch, 1 for 12 inch". */
+function waitingText(w: Record<string, number> | undefined): string {
+  if (!w) return '';
+  const parts = Object.entries(w).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]);
+  if (!parts.length) return '';
+  const total = parts.reduce((n, [, c]) => n + c, 0);
+  const people = `${total} ${total === 1 ? 'person' : 'people'} waiting`;
+  if (parts.length === 1 && !parts[0][0]) return `${people} for it to be back`;
+  return `${people}: ${parts.map(([c, n]) => `${n} for ${c || 'any'}`).join(', ')}`;
+}
+
+function ProductRow({ product: p, cost, fmt, sym, onSaveCost, onSaveImages, onEdit, waiting }: {
+  waiting?: Record<string, number>;
   product: Product;
   cost: number | null;
   fmt: (n: number) => string;
@@ -124,6 +136,7 @@ function ProductRow({ product: p, cost, fmt, sym, onSaveCost, onSaveImages, onEd
         <div style={{ color: p.stock === 0 && !p.madeToOrderDays ? 'var(--alert)' : 'var(--muted)' }}>
           {p.madeToOrderDays ? `Made to order · ${p.madeToOrderDays} days` : p.stock === 0 ? 'Sold out' : p.stock + ' in stock'}
         </div>
+        {waitingText(waiting) && <div className="prod-waiting">🔔 {waitingText(waiting)}. We'll email them when you restock.</div>}
         {p.hiddenReason && <div className="prod-hidden">Hidden by AQUENORA: {p.hiddenReason}</div>}
         {!!p.options?.groups.length && (
           <div className="prod-opts">{p.options.groups.map(g => `${g.name} (${g.choices.length})`).join(' · ')}</div>

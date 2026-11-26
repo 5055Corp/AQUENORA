@@ -6,7 +6,8 @@ import StoreVisit from "./models/store-visit"
 import Dispute from "./models/dispute"
 import DisputeFile from "./models/dispute-file"
 import ProductReport from "./models/product-report"
+import StockAlert from "./models/stock-alert"
 
-class SellerModuleService extends MedusaService({ Seller, Checkout, SellerDocument, StoreVisit, Dispute, DisputeFile, ProductReport }) {}
+class SellerModuleService extends MedusaService({ Seller, Checkout, SellerDocument, StoreVisit, Dispute, DisputeFile, ProductReport, StockAlert }) {}
 
 export default SellerModuleService

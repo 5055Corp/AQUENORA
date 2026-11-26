@@ -890,6 +890,7 @@ button.ob-photo { width: 100%; cursor: pointer; font: inherit; font-family: var(
 .op-form .pb-add { width: 56px; height: 56px; border: 1.5px dashed; border-radius: 10px; background: #fff; font-size: 22px; }
 .op-form .pb-error { color: var(--alert); font-size: 13px; }
 .prod-hidden { font-size: 12.5px; font-weight: 700; color: #8a1f17; background: #fdecea; border-radius: 8px; padding: 4px 8px; margin-top: 4px; align-self: flex-start; }
+.prod-waiting { font-size: 12.5px; font-weight: 700; color: #5B21B6; background: #f1ebfd; border-radius: 8px; padding: 4px 8px; margin-top: 4px; align-self: flex-start; }
 .vf-status.suspended { background: #fdecea; border-color: #f5c2bd; }
 
 .oe-photo-btn { width: 40px; height: 40px; border-radius: 10px; border: 1.5px dashed var(--line); background: #fff; font-size: 12px; padding: 0; position: relative; overflow: hidden; }
