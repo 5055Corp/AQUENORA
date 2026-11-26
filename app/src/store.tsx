@@ -1,4 +1,4 @@
-import { maybeAskForRating } from './native';
+import { maybeAskForRating, startPush, stopPush } from './native';
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { COUNTRIES, nextStep, type Order, type Product } from './data';
 import { DAY_NAMES, DAYS, normalizePickup, type Pickup } from './pickup';
@@ -177,6 +177,8 @@ function useStoreValue(settings: Settings) {
   // ---------------- live mode actions ----------------
 
   const logOut = (message?: string) => {
+    // This iPhone stops getting the store's notifications (needs the old login, so before clearing it).
+    if (s.token) stopPush(push => api.forgetPushToken(s.token, push));
     persist.saveLive(null);
     setS({ ...initialState(settings), authMode: 'login', authError: message ?? '' });
     window.scrollTo(0, 0);
@@ -237,6 +239,8 @@ function useStoreValue(settings: Settings) {
       busy: false,
       loadError: '',
     });
+    // iPhone notifications for new orders and problems; tapping one opens that tab.
+    startPush(push => api.savePushToken(token, push), tab => set({ tab: (['home', 'orders', 'products', 'settings'].includes(tab) ? tab : 'home') as State['tab'] }));
     // Happy sellers (3+ paid orders) are asked once to rate the iPhone app.
     maybeAskForRating(orders.filter(o => o.status !== 'canceled').length);
     // Problems buyers reported (shown on Orders).

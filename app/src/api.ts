@@ -516,6 +516,8 @@ export const api = {
   /** Email a 6-digit code to confirm this device. */
   sendDeviceCode: (token: string) => request<{ sent_to: string }>('/sellers/me/device-code', { token, body: { device_name: deviceName() } }),
   verifyDeviceCode: (token: string, code: string) => request<{ trusted: true }>('/sellers/me/device-code/verify', { token, body: { code } }),
+  savePushToken: (token: string, push: string) => request<{ saved: boolean }>('/sellers/me/push-token', { token, body: { token: push } }),
+  forgetPushToken: (token: string, push: string) => request<{ saved: boolean }>('/sellers/me/push-token', { token, method: 'DELETE', body: { token: push } }),
   /** The seller's invite link and how many friends joined / made a first sale. */
   referrals: (token: string) => request<{ link: string; joined: number; rewarded: number }>('/sellers/me/referrals', { token }),
   createSeller: (token: string, body: { name: string; category: string; country_code: CountryId; sells_abroad: boolean; referral?: string }) =>

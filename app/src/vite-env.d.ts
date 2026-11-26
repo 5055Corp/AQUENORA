@@ -8,3 +8,6 @@ interface ImportMetaEnv {
   /** Domain shops live under, e.g. aquenora.com. Unset until the domain is live. */
   readonly VITE_STORE_DOMAIN?: string;
 }
+
+/** The build's id (yyyymmddhhmmss), compared for live updates. */
+declare const __BUILD_ID__: string;

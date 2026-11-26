@@ -43,3 +43,34 @@ Change **Version** (1.0 → 1.1) for a new App Store release.
 
 The app talks to `https://api.aquenora.com` from the origin `capacitor://localhost`, so the
 backend's `STORE_CORS`, `AUTH_CORS` and `SELLER_CORS` must each include `capacitor://localhost`.
+
+## Push notifications (from version 1.2)
+
+Sellers get a notification for a new order, a problem reported on an order, a buyer's reply,
+and their verification result. Tapping it opens the right tab.
+
+1. **Xcode, once:** open `ios/App/App.xcodeproj`, click **App** (blue icon) → **Signing & Capabilities** →
+   **+ Capability** → **Push Notifications**.
+2. **Apple key, once:** [developer.apple.com](https://developer.apple.com/account/resources/authkeys/list) →
+   Keys → **+** → name it "AQUENORA push", tick **Apple Push Notifications service (APNs)** → Continue →
+   Register → **Download** the `.p8` file (you can only download it once). Note the **Key ID** and your
+   **Team ID** (top right of the page).
+3. **Railway → backend → Variables** (never paste the key anywhere else):
+   - `APNS_KEY` = the whole text of the `.p8` file (open it in TextEdit, copy everything)
+   - `APNS_KEY_ID` = the Key ID
+   - `APNS_TEAM_ID` = the Team ID
+   - `APNS_BUNDLE_ID` = `com.aquenora.seller`
+
+Without these variables the app still works; it just sends no notifications.
+
+## Live updates (from version 1.2)
+
+Every website deploy also publishes the same screens for the iPhone app at
+`app.aquenora.com/live/manifest.json`. The app checks it when it opens, downloads anything newer
+in the background, and shows it the next time it's opened. If a new version fails to start, the app
+goes back to the last one that worked by itself.
+
+Live updates only carry screens, text, styles and pictures. A new **native** feature (a new plugin,
+permission or capability) still needs an App Store update: build it with `npm run ios:build`, upload
+it, and set the second argument of `scripts/live-bundle.mjs` in the `Dockerfile` (`min_native`, now
+`1.2`) to the new version, so older App Store versions don't download screens they can't run.

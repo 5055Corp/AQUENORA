@@ -13,7 +13,8 @@ ARG VITE_MEDUSA_PUBLISHABLE_KEY
 ARG VITE_STORE_DOMAIN
 # Refuse to build the live site without a backend: it would silently become the demo.
 RUN test -n "$VITE_API_URL" || (echo "Set VITE_API_URL to the backend's public address (e.g. https://api.aquenora.com)" && exit 1)
-RUN npm run build
+# One build id for the web build and its live-update bundle (the iPhone app downloads newer ones).
+RUN BUILD_ID=$(date -u +%Y%m%d%H%M%S) && BUILD_ID=$BUILD_ID npm run build && node scripts/live-bundle.mjs $BUILD_ID 1.2
 
 FROM node:22-bookworm-slim
 ENV NODE_ENV=production \

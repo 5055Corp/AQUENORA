@@ -31,6 +31,7 @@ const TYPES = {
   '.webp': 'image/webp',
   '.ico': 'image/x-icon',
   '.json': 'application/json',
+  '.zip': 'application/zip',
   '.txt': 'text/plain; charset=utf-8',
   '.woff2': 'font/woff2',
 };
@@ -185,8 +186,10 @@ async function send(req, res, file, status = 200) {
   const headers = {
     ...securityHeaders(req),
     'Content-Type': type,
-    // Hashed files in assets/ never change; pages must always be fresh so new deploys show up.
-    'Cache-Control': isAsset ? 'public, max-age=31536000, immutable' : 'no-cache',
+    // Hashed files in assets/ (and live-update bundles) never change; pages must always be fresh so new deploys show up.
+    'Cache-Control': isAsset || /bundle-\d+\.zip$/.test(file) ? 'public, max-age=31536000, immutable' : 'no-cache',
+    // The iPhone app reads the live-update manifest from capacitor://localhost.
+    ...(file.includes(`${sep}live${sep}`) ? { 'Access-Control-Allow-Origin': '*' } : {}),
     Vary: 'Accept-Encoding',
   };
   const useGz = gz && /\bgzip\b/.test(req.headers['accept-encoding'] ?? '');

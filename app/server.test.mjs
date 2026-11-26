@@ -103,3 +103,16 @@ test('link previews: store and product tags, escaped', async () => {
   assert.match(product, /og:image" content="https:\/\/cdn.test\/w.jpg"/);
   assert.match(product, /og:type" content="product"/);
 });
+
+test('live updates: the manifest is fresh and readable by the iPhone app; bundles are cached', async () => {
+  const m = await get('/live/manifest.json', 'app.aquenora.com');
+  if (m.status === 404) return; // only after scripts/live-bundle.mjs has run
+  assert.equal(m.status, 200);
+  assert.equal(m.headers['cache-control'], 'no-cache');
+  assert.equal(m.headers['access-control-allow-origin'], '*');
+  const { url } = JSON.parse(m.body);
+  const z = await get(url, 'app.aquenora.com', {}, 'HEAD');
+  assert.equal(z.status, 200);
+  assert.equal(z.headers['content-type'], 'application/zip');
+  assert.match(z.headers['cache-control'], /immutable/);
+});
