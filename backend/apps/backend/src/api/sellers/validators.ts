@@ -21,6 +21,8 @@ export const CreateSellerSchema = z.object({
   category: z.string().trim().min(1).max(60).optional(),
   country_code: z.enum(SELLER_COUNTRIES).optional(),
   sells_abroad: z.boolean().optional(),
+  /** The web address of the seller who invited them (from an invite link). Ignored if unknown. */
+  referral: z.string().trim().max(40).optional(),
 })
 export type CreateSellerBody = z.infer<typeof CreateSellerSchema>
 
@@ -366,3 +368,8 @@ export const ImportProductsSchema = z
   .object({ products: z.array(CreateSellerProductSchema.omit({ images: true }).strict()).min(1, "The file has no products.").max(200, "Up to 200 products at a time.") })
   .strict()
 export type ImportProductsBody = z.infer<typeof ImportProductsSchema>
+
+export const DeviceCodeSchema = z.object({ device_name: z.string().trim().max(60).optional() }).strict()
+export type DeviceCodeBody = z.infer<typeof DeviceCodeSchema>
+export const VerifyDeviceCodeSchema = z.object({ code: z.string().trim().regex(/^\d{6}$/, "Enter the 6-digit code from the email.") }).strict()
+export type VerifyDeviceCodeBody = z.infer<typeof VerifyDeviceCodeSchema>

@@ -360,6 +360,70 @@ medusaIntegrationTestRunner({
       expect((await err(api.post("/sellers/me/product-imports", { products: [{ title: "x", price: 1 }] }))).status).toBe(401)
     })
 
+    it("new devices confirm with an emailed code; the first device is trusted", async () => {
+      const { headers } = await setup()
+      const phone = { headers: { ...headers, "x-aq-device": "phone-1111111111111111" } }
+      const laptop = { headers: { ...headers, "x-aq-device": "laptop-222222222222222" } }
+      // Old app (no device id): still works until REQUIRE_DEVICE_CODE is turned on.
+      expect((await api.get("/sellers/me", { headers })).status).toBe(200)
+      // The first device seen is trusted; a second one has to confirm.
+      expect((await api.get("/sellers/me", phone)).status).toBe(200)
+      const blocked = (await err(api.get("/sellers/me/orders", laptop))) as unknown as { status: number; data: { type: string } }
+      expect(blocked.status).toBe(403)
+      expect(blocked.data.type).toBe("device_unverified")
+
+      expect((await api.post("/sellers/me/device-code", { device_name: "Chrome on Mac" }, laptop)).data.sent_to).toBe("s***@example.com")
+      // Wait a minute before another.
+      expect((await err(api.post("/sellers/me/device-code", {}, laptop))).status).toBe(400)
+      const mails = await getContainer().resolve(Modules.NOTIFICATION).listNotifications({ template: "aquenora-login-code" }) as unknown as { to: string; data: { subject: string } }[]
+      expect(mails[0].to).toBe("shop@example.com")
+      const code = mails[0].data.subject.slice(0, 6)
+      const wrong = code === "000000" ? "111111" : "000000"
+      expect((await err(api.post("/sellers/me/device-code/verify", { code: wrong }, laptop))).data.message).toContain("4 tries left")
+      // The code only works on the device that asked for it.
+      expect((await err(api.post("/sellers/me/device-code/verify", { code }, { headers: { ...headers, "x-aq-device": "other-33333333333333333" } }))).status).toBe(400)
+      expect((await api.post("/sellers/me/device-code/verify", { code }, laptop)).data.trusted).toBe(true)
+      expect((await api.get("/sellers/me/orders", laptop)).status).toBe(200)
+      expect((await api.get("/sellers/me", phone)).status).toBe(200)
+      // Used once only.
+      expect((await err(api.post("/sellers/me/device-code/verify", { code }, laptop))).status).toBe(400)
+    })
+
+    it("referrals: both sellers get a free Pro month after the invited store's first sale", async () => {
+      const { headers, store } = await setup()
+      // A new seller signs up from Adire House's invite link.
+      const reg = await api.post("/auth/seller/emailpass/register", { email: "new@example.com", password })
+      await api.post("/sellers", { name: "Kente Corner", referral: "adirehouse" }, { headers: { authorization: `Bearer ${reg.data.token}` } })
+      const sellers = getContainer().resolve("seller") as { listSellers: (f: unknown) => Promise<{ id: string; pro_paid_until: Date | null }[]>; updateSellers: (d: unknown) => Promise<unknown> }
+      const [kente] = await sellers.listSellers({ handle: "kentecorner" })
+      await sellers.updateSellers({ id: kente.id, verification_status: "verified" })
+      const login = await api.post("/auth/seller/emailpass", { email: "new@example.com", password })
+      const kh = { headers: { authorization: `Bearer ${login.data.token}` } }
+      expect((await api.get("/sellers/me/referrals", { headers })).data).toMatchObject({ joined: 1, rewarded: 0 })
+      expect((await api.get("/sellers/me/referrals", { headers })).data.link).toContain("ref=adirehouse")
+
+      await api.post("/sellers/me/payouts", { bank_code: "044", account_number: "0123456789" }, kh)
+      const cloth = (await api.post("/sellers/me/products", { title: "Kente cloth", price: 20000, stock: 5 }, kh)).data.product
+      const pay = async () => {
+        const started = (await api.post("/store/sellers/kentecorner/checkout", { ...buyer(cloth.id, 1), return_url: "https://kentecorner.aquenora.test/" }, store)).data
+        await api.post("/store/payments/verify", { reference: started.reference }, store)
+      }
+      await pay()
+      const pro = async (h: { headers: Record<string, string> }) => (await api.get("/sellers/me/plan", h)).data
+      const month = 27 * 86400000
+      for (const h of [kh, { headers }]) {
+        const { plan } = await pro(h)
+        expect(plan.id ?? plan.name ?? "pro").toBeTruthy()
+        expect(new Date(plan.pro_paid_until).getTime() - Date.now()).toBeGreaterThan(month)
+      }
+      expect((await api.get("/sellers/me/referrals", { headers })).data).toMatchObject({ joined: 1, rewarded: 1 })
+      const mails = (await getContainer().resolve(Modules.NOTIFICATION).listNotifications({ template: "aquenora-referral-reward" })) as unknown as { to: string }[]
+      expect(mails.map((m) => m.to).sort()).toEqual(["new@example.com", "shop@example.com"])
+      // Only once.
+      await pay()
+      expect(await getContainer().resolve(Modules.NOTIFICATION).listNotifications({ template: "aquenora-referral-reward" })).toHaveLength(2)
+    })
+
     it("disputes: buyer reports, seller refunds directly, buyer confirms; AQUENORA can step in and moderate", async () => {
       const { headers, product, store } = await setup()
       await api.post("/sellers/me/payouts", { bank_code: "044", account_number: "0123456789" }, { headers })

@@ -56,6 +56,15 @@ const Seller = model.define("seller", {
   // A suspended store is hidden everywhere and can't take payments (AQUENORA admin decision).
   suspended_at: model.dateTime().nullable(),
   suspend_reason: model.text().nullable(),
+  // ---- sign-in safety ----
+  // Devices this seller has confirmed with an emailed code: [{ hash, at }] (newest last, at most 10).
+  trusted_devices: model.json().nullable(),
+  // The latest emailed code: { hash, device, expires_at, attempts, sends: [iso...] }.
+  device_code: model.json().nullable(),
+  // ---- referrals ----
+  // The seller who invited this one (their id), and when both got their free Pro month.
+  referred_by: model.text().nullable(),
+  referral_rewarded_at: model.dateTime().nullable(),
   // ---- own domain (Pro) ----
   custom_domain: model.text().nullable(),
   domain_verified_at: model.dateTime().nullable(),

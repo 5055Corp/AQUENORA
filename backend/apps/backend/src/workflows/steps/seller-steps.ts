@@ -11,6 +11,8 @@ export type CreateSellerData = {
   country_code?: "NG" | "GH" | "ZA" | "CI" | "SN" | "DI"
   currency_code?: string
   sells_abroad?: boolean
+  /** The seller who invited this one (referrals). */
+  referred_by?: string | null
 }
 
 export type UpdateSellerData = Partial<Omit<CreateSellerData, "email">> & {
@@ -27,6 +29,7 @@ export type UpdateSellerData = Partial<Omit<CreateSellerData, "email">> & {
   marketplace_listed?: boolean
   design?: Record<string, unknown> | null
   pickup?: Record<string, unknown> | null
+  referral_rewarded_at?: Date | null
   // Set only by the plan and domain routes (never from the seller's own settings body).
   trial_ends_at?: Date | null
   pro_paid_until?: Date | null

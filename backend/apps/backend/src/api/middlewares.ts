@@ -9,6 +9,7 @@ import {
 } from "@medusajs/framework/http"
 import { parseCorsOrigins } from "@medusajs/framework/utils"
 import cors from "cors"
+import { deviceGuard } from "./device-guard"
 import {
   CreateSellerProductSchema,
   CreateSellerSchema,
@@ -39,6 +40,8 @@ import {
   SuspendSellerSchema,
   StockAlertSchema,
   ImportProductsSchema,
+  DeviceCodeSchema,
+  VerifyDeviceCodeSchema,
   UpdateSellerSchema,
 } from "./sellers/validators"
 
@@ -70,6 +73,21 @@ export default defineMiddlewares({
     {
       matcher: "/sellers*",
       middlewares: [sellerCors],
+    },
+    {
+      // Sign-in safety: new devices confirm with an emailed code (see api/device-guard.ts).
+      matcher: "/sellers/me*",
+      middlewares: [deviceGuard],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/sellers/me/device-code",
+      middlewares: [sellerAuth, validateAndTransformBody(DeviceCodeSchema)],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/sellers/me/device-code/verify",
+      middlewares: [sellerAuth, validateAndTransformBody(VerifyDeviceCodeSchema)],
     },
     {
       // A new login has no store yet, so it isn't a registered seller.
