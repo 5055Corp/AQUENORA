@@ -122,6 +122,7 @@ function ProductRow({ product: p, cost, fmt, sym, onSaveCost, onSaveImages, onEd
         <div style={{ color: p.stock === 0 && !p.madeToOrderDays ? 'var(--alert)' : 'var(--muted)' }}>
           {p.madeToOrderDays ? `Made to order · ${p.madeToOrderDays} days` : p.stock === 0 ? 'Sold out' : p.stock + ' in stock'}
         </div>
+        {p.hiddenReason && <div className="prod-hidden">Hidden by AQUENORA: {p.hiddenReason}</div>}
         {!!p.options?.groups.length && (
           <div className="prod-opts">{p.options.groups.map(g => `${g.name} (${g.choices.length})`).join(' · ')}</div>
         )}

@@ -74,6 +74,9 @@ export interface ApiSeller {
   marketplace_listed?: boolean;
   /** Anti-scam check by AQUENORA: only verified sellers can take payments. */
   verification_status?: VerificationStatus;
+  /** Paused by AQUENORA (moderation). */
+  suspended_at?: string | null;
+  suspend_reason?: string | null;
   /** Full store design (see design.ts), or null if the seller hasn't customised it. */
   design: unknown;
   /** In-store pickup settings (see pickup.ts), or null if never set. */
@@ -115,6 +118,9 @@ export interface ApiProduct {
   note_prompt?: string | null;
   /** Lowest price with options. */
   from_price?: number;
+  /** Hidden from buyers by AQUENORA, with the reason. */
+  hidden?: boolean;
+  hidden_reason?: string | null;
 }
 
 export type SellerOrderStatus = 'new' | 'shipped' | 'delivered' | 'ready' | 'collected' | 'canceled';
@@ -318,7 +324,45 @@ export interface TrackedOrder {
     pickup_address: string | null;
   };
   store: { name: string; handle: string; whatsapp: string | null };
+  dispute: Dispute | null;
 }
+
+/** A buyer's problem with an order. Sellers refund buyers directly; AQUENORA can step in. */
+export type DisputeReason = 'not_arrived' | 'wrong_item' | 'damaged' | 'not_as_described' | 'other';
+export interface Dispute {
+  id: string;
+  order_id: string;
+  order_display_id: number;
+  reason: DisputeReason;
+  reason_label: string;
+  status: 'open' | 'replied' | 'refunded' | 'escalated' | 'resolved';
+  messages: { from: 'buyer' | 'seller' | 'aquenora'; text: string; at: string; files?: string[] }[];
+  refund: { amount: number; note?: string; at: string; file?: string } | null;
+  decision: { outcome: 'refund_required' | 'seller'; note: string; amount?: number; due?: string } | null;
+  reply_by: string;
+  can_escalate: boolean;
+}
+export interface PhotoFile { mime_type: string; data: string }
+
+async function storeSend<T>(path: string, method: 'POST' | 'PATCH', body: unknown): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(`${storeApi()}${path}`, { method, headers: { 'content-type': 'application/json', 'x-publishable-api-key': PUBLISHABLE_KEY }, body: JSON.stringify(body) });
+  } catch {
+    throw new ApiError(0, "Can't reach the shop right now. Check your internet connection and try again.");
+  }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new ApiError(res.status, (data as { message?: string }).message ?? 'Something went wrong. Please try again.');
+  return data as T;
+}
+
+export const openDispute = (token: string, body: { reason: DisputeReason; message: string; files?: PhotoFile[] }) =>
+  storeSend<{ dispute: Dispute }>(`/store/orders/track/${encodeURIComponent(token)}/dispute`, 'POST', body);
+export const buyerDisputeAction = (token: string, body: { action: 'message' | 'confirm' | 'escalate'; text?: string; files?: PhotoFile[] }) =>
+  storeSend<{ dispute: Dispute }>(`/store/orders/track/${encodeURIComponent(token)}/dispute`, 'PATCH', body);
+export const buyerDisputeFileUrl = (token: string, file: string) => `${storeApi()}/store/orders/track/${encodeURIComponent(token)}/dispute/files/${file}`;
+export const reportProduct = (productId: string, body: { reason: 'counterfeit' | 'prohibited' | 'misleading' | 'offensive' | 'scam' | 'other'; note?: string }) =>
+  storeSend<{ reported: true }>(`/store/products/${encodeURIComponent(productId)}/report`, 'POST', body);
 
 export async function fetchTracking(token: string): Promise<TrackedOrder> {
   let res: Response;
@@ -449,6 +493,15 @@ export const api = {
   updateProduct: (token: string, id: string, body: { title?: string; price?: number; stock?: number; cost_price?: number | null; images?: string[]; description?: string; options?: import('./options').ProductOptions | null; made_to_order_days?: number | null; note_prompt?: string | null }) =>
     request<{ product: ApiProduct }>(`/sellers/me/products/${encodeURIComponent(id)}`, { body, token }),
   deleteProduct: (token: string, id: string) => request<{ id: string; deleted: true }>(`/sellers/me/products/${id}`, { token, method: 'DELETE' }),
+  disputes: (token: string) => request<{ disputes: Dispute[] }>('/sellers/me/disputes', { token }),
+  disputeAction: (token: string, id: string, body: { action: 'message' | 'refunded'; text?: string; amount?: number; files?: PhotoFile[] }) =>
+    request<{ dispute: Dispute }>(`/sellers/me/disputes/${id}`, { token, body }),
+  /** A dispute photo as an object URL (the request needs the seller's login). */
+  disputeFile: async (token: string, id: string, file: string) => {
+    const res = await fetch(`${API_URL}/sellers/me/disputes/${id}/files/${file}`, { headers: { authorization: `Bearer ${token}` } });
+    if (!res.ok) throw new ApiError(res.status, 'Could not load the photo.');
+    return URL.createObjectURL(await res.blob());
+  },
 
   orders: (token: string) => request<{ orders: ApiOrder[] }>('/sellers/me/orders', { token }),
   updateOrder: (token: string, id: string, status: 'shipped' | 'delivered' | 'ready' | 'collected') =>

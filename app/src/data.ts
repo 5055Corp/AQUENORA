@@ -179,6 +179,8 @@ export interface Product {
   madeToOrderDays?: number | null;
   /** Question for the buyer's notes box. */
   notePrompt?: string | null;
+  /** Hidden by AQUENORA (moderation): the reason the seller was given. */
+  hiddenReason?: string | null;
 }
 
 export const HELP = {

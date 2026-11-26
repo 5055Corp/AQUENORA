@@ -509,6 +509,7 @@ function Account({ shopper, sellerLoggedIn, onLogin, onSell, onSellerLogin, onOr
         <div className="sh-list">
           <button type="button" className="sh-li" onClick={onOrders}>My orders <span>›</span></button>
           <a className="sh-li" href={`${site}/support`} target="_blank" rel="noopener">Help &amp; support <span>›</span></a>
+          <a className="sh-li" href={`${site}/help`} target="_blank" rel="noopener">Help centre <span>›</span></a>
           <a className="sh-li" href={`${site}/privacy`} target="_blank" rel="noopener">Privacy policy <span>›</span></a>
         </div>
         <div className="sh-list">

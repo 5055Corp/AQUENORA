@@ -6,7 +6,7 @@ import { prepareImage, type ImageKind } from './images';
 import type { ProductOptions } from './options';
 import type { Settings } from './settings';
 import * as persist from './persist';
-import { api, ApiError, LIVE, sellerIdFromToken, storeLink, type ApiOrder, type ApiProduct, type ApiSeller, type PlanResponse, type VerificationBody } from './api';
+import { api, ApiError, LIVE, sellerIdFromToken, storeLink, type ApiOrder, type ApiProduct, type ApiSeller, type PlanResponse, type VerificationBody, type PhotoFile } from './api';
 import { demoCost } from './demo';
 import { designFromLegacy, normalizeDesign, type StoreDesign } from './design';
 import { demoPlan } from './plan';
@@ -39,7 +39,7 @@ async function dataUrlToFile(url: string): Promise<File> {
   return new File([blob], 'product.jpg', { type: blob.type || 'image/jpeg' });
 }
 
-const toProduct = (p: ApiProduct): Product => ({ id: p.id, name: p.title, price: p.price, stock: p.stock, cost: p.cost_price, images: p.images ?? [], description: p.description ?? null, options: p.options ?? null, madeToOrderDays: p.made_to_order_days ?? null, notePrompt: p.note_prompt ?? null });
+const toProduct = (p: ApiProduct): Product => ({ id: p.id, name: p.title, price: p.price, stock: p.stock, cost: p.cost_price, images: p.images ?? [], description: p.description ?? null, options: p.options ?? null, madeToOrderDays: p.made_to_order_days ?? null, notePrompt: p.note_prompt ?? null, hiddenReason: p.hidden ? p.hidden_reason || 'It breaks AQUENORA rules.' : null });
 
 function fromSeller(se: ApiSeller): Partial<State> {
   return {
@@ -60,6 +60,7 @@ function fromSeller(se: ApiSeller): Partial<State> {
     paystack: !!se.paystack_subaccount_code,
     listed: se.marketplace_listed !== false,
     verification: se.verification_status ?? 'verified',
+    suspended: se.suspended_at ? se.suspend_reason || 'Contact AQUENORA support.' : '',
   };
 }
 
@@ -220,6 +221,8 @@ function useStoreValue(settings: Settings) {
       busy: false,
       loadError: '',
     });
+    // Problems buyers reported (shown on Orders).
+    api.disputes(token).then(r => set({ disputes: r.disputes })).catch(() => {});
     // A rejected seller sees why, so they can fix it and send again.
     if (seller.verification_status === 'rejected') {
       api.verification(token).then(({ verification: v }) => set({ verifyReason: v.details?.reject_reason ?? '' })).catch(() => {});
@@ -448,6 +451,31 @@ function useStoreValue(settings: Settings) {
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) logOut('Please log in again.');
       return e instanceof Error ? e.message : 'Could not delete. Please try again.';
+    }
+  };
+
+  /** The seller replies to a buyer's problem, or marks it refunded. Returns an error message, or '' when done. */
+  const disputeAction = async (id: string, body: { action: 'message' | 'refunded'; text?: string; amount?: number; files?: PhotoFile[] }): Promise<string> => {
+    if (!LIVE) {
+      set(st => ({
+        disputes: st.disputes.map(d => d.id !== id ? d : {
+          ...d,
+          status: body.action === 'refunded' ? 'refunded' : d.status === 'open' ? 'replied' : d.status,
+          refund: body.action === 'refunded' ? { amount: body.amount ?? 0, note: body.text, at: new Date().toISOString() } : d.refund,
+          messages: [...d.messages, { from: 'seller', text: body.action === 'refunded' ? `Refunded ${body.amount}${body.text ? `: ${body.text}` : ''}` : body.text ?? '', at: new Date().toISOString() }],
+        }),
+      }));
+      flash(body.action === 'refunded' ? 'Marked as refunded. The buyer will confirm.' : 'Reply sent');
+      return '';
+    }
+    try {
+      const { dispute } = await api.disputeAction(s.token, id, body);
+      set(st => ({ disputes: st.disputes.map(d => (d.id === id ? dispute : d)) }));
+      flash(body.action === 'refunded' ? 'Marked as refunded. The buyer will confirm.' : 'Reply sent');
+      return '';
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) logOut('Please log in again.');
+      return e instanceof Error ? e.message : 'Could not send. Please try again.';
     }
   };
 
@@ -725,7 +753,7 @@ function useStoreValue(settings: Settings) {
     pickup, savePickup, savePayout,
     s, set, settings, toast, flash, isMobile, framed, country, fmt, fromUsd, slug, shopNameShown, storeUrl,
     products, toggleHelp, advanceOrder, copyLink, shareWhatsApp, startOver,
-    design, setDesign, planInfo, refreshPlan, startTrial, requestUpgrade, setAutoRenew, connectDomain, checkDomain, removeDomain, live: LIVE, submitAuth, finishOnboarding, addProduct, setProductCost, publishDesign, logOut, deleteAccount, setListed, retryLoad, submitVerification,
+    design, setDesign, planInfo, refreshPlan, startTrial, requestUpgrade, setAutoRenew, connectDomain, checkDomain, removeDomain, live: LIVE, submitAuth, finishOnboarding, addProduct, setProductCost, publishDesign, logOut, deleteAccount, setListed, retryLoad, submitVerification, disputeAction,
     showHints: settings.showHelpHints,
     h1Size: isMobile ? '30px' : '40px',
   };

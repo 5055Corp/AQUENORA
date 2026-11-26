@@ -64,6 +64,14 @@ export function Home() {
         <p>Here's what to do next. {doneCount === total ? "You're all set." : `${total - doneCount} steps left.`}</p>
       </div>
 
+      {s.suspended && (
+        <section className="vf-status vf-todo suspended" role="alert">
+          <b>Your store is paused by AQUENORA</b>
+          <span>It's hidden from buyers and can't take payments. Reason: {s.suspended}</span>
+          <a className="btn-dark btn-sm" href="mailto:support@aquenora.com?subject=My%20store%20is%20paused">Contact support</a>
+        </section>
+      )}
+
       <VerifyStatus compact />
 
       {SELL_PRO_HERE && planInfo && planInfo.plan.status !== 'paid' && (

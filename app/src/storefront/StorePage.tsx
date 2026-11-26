@@ -7,7 +7,7 @@ import { designFromLegacy, normalizeDesign, STORE_FONTS, type StoreDesign } from
 import type { CountryId } from '../data';
 import { StoreView, type StoreItem } from './StoreView';
 import { TrackOrder } from './TrackOrder';
-import { recordVisit, type VisitSource } from '../api';
+import { recordVisit, reportProduct, type VisitSource } from '../api';
 
 /** Where a visitor came from: ?from=..., or the website that sent them. */
 function visitSource(embedded: boolean): VisitSource {
@@ -955,6 +955,55 @@ function BuyerField(props: { label: string; value: string; onChange: (v: string)
   );
 }
 
+const REPORT_REASONS = [
+  ['counterfeit', 'Fake or counterfeit'],
+  ['prohibited', 'Not allowed to be sold'],
+  ['scam', 'Looks like a scam'],
+  ['misleading', 'Misleading photos or description'],
+  ['offensive', 'Offensive'],
+  ['other', 'Something else'],
+] as const;
+
+/** "Report this product": a shopper tells AQUENORA about a product that breaks the rules. */
+function ReportLink({ productId, ink }: { productId: string; ink: string }) {
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState<(typeof REPORT_REASONS)[number][0] | null>(null);
+  const [note, setNote] = useState('');
+  const [state, setState] = useState<'' | 'sending' | 'sent'>('');
+  const [error, setError] = useState('');
+  if (state === 'sent') return <p className="pp-report-done">Thank you. AQUENORA will look at this product.</p>;
+  if (!open) return <button type="button" className="pp-report" style={{ color: ink }} onClick={() => setOpen(true)}>Report this product</button>;
+  const send = async () => {
+    if (!reason) return setError('Choose a reason.');
+    setState('sending');
+    setError('');
+    try {
+      if (LIVE) await reportProduct(productId, { reason, ...(note.trim() ? { note: note.trim() } : {}) });
+      setState('sent');
+    } catch (e) {
+      setState('');
+      setError(e instanceof Error ? e.message : 'Could not send. Please try again.');
+    }
+  };
+  return (
+    <div className="pp-report-box" style={{ borderColor: ink + '33' }}>
+      <b>What's wrong with this product?</b>
+      <div className="pp-chips">
+        {REPORT_REASONS.map(([k, l]) => (
+          <button key={k} type="button" className={'pp-chip' + (reason === k ? ' on' : '')} aria-pressed={reason === k}
+            style={reason === k ? { background: ink, color: '#fff', borderColor: ink } : { borderColor: ink + '33', color: ink }} onClick={() => setReason(k)}>{l}</button>
+        ))}
+      </div>
+      <textarea rows={2} maxLength={500} placeholder="Anything else? (optional)" value={note} onChange={e => setNote(e.target.value)} style={{ color: ink, borderColor: ink + '33' }} />
+      {error && <small className="pp-opt-need" role="alert">{error}</small>}
+      <div className="pp-report-actions">
+        <button type="button" className="pp-report" style={{ color: ink }} onClick={() => setOpen(false)}>Cancel</button>
+        <button type="button" className="pp-chip on" style={{ background: ink, color: '#fff', borderColor: ink }} disabled={state === 'sending'} onClick={send}>{state === 'sending' ? 'Sending…' : 'Send report'}</button>
+      </div>
+    </div>
+  );
+}
+
 /** A product's photos, swipeable, with its name, price and description; buyers pick options here. */
 function ProductPhotos({ item, show, design: d, onClose, onAdd }: {
   item: StoreItem;
@@ -1039,6 +1088,7 @@ function ProductPhotos({ item, show, design: d, onClose, onAdd }: {
             </label>
           )}
           {item.description && <p className="pp-desc">{item.description}</p>}
+          <ReportLink productId={item.key} ink={d.colors.text} />
           <button type="button" className="pp-add" disabled={!!soldOut} onClick={add}
             style={{ background: soldOut ? 'transparent' : accent, color: soldOut ? d.colors.text : d.colors.accent_text, border: soldOut ? '1px solid currentColor' : 'none' }}>
             {soldOut ? 'Sold out' : allPicked ? `Add to bag · ${show(price)}` : groups.length ? 'Add to bag' : 'Add to bag'}

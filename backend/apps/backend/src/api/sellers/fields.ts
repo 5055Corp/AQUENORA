@@ -10,6 +10,8 @@ export const SELLER_FIELDS = [
   "sells_abroad",
   "paystack_subaccount_code",
   "payout",
+  "suspended_at",
+  "suspend_reason",
   "theme",
   "accent",
   "font",

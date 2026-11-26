@@ -31,6 +31,8 @@ export interface State {
   /** Demo: null until the seller adds a product from the dashboard; until then the list is derived from onboarding. */
   products: Product[] | null;
   orders: Order[];
+  /** Problems buyers reported on orders (live: from the backend; demo: one sample). */
+  disputes: import('./api').Dispute[];
   filter: OrderFilter;
   newName: string;
   newPrice: string;
@@ -61,6 +63,8 @@ export interface State {
   verification: 'unverified' | 'pending' | 'verified' | 'rejected';
   /** Why AQUENORA couldn't verify the seller last time (shown so they can fix it). */
   verifyReason: string;
+  /** Paused by AQUENORA: the reason ('' = not paused). */
+  suspended: string;
   password: string;
   token: string;
   /** The store's web address as saved on the server (may differ from the name-derived one). */
@@ -98,6 +102,12 @@ export function initialState(settings: Settings): State {
     designed: false,
     products: null,
     orders: ORDERS,
+    // Demo: one sample problem so the seller can see how it works.
+    disputes: [{
+      id: 'demo-dispute', order_id: '1042', order_display_id: 1042, reason: 'wrong_item', reason_label: 'Wrong item', status: 'open',
+      messages: [{ from: 'buyer', text: 'I ordered the indigo kimono in size L but got size M.', at: new Date().toISOString() }],
+      refund: null, decision: null, reply_by: new Date(Date.now() + 2 * 86400000).toISOString(), can_escalate: false,
+    }],
     filter: 'all',
     newName: '',
     newPrice: '',
@@ -115,6 +125,7 @@ export function initialState(settings: Settings): State {
     listed: true,
     verification: 'verified',
     verifyReason: '',
+    suspended: '',
     password: '',
     token: '',
     handle: '',
@@ -136,6 +147,7 @@ export function initialState(settings: Settings): State {
     announce: '',
     products: [],
     orders: [],
+    disputes: [],
   };
 }
 

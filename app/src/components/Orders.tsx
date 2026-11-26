@@ -5,6 +5,7 @@ import { ShipmentForm } from './ShipmentForm';
 import { useStore } from '../store';
 import { PickupSettings } from './PickupSettings';
 import { ShippingSettings } from './ShippingSettings';
+import { OrderProblem } from './OrderProblem';
 
 export function Orders() {
   const { s, set, fmt, fromUsd, advanceOrder, h1Size } = useStore();
@@ -44,8 +45,10 @@ export function Orders() {
         {shown.map(o => {
           const st = STATUS[o.status];
           const step = nextStep(o);
+          const problem = s.disputes.find(d => d.order_id === o.id);
+          const urgent = problem && problem.status !== 'resolved';
           return (
-            <article key={o.id} className="card order">
+            <article key={o.id} className={'card order' + (urgent ? ' order-problem' : '')}>
               <div className="order-top">
                 <div className="order-who">
                   <div>{o.name} <span>· #{o.id.length > 8 ? o.id.slice(-6).toUpperCase() : o.id}</span></div>
@@ -71,6 +74,7 @@ export function Orders() {
                   )}
                 </span>
               </div>
+              {problem && <OrderProblem d={problem} total={o.amount ?? fromUsd(o.usd)} />}
             </article>
           );
         })}
