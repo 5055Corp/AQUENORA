@@ -489,6 +489,10 @@ medusaIntegrationTestRunner({
       const overview = (await api.get("/admin/overview", { headers: admin })).data
       expect(overview).toMatchObject({ orders: 1, sales: { ngn: 28000 }, sellers: { total: 1, new: 1 }, top_stores: [{ name: "Adire House", orders: 1 }] })
       expect(overview.commission.ngn).toBeGreaterThan(0)
+      // Finding a store (owner screens in the app).
+      expect((await api.get("/admin/sellers?q=adire", { headers: admin })).data.sellers).toMatchObject([{ name: "Adire House", handle: "adirehouse" }])
+      expect((await api.get("/admin/sellers?q=nothing-like-this", { headers: admin })).data.sellers).toEqual([])
+      expect((await err(api.get("/admin/sellers?q=adire"))).status).toBe(401)
     })
   },
 })

@@ -4,6 +4,7 @@ import { DeleteAccount } from './DeleteAccount';
 import { VerifyStatus } from './Verify';
 import { goToSide } from '../side';
 import { InviteCard } from './InviteCard';
+import { OwnerButton, VersionTap } from '../owner/OwnerEntry';
 
 const SITE = 'https://app.aquenora.com';
 
@@ -17,6 +18,7 @@ export function Settings() {
       <div className="home-head">
         <h1 className="h1" style={{ fontSize: h1Size }}>Settings</h1>
       </div>
+      <OwnerButton />
 
       <section className="card money-card" aria-labelledby="set-account">
         <h2 id="set-account" className="card-title">Account</h2>
@@ -75,6 +77,8 @@ export function Settings() {
           </div>
         </section>
       )}
+
+      <VersionTap />
 
       {deleting && <DeleteAccount storeUrl={storeUrl} onDelete={deleteAccount} onClose={() => setDeleting(false)} />}
     </>

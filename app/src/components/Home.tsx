@@ -1,4 +1,5 @@
 import { HELP, PAYOUT_COUNTRIES } from '../data';
+import { OwnerButton } from '../owner/OwnerEntry';
 import { IOS_APP, SELL_PRO_HERE, shareStore } from '../native';
 import { useEffect, useState } from 'react';
 import { api, type VisitStats } from '../api';
@@ -59,6 +60,7 @@ export function Home() {
 
   return (
     <>
+      <OwnerButton />
       <div className="home-head">
         <h1 className="h1" style={{ fontSize: h1Size }}>Welcome back, {shopNameShown}</h1>
         <p>Here's what to do next. {doneCount === total ? "You're all set." : `${total - doneCount} steps left.`}</p>
