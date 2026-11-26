@@ -10,6 +10,7 @@ import {
 import { parseCorsOrigins } from "@medusajs/framework/utils"
 import cors from "cors"
 import { deviceGuard } from "./device-guard"
+import { errorHandlerWithAlerts } from "../lib/error-alerts"
 import {
   CreateSellerProductSchema,
   CreateSellerSchema,
@@ -57,6 +58,8 @@ const sellerCors = (req: MedusaRequest, res: MedusaResponse, next: MedusaNextFun
 const sellerAuth = authenticate("seller", ["bearer", "session"])
 
 export default defineMiddlewares({
+  // Real server errors also alert AQUENORA (Sentry), when SENTRY_DSN is set.
+  errorHandler: errorHandlerWithAlerts,
   routes: [
     // The product index declares filterable `status` and `sales_channel_ids`, so
     // the route narrows it to published products in the key's sales channels.
