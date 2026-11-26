@@ -9,7 +9,7 @@ EMAIL = 'support@aquenora.com'
 ORDERS = 'orders@aquenora.com'
 # The company behind AQUENORA. Add the RC number and registered address when ready.
 COMPANY = 'AQUENORA Ltd'
-RC = ''
+RC = '10023798'
 ADDRESS = ''
 COMPANY_LINE = COMPANY + (f', RC {RC}' if RC else '') + ', a company registered in Nigeria' + (f', {ADDRESS}' if ADDRESS else '')
 MARK = ('<svg viewBox="0 0 512 512" width="34" height="34" aria-hidden="true"><defs><clipPath id="l">'
