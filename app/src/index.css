@@ -899,7 +899,8 @@ button.ob-photo { width: 100%; cursor: pointer; font: inherit; font-family: var(
 .oe-photo-x { position: absolute; top: 0; right: 3px; color: #fff; font-weight: 800; text-shadow: 0 1px 2px #000; }
 
 /* ---------- collections ---------- */
-.coll { display: flex; flex-direction: column; gap: 10px; }
+.coll { border-radius: 18px; padding: 18px 20px; margin-bottom: 18px; display: flex; flex-direction: column; gap: 10px; }
+.coll-add .field { flex: 1; min-width: 0; border-radius: 12px; padding: 10px 12px; font: inherit; }
 .coll-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
 .coll-note, .coll-empty { font-size: 12.5px; color: var(--muted); margin: 0; }
 .coll-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
@@ -914,3 +915,28 @@ button.ob-photo { width: 100%; cursor: pointer; font: inherit; font-family: var(
 .coll-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .coll-chip { border: 1.5px solid var(--line); background: #fff; border-radius: 999px; padding: 7px 13px; font-weight: 600; font-size: 14px; }
 .coll-chip.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+
+/* Add many products from a spreadsheet */
+.add-many { margin: 2px 0 12px; }
+.imp-sheet { max-height: 92vh; overflow-y: auto; }
+.imp-steps { margin: 4px 0 8px; padding: 0; list-style: none; counter-reset: imp; display: grid; gap: 14px; }
+.imp-steps li { counter-increment: imp; position: relative; padding-left: 38px; display: grid; gap: 6px; justify-items: start; font-size: 14px; }
+.imp-steps li::before { content: counter(imp); position: absolute; left: 0; top: -1px; width: 26px; height: 26px; border-radius: 50%; background: var(--ink); color: #fff; font-weight: 800; font-size: 13px; display: grid; place-items: center; }
+.imp-steps span { color: var(--muted); line-height: 1.45; }
+.imp-steps code { background: #f1ede6; border-radius: 5px; padding: 1px 5px; font-size: 12.5px; color: var(--ink); }
+.imp-file { font-size: 12.5px; font-weight: 600; color: var(--ink) !important; }
+.imp-summary { display: flex; gap: 8px; margin: 6px 0; font-size: 13px; font-weight: 700; }
+.imp-ok { background: #e6f4ea; color: #1e6b34; border-radius: 999px; padding: 4px 10px; }
+.imp-bad { background: #fdecea; color: #8a1f17; border-radius: 999px; padding: 4px 10px; }
+.imp-list { border: 1px solid var(--field); border-radius: 12px; max-height: 300px; overflow-y: auto; }
+.imp-row { display: flex; gap: 10px; padding: 9px 12px; font-size: 13.5px; border-top: 1px solid var(--field); }
+.imp-row:first-child { border-top: 0; }
+.imp-row-bad { background: #fdf3f2; color: #8a1f17; }
+.imp-line { color: var(--muted); min-width: 22px; font-variant-numeric: tabular-nums; }
+.imp-what small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+.imp-add { width: 100%; margin-top: 10px; }
+.imp-done { display: grid; gap: 12px; }
+.imp-big { font-size: 20px; font-weight: 800; color: #1e6b34; }
+.imp-errors { background: #fdf3f2; color: #8a1f17; border-radius: 12px; padding: 10px 12px; font-size: 13px; display: grid; gap: 4px; }
+.imp-add { min-height: 48px; padding: 12px 18px; border-radius: 999px; font-weight: 700; flex-shrink: 0; }
+.imp-done .btn-dark { min-height: 48px; border-radius: 999px; }

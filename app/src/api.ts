@@ -499,6 +499,9 @@ export const api = {
   products: (token: string) => request<{ products: ApiProduct[] }>('/sellers/me/products', { token }),
   addProduct: (token: string, body: { title: string; price: number; stock?: number; cost_price?: number; images?: string[]; options?: import('./options').ProductOptions | null; made_to_order_days?: number | null; note_prompt?: string | null; collections?: string[] }) =>
     request<{ product: ApiProduct }>('/sellers/me/products', { body, token }),
+  /** Many products at once, from the seller's spreadsheet. */
+  importProducts: (token: string, products: import('./productCsv').ImportRow[]) =>
+    request<{ created: number; failed: { row: number; title: string; message: string }[] }>('/sellers/me/product-imports', { body: { products }, token }),
   updateProduct: (token: string, id: string, body: { title?: string; price?: number; stock?: number; cost_price?: number | null; images?: string[]; description?: string; options?: import('./options').ProductOptions | null; made_to_order_days?: number | null; note_prompt?: string | null; collections?: string[] }) =>
     request<{ product: ApiProduct }>(`/sellers/me/products/${encodeURIComponent(id)}`, { body, token }),
   deleteProduct: (token: string, id: string) => request<{ id: string; deleted: true }>(`/sellers/me/products/${id}`, { token, method: 'DELETE' }),

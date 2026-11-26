@@ -1067,7 +1067,6 @@ function NotifyBox({ productId, choice, ink, accent, accentText }: { productId: 
   const [email, setEmail] = useState('');
   const [state, setState] = useState<'' | 'sending' | 'sent'>('');
   const [error, setError] = useState('');
-  useEffect(() => { setState(''); setError(''); }, [choice]);
   if (state === 'sent') return <p className="pp-notify-done">✓ We'll email {email.trim()} when {choice || 'it'}'s back. Just once.</p>;
   const send = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1189,7 +1188,7 @@ function ProductPhotos({ item, show, design: d, onClose, onAdd }: {
           )}
           {item.description && <p className="pp-desc">{item.description}</p>}
           {soldOut && (
-            <NotifyBox productId={item.key} choice={choiceOut && item.stock > 0 ? groups[0].choices[picked[0]].label : ''}
+            <NotifyBox key={groups[0]?.choices[picked[0]]?.label ?? ''} productId={item.key} choice={choiceOut && item.stock > 0 ? groups[0].choices[picked[0]].label : ''}
               ink={d.colors.text} accent={accent} accentText={d.colors.accent_text} />
           )}
           <ReportLink productId={item.key} ink={d.colors.text} />

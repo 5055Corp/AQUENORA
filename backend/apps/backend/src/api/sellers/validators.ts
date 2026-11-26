@@ -360,3 +360,9 @@ export type SuspendSellerBody = z.infer<typeof SuspendSellerSchema>
 
 export const StockAlertSchema = z.object({ email: z.string().trim().email("Enter a valid email address").max(200), choice: z.string().trim().max(40).optional() }).strict()
 export type StockAlertBody = z.infer<typeof StockAlertSchema>
+
+/** Many products at once, from a spreadsheet (CSV) the seller filled in. Photos are added afterwards. */
+export const ImportProductsSchema = z
+  .object({ products: z.array(CreateSellerProductSchema.omit({ images: true }).strict()).min(1, "The file has no products.").max(200, "Up to 200 products at a time.") })
+  .strict()
+export type ImportProductsBody = z.infer<typeof ImportProductsSchema>

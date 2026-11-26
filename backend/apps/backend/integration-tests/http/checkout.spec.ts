@@ -3,6 +3,7 @@ import crypto from "node:crypto"
 import type { AddressInfo } from "node:net"
 import { medusaIntegrationTestRunner } from "@medusajs/test-utils"
 import { Modules } from "@medusajs/framework/utils"
+import { remindAbandonedBagsWorkflow } from "../../src/workflows/abandoned-bags"
 
 jest.setTimeout(120 * 1000)
 const password = "supersecret123"
@@ -314,7 +315,6 @@ medusaIntegrationTestRunner({
     })
 
     it("abandoned bags: one reminder an hour later with a link that refills the bag; none if they paid", async () => {
-      const { remindAbandonedBagsWorkflow } = await import("../../src/workflows/abandoned-bags")
       const { headers, product, store } = await setup()
       await api.post("/sellers/me/payouts", { bank_code: "044", account_number: "0123456789" }, { headers })
       const later = (h: number) => new Date(Date.now() + h * 3600000).toISOString()
@@ -341,6 +341,23 @@ medusaIntegrationTestRunner({
       await api.post("/store/sellers/adirehouse/checkout", buyer(product.id, 1), store)
       expect(await remind(2.5)).toBe(0)
       expect(await sent()).toHaveLength(1)
+    })
+
+    it("imports products from a spreadsheet: good rows are added, bad ones reported", async () => {
+      const { headers } = await setup()
+      const res = (await api.post("/sellers/me/product-imports", { products: [
+        { title: "Bone straight wig", price: 85000, stock: 4, cost_price: 50000, description: "Soft and full",
+          options: { stock_per_choice: false, groups: [{ name: "Length", choices: [{ label: "12 inch" }, { label: "20 inch", extra: 15000 }] }] } },
+        { title: "Ankara tote", price: 12000, made_to_order_days: 5 },
+      ] }, { headers })).data
+      expect(res).toEqual({ created: 2, failed: [] })
+      const titles = (await api.get("/sellers/me/products", { headers })).data.products.map((p: { title: string }) => p.title)
+      expect(titles).toEqual(expect.arrayContaining(["Bone straight wig", "Ankara tote"]))
+      // The whole file is checked first: a bad row is a 400 that says which one.
+      const bad = await err(api.post("/sellers/me/product-imports", { products: [{ title: "", price: 100 }] }, { headers }))
+      expect(bad.status).toBe(400)
+      expect((await err(api.post("/sellers/me/product-imports", { products: Array.from({ length: 201 }, () => ({ title: "x", price: 1 })) }, { headers }))).status).toBe(400)
+      expect((await err(api.post("/sellers/me/product-imports", { products: [{ title: "x", price: 1 }] }))).status).toBe(401)
     })
 
     it("disputes: buyer reports, seller refunds directly, buyer confirms; AQUENORA can step in and moderate", async () => {

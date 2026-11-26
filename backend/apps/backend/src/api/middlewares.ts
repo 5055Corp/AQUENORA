@@ -38,6 +38,7 @@ import {
   ReviewReportSchema,
   SuspendSellerSchema,
   StockAlertSchema,
+  ImportProductsSchema,
   UpdateSellerSchema,
 } from "./sellers/validators"
 
@@ -167,6 +168,12 @@ export default defineMiddlewares({
       methods: ["POST"],
       matcher: "/sellers/me/products/:id",
       middlewares: [sellerAuth, validateAndTransformBody(UpdateSellerProductSchema)],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/sellers/me/product-imports",
+      bodyParser: { sizeLimit: "2mb" },
+      middlewares: [sellerAuth, validateAndTransformBody(ImportProductsSchema)],
     },
     {
       methods: ["DELETE"],

@@ -6,6 +6,7 @@ import { PhotoStrip } from './PhotoStrip';
 import { cleanSettings, OptionsEditor, optionsProblem, type OptionSettings } from './OptionsEditor';
 import { fromPrice, variesInPrice } from '../options';
 import { CollectionPicker, CollectionsCard } from './Collections';
+import { ImportProducts } from './ImportProducts';
 
 export function Products() {
   const { s, set, addProduct, setProductCost, setProductImages, products, fmt, country, h1Size, live } = useStore();
@@ -14,6 +15,7 @@ export function Products() {
   const [newImages, setNewImages] = useState<string[]>([]);
   const emptyExtras: OptionSettings = { options: null, madeToOrderDays: null, notePrompt: '' };
   const [more, setMore] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [extras, setExtras] = useState<OptionSettings>(emptyExtras);
   const [addError, setAddError] = useState('');
 
@@ -76,6 +78,8 @@ export function Products() {
         {more && <OptionsEditor value={extras} onChange={setExtras} sym={sym} basePrice={Number(s.newPrice) || 0} />}
         {addError && <div className="form-error" role="alert">{addError}</div>}
       </form>
+      <button type="button" className="link-btn add-many" onClick={() => setImporting(true)}>+ Add many at once (spreadsheet)</button>
+      {importing && <ImportProducts onClose={() => setImporting(false)} />}
       <CollectionsCard />
       {products.length === 0 && <div className="empty">No products yet. Add your first one above.</div>}
       <div className="list">

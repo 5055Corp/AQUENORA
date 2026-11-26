@@ -393,6 +393,24 @@ function useStoreValue(settings: Settings) {
     }
   };
 
+  /** Adds many products from the seller's spreadsheet. Returns how many were added and which rows failed. */
+  const importProducts = async (rows: import('./productCsv').ImportRow[]): Promise<{ created: number; failed: { row: number; title: string; message: string }[] }> => {
+    if (!LIVE) {
+      const added = rows.map(r => ({
+        name: r.title, price: r.price, stock: r.stock ?? 1, cost: r.cost_price ?? null, images: [],
+        options: r.options ?? null, madeToOrderDays: r.made_to_order_days ?? null, notePrompt: null,
+      }));
+      set({ products: [...added, ...withCosts()] });
+      flash(`${rows.length} products added to your store`);
+      return { created: rows.length, failed: [] };
+    }
+    const res = await api.importProducts(s.token, rows);
+    const { products: fresh } = await api.products(s.token);
+    set({ products: fresh.map(toProduct) });
+    if (res.created) flash(`${res.created} products added to your store`);
+    return res;
+  };
+
   /** Replaces a product's photos (first = main photo). Returns an error message, or '' when saved. */
   const setProductImages = async (index: number, images: string[]): Promise<string> => {
     const target = products[index];
@@ -771,7 +789,7 @@ function useStoreValue(settings: Settings) {
     pickup, savePickup, savePayout,
     s, set, settings, toast, flash, isMobile, framed, country, fmt, fromUsd, slug, shopNameShown, storeUrl,
     products, toggleHelp, advanceOrder, copyLink, shareWhatsApp, startOver,
-    design, setDesign, planInfo, refreshPlan, startTrial, requestUpgrade, setAutoRenew, connectDomain, checkDomain, removeDomain, live: LIVE, submitAuth, finishOnboarding, addProduct, setProductCost, publishDesign, logOut, deleteAccount, setListed, retryLoad, submitVerification, disputeAction, setCollections,
+    design, setDesign, planInfo, refreshPlan, startTrial, requestUpgrade, setAutoRenew, connectDomain, checkDomain, removeDomain, live: LIVE, submitAuth, finishOnboarding, addProduct, importProducts, setProductCost, publishDesign, logOut, deleteAccount, setListed, retryLoad, submitVerification, disputeAction, setCollections,
     showHints: settings.showHelpHints,
     h1Size: isMobile ? '30px' : '40px',
   };
