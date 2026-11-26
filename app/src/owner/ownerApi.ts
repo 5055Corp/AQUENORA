@@ -29,7 +29,8 @@ async function call<T>(path: string, init: { method?: string; body?: unknown } =
 }
 
 export async function ownerSignIn(email: string, password: string): Promise<void> {
-  if (!LIVE) { saveToken('demo'); return; }
+  // Demo app: owner@aquenora.demo opens the sample owner area (previews only).
+  if (!LIVE) { if (email !== 'owner@aquenora.demo') throw new OwnerError(401, 'Not an admin'); saveToken('demo'); return; }
   const res = await fetch(`${API_URL}/auth/user/emailpass`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, password }) })
     .catch(() => { throw new OwnerError(0, "Can't reach AQUENORA. Check your connection."); });
   const data = await res.json().catch(() => ({}));

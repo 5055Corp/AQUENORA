@@ -1,51 +1,32 @@
-import { useEffect, useRef, useState } from 'react';
-import { OwnerArea, OwnerSignIn } from './Owner';
-import { ownerToken } from './ownerApi';
+import { useEffect, useState } from 'react';
+import { OwnerArea } from './Owner';
+import { ownerSignIn, ownerToken } from './ownerApi';
+
+// There is no owner button anywhere. Signing in on the normal login screen with AQUENORA's admin
+// email and password opens the owner area; it stays open on this device until "Sign out".
 
 const EVENT = 'aq-owner-changed';
-const signedIn = () => !!ownerToken();
 
-/** The dark "Owner" button (Home and Settings), shown only after the owner has signed in on this device. */
-export function OwnerButton() {
-  const [on, setOn] = useState(signedIn);
-  const [open, setOpen] = useState(false);
+/** True if this is an AQUENORA admin login (it's then saved on this device). */
+export async function tryOwnerSignIn(email: string, password: string): Promise<boolean> {
+  try {
+    await ownerSignIn(email, password);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export const openOwnerArea = () => window.dispatchEvent(new Event(EVENT));
+
+/** Shows the owner area over everything while the owner is signed in on this device. */
+export function OwnerGate({ children }: { children: React.ReactNode }) {
+  const [on, setOn] = useState(() => !!ownerToken());
   useEffect(() => {
-    const update = () => { setOn(signedIn()); setOpen(signedIn() && sessionStorage.getItem('aq-owner-open') === '1'); sessionStorage.removeItem('aq-owner-open'); };
+    const update = () => setOn(!!ownerToken());
     window.addEventListener(EVENT, update);
     return () => window.removeEventListener(EVENT, update);
   }, []);
-  if (!on) return null;
-  return (
-    <>
-      <button type="button" className="ow-entry" onClick={() => setOpen(true)}>
-        <span className="ow-crown" aria-hidden="true">♛</span><span>AQUENORA owner</span><b aria-hidden="true">›</b>
-      </button>
-      {open && <OwnerArea onClose={() => setOpen(false)} onSignedOut={() => { setOpen(false); window.dispatchEvent(new Event(EVENT)); }} />}
-    </>
-  );
-}
-
-/** The app version at the bottom of Settings. Tapping it 5 times opens the owner sign-in (no one else sees it). */
-export function VersionTap() {
-  const taps = useRef<number[]>([]);
-  const [signIn, setSignIn] = useState(false);
-  const tap = () => {
-    const now = Date.now();
-    taps.current = [...taps.current.filter(t => now - t < 2500), now];
-    if (taps.current.length >= 5) {
-      taps.current = [];
-      if (signedIn()) { sessionStorage.setItem('aq-owner-open', '1'); window.dispatchEvent(new Event(EVENT)); } else setSignIn(true);
-    }
-  };
-  return (
-    <>
-      <p className="set-version" onClick={tap}>AQUENORA · version 1.2</p>
-      {signIn && (
-        <OwnerSignIn
-          onClose={() => setSignIn(false)}
-          onDone={() => { setSignIn(false); sessionStorage.setItem('aq-owner-open', '1'); window.dispatchEvent(new Event(EVENT)); }}
-        />
-      )}
-    </>
-  );
+  if (!on) return <>{children}</>;
+  return <OwnerArea onSignedOut={() => setOn(false)} />;
 }

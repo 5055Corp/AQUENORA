@@ -1,9 +1,9 @@
 // The AQUENORA owner area inside the app: numbers, things waiting for you, and finding a store.
-// Only reachable after signing in with an AQUENORA admin login (Settings → tap the version 5 times).
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+// Opens when AQUENORA's admin email and password are used on the normal login screen.
+import { useCallback, useEffect, useState } from 'react';
 import { LIVE } from '../api';
 import {
-  FULL_ADMIN_URL, ownerApi, ownerSignIn, ownerSignOut,
+  FULL_ADMIN_URL, ownerApi, ownerSignOut,
   type Money, type Overview, type OwnerDispute, type OwnerReport, type OwnerSeller,
 } from './ownerApi';
 import { DEMO_DISPUTES, DEMO_OVERVIEW, DEMO_REPORTS, DEMO_SELLERS } from './demo';
@@ -16,52 +16,16 @@ const money = (m: Money) => {
 };
 const errText = (e: unknown) => (e instanceof Error ? e.message : 'Something went wrong.');
 
-/** Owner sign-in (the Medusa admin email and password). */
-export function OwnerSignIn({ onDone, onClose }: { onDone: () => void; onClose: () => void }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
-    setBusy(true);
-    setError('');
-    try {
-      await ownerSignIn(email.trim().toLowerCase(), password);
-      onDone();
-    } catch (x) {
-      setError(errText(x));
-      setBusy(false);
-    }
-  };
-  return (
-    <div className="sheet-overlay vf-overlay" role="dialog" aria-modal="true" aria-label="Owner sign-in" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <form className="vf-card ow-signin" onSubmit={submit}>
-        <div className="vf-head">
-          <h2>AQUENORA owner</h2>
-          <button type="button" className="vf-x" aria-label="Close" onClick={onClose}>×</button>
-        </div>
-        <p className="ow-muted">Sign in with your AQUENORA admin login (the one for the admin website).</p>
-        <input className="field" type="email" autoComplete="username" placeholder="Admin email" value={email} onChange={e => setEmail(e.target.value)} />
-        <input className="field" type="password" autoComplete="current-password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} />
-        {error && <div className="form-error" role="alert">{error}</div>}
-        <button type="submit" className="btn-dark ow-wide" disabled={busy || !email || !password}>{busy ? 'Signing in…' : 'Sign in'}</button>
-      </form>
-    </div>
-  );
-}
-
 type OwnerTab = 'overview' | 'todo' | 'sellers';
 
 /** Full-screen owner area with three tabs and a link to the full admin website. */
-export function OwnerArea({ onClose, onSignedOut }: { onClose: () => void; onSignedOut: () => void }) {
+export function OwnerArea({ onSignedOut }: { onSignedOut: () => void }) {
   const [tab, setTab] = useState<OwnerTab>('overview');
   const [flash, setFlash] = useState('');
   const say = useCallback((m: string) => { setFlash(m); setTimeout(() => setFlash(''), 2600); }, []);
   return (
     <div className="ow" role="dialog" aria-modal="true" aria-label="AQUENORA owner">
       <header className="ow-top">
-        <button type="button" className="ow-back" onClick={onClose} aria-label="Back to my store">‹</button>
         <div className="ow-title"><span className="ow-crown" aria-hidden="true">♛</span> Owner</div>
         <a className="ow-full" href={FULL_ADMIN_URL} target="_blank" rel="noopener">Full admin ↗</a>
       </header>
@@ -74,7 +38,7 @@ export function OwnerArea({ onClose, onSignedOut }: { onClose: () => void; onSig
         {tab === 'overview' && <OverviewTab onTodo={() => setTab('todo')} />}
         {tab === 'todo' && <TodoTab say={say} />}
         {tab === 'sellers' && <SellersTab say={say} />}
-        <button type="button" className="ow-signout" onClick={() => { ownerSignOut(); onSignedOut(); }}>Sign out of owner area</button>
+        <button type="button" className="ow-signout" onClick={() => { ownerSignOut(); onSignedOut(); }}>Sign out</button>
       </main>
       {flash && <div className="toast" role="status">{flash}</div>}
     </div>

@@ -8,6 +8,7 @@ import { startNative } from './native';
 import { initialSide, type Side } from './side';
 import { ShopApp } from './shop/ShopApp';
 import { ResetPassword } from './account/ResetPassword';
+import { OwnerGate } from './owner/OwnerEntry';
 
 startNative();
 
@@ -37,6 +38,8 @@ function Root() {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <Root />
+    <OwnerGate>
+      <Root />
+    </OwnerGate>
   </StrictMode>,
 );

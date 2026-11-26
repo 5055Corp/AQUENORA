@@ -1,7 +1,6 @@
 /* AQUENORA owner area (midnight brand colours) */
 .ow { position: fixed; inset: 0; z-index: 60; background: #f4f1fb; color: #14101c; display: flex; flex-direction: column; overflow: hidden; }
 .ow-top { background: #0A0612; color: #fff; display: flex; align-items: center; gap: 10px; padding: calc(env(safe-area-inset-top, 0px) + 12px) 14px 12px; }
-.ow-back { background: none; border: 0; color: #fff; font-size: 30px; line-height: 1; width: 36px; height: 36px; cursor: pointer; }
 .ow-title { flex: 1; font-weight: 800; font-size: 18px; letter-spacing: .5px; }
 .ow-crown { color: #cdbcf2; }
 .ow-full { color: #0A0612; background: #cdbcf2; border-radius: 999px; padding: 7px 12px; font-weight: 700; font-size: 13px; text-decoration: none; white-space: nowrap; }
@@ -69,7 +68,3 @@
 .ow-signin { display: grid; gap: 10px; }
 .ow-signin .field { border-radius: 12px; padding: 12px; font: inherit; }
 .ow-wide { min-height: 48px; border-radius: 999px; }
-.ow-entry { display: flex; align-items: center; gap: 8px; background: #0A0612; color: #fff; border: 0; border-radius: 14px; padding: 12px 14px; font: inherit; font-weight: 700; cursor: pointer; width: 100%; margin-bottom: 14px; }
-.ow-entry span:nth-child(2) { flex: 1; text-align: left; }
-.ow-entry .ow-crown { font-size: 18px; }
-.set-version { text-align: center; color: var(--muted); font-size: 12px; margin: 18px 0 4px; user-select: none; -webkit-user-select: none; }

@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Mark } from '../components/Logo';
 import { TAGLINE } from '../brand';
 import { requestPasswordReset, sellerAuth, shopperAuth, type Shopper } from './accountApi';
+import { openOwnerArea, tryOwnerSignIn } from '../owner/OwnerEntry';
 import '../shop/shop.css';
 
 /**
@@ -57,6 +58,8 @@ export function AccountLogin({ startSeller, onShopper, onSeller, onBack, initial
         onShopper(await shopperAuth(em, password, signup, name));
       }
     } catch (err) {
+      // AQUENORA's own admin login opens the owner area instead (nothing to see for anyone else).
+      if (!signup && (await tryOwnerSignIn(em, password))) return openOwnerArea();
       setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
       setBusy(false);
     }
