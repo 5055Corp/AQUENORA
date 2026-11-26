@@ -85,3 +85,19 @@ test('assets, 404s, health, compression, HTTPS header and path tricks', async ()
   assert.equal(head.status, 200);
   assert.equal(head.body, '');
 });
+
+test('link previews: store and product tags, escaped', async () => {
+  const { previewTags } = await import('./server.mjs');
+  const data = {
+    store: { name: 'Adire <House>', currency_code: 'ngn', verified: true, design: { banner: { headline: 'New season', image: 'https://cdn.test/b.jpg' } } },
+    products: [{ id: 'prod_1', handle: 'bone-wig', title: 'Bone wig', price: 45000, currency_code: 'ngn', images: ['https://cdn.test/w.jpg'], description: 'Human hair', options: { groups: [{ name: 'Length', choices: [{ label: '12', price: 45000 }, { label: '20', price: 60000 }] }] } }],
+  };
+  const store = previewTags(data, null, 'https://adirehouse.aquenora.com/');
+  assert.match(store, /<title>Adire &lt;House&gt;<\/title>/);
+  assert.match(store, /og:image" content="https:\/\/cdn.test\/b.jpg"/);
+  assert.match(store, /Verified seller/);
+  const product = previewTags(data, 'bone-wig', 'https://adirehouse.aquenora.com/p/bone-wig');
+  assert.match(product, /og:title" content="Bone wig · ₦45,000 – ₦60,000"/);
+  assert.match(product, /og:image" content="https:\/\/cdn.test\/w.jpg"/);
+  assert.match(product, /og:type" content="product"/);
+});
