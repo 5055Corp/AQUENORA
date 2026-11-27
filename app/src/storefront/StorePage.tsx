@@ -3,7 +3,7 @@ import { ApiError, isOwnDomain, fetchHandleForDomain, fetchPublicStore, LIVE, RE
 import { COUNTRIES } from '../data';
 import * as persist from '../persist';
 import { ACCENT_KEYS, demoProducts, initialState, usdConverter } from '../state';
-import { designFromLegacy, normalizeDesign, STORE_FONTS, type StoreDesign } from '../design';
+import { cardTextOf, designFromLegacy, normalizeDesign, STORE_FONTS, type StoreDesign } from '../design';
 import type { CountryId } from '../data';
 import { StoreView, type StoreItem } from './StoreView';
 import { TrackOrder } from './TrackOrder';
@@ -395,6 +395,8 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
   const pickCurrency = (code: string) => { setCur(code); saveCurrency(code); };
   const d = data.design;
   const ink = d.colors.text;
+  // Words on card-coloured panels (receipt, bag, checkout, shop visit): the "Text on products" colour.
+  const cardInk = cardTextOf(d);
   // ?track=... (from the buyer's confirmation email): the order's progress instead of the shop.
   const [tracking, setTracking] = useState(() => (embedded ? '' : new URLSearchParams(window.location.search).get('track') ?? ''));
   const openTracking = (token: string) => {
@@ -705,12 +707,12 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
         />
       )}
 
-      {data.pickup && <ShopVisit pickup={data.pickup} country={data.country} ink={ink} card={d.colors.card} />}
+      {data.pickup && <ShopVisit pickup={data.pickup} country={data.country} ink={cardInk} card={d.colors.card} />}
 
       <footer className="sp-foot">
         <label className="sp-cur">
           <span>Prices in</span>
-          <select value={showCur} onChange={e => pickCurrency(e.target.value)} style={{ color: ink, borderColor: ink + '40', background: d.colors.card }}>
+          <select value={showCur} onChange={e => pickCurrency(e.target.value)} style={{ color: cardInk, borderColor: cardInk + '40', background: d.colors.card }}>
             {currencyChoices(rates, homeCur).map(c => <option key={c.code} value={c.code}>{c.label}</option>)}
           </select>
         </label>
@@ -728,7 +730,7 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
 
       {paid && (
         <div className="sp-overlay sp-center">
-          <div className="sp-receipt" role="dialog" aria-modal="true" aria-labelledby="sp-receipt-title" style={{ background: d.colors.card, color: ink }}>
+          <div className="sp-receipt" role="dialog" aria-modal="true" aria-labelledby="sp-receipt-title" style={{ background: d.colors.card, color: cardInk }}>
             {paid.kind === 'checking' && <p role="status" id="sp-receipt-title">Checking your payment…</p>}
             {paid.kind === 'paid' && (
               <>
@@ -754,7 +756,7 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
                     Track my order
                   </button>
                 )}
-                <button type="button" className={paid.trackToken && !embedded ? 'sp-back' : 'sp-checkout'} style={paid.trackToken && !embedded ? { color: ink } : { background: d.colors.accent, color: d.colors.accent_text, opacity: 1 }} onClick={() => setPaid(null)}>
+                <button type="button" className={paid.trackToken && !embedded ? 'sp-back' : 'sp-checkout'} style={paid.trackToken && !embedded ? { color: cardInk } : { background: d.colors.accent, color: d.colors.accent_text, opacity: 1 }} onClick={() => setPaid(null)}>
                   Keep shopping
                 </button>
               </>
@@ -768,7 +770,7 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
                     Check again
                   </button>
                 )}
-                <button type="button" className="sp-back" style={{ color: ink }} onClick={() => setPaid(null)}>Back to the shop</button>
+                <button type="button" className="sp-back" style={{ color: cardInk }} onClick={() => setPaid(null)}>Back to the shop</button>
               </>
             )}
           </div>
@@ -782,12 +784,12 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
             role="dialog"
             aria-modal="true"
             aria-label="Your bag"
-            style={{ background: d.colors.card, color: ink }}
+            style={{ background: d.colors.card, color: cardInk }}
             onClick={e => e.stopPropagation()}
           >
             <div className="sp-bag-head">
               <h2>Your bag</h2>
-              <button type="button" className="sp-close" style={{ color: ink }} onClick={closeBag} aria-label="Close bag">×</button>
+              <button type="button" className="sp-close" style={{ color: cardInk }} onClick={closeBag} aria-label="Close bag">×</button>
             </div>
             {lines.length === 0 ? (
               <p className="sp-bag-empty">Your bag is empty.</p>
@@ -800,12 +802,12 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
                       <span>{show(price * qty)}</span>
                     </div>
                     {lineNote && <div className="sp-line-note">Your note: {lineNote}</div>}
-                    <div className="sp-qty" style={{ borderColor: ink + '33' }}>
-                      <button type="button" style={{ color: ink }} onClick={() => setQty(key, qty - 1)} aria-label={`One less ${label}`}>−</button>
+                    <div className="sp-qty" style={{ borderColor: cardInk + '33' }}>
+                      <button type="button" style={{ color: cardInk }} onClick={() => setQty(key, qty - 1)} aria-label={`One less ${label}`}>−</button>
                       <span aria-live="polite">{qty}</span>
                       <button
                         type="button"
-                        style={{ color: ink }}
+                        style={{ color: cardInk }}
                         disabled={qty >= stock}
                         onClick={() => setQty(key, qty + 1)}
                         aria-label={`One more ${label}`}
@@ -823,7 +825,7 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
                 {(['delivery', 'pickup'] as const).map(f => {
                   const on = fulfillment === f;
                   return (
-                    <label key={f} className="sp-ful-opt" style={{ borderColor: on ? d.colors.accent : ink + '33' }}>
+                    <label key={f} className="sp-ful-opt" style={{ borderColor: on ? d.colors.accent : cardInk + '33' }}>
                       <input type="radio" name="fulfillment" value={f} checked={on} onChange={() => setChoice(f)} style={{ accentColor: d.colors.accent }} />
                       <span>
                         <b>{f === 'delivery' ? 'Delivery' : 'Pick up in store'}</b>
@@ -854,32 +856,32 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
             {stage === 'details' && lines.length > 0 && (
               <form className="sp-form" noValidate onSubmit={e => { e.preventDefault(); pay(); }}>
                 <h3>Your details</h3>
-                <BuyerField label="Full name" value={buyer.name} error={fieldError('name')} autoComplete="name" ink={ink}
+                <BuyerField label="Full name" value={buyer.name} error={fieldError('name')} autoComplete="name" ink={cardInk}
                   onChange={v => editBuyer({ name: v })} />
-                <BuyerField label="Email" type="email" value={buyer.email} error={fieldError('email')} autoComplete="email" ink={ink}
+                <BuyerField label="Email" type="email" value={buyer.email} error={fieldError('email')} autoComplete="email" ink={cardInk}
                   hint="Your receipt is sent here." onChange={v => editBuyer({ email: v })} />
-                <BuyerField label="Phone (WhatsApp if you have it)" type="tel" value={buyer.phone} error={fieldError('phone')} autoComplete="tel" ink={ink}
+                <BuyerField label="Phone (WhatsApp if you have it)" type="tel" value={buyer.phone} error={fieldError('phone')} autoComplete="tel" ink={cardInk}
                   onChange={v => editBuyer({ phone: v })} />
                 {fulfillment === 'delivery' && (
                   <>
                     <label className="sp-field">
                       <span>Country</span>
                       <select value={buyer.country} autoComplete="country" aria-invalid={!!fieldError('country')}
-                        style={{ color: ink, borderColor: fieldError('country') ? 'oklch(0.55 0.18 30)' : ink + '33', background: d.colors.card }}
+                        style={{ color: cardInk, borderColor: fieldError('country') ? 'oklch(0.55 0.18 30)' : cardInk + '33', background: d.colors.card }}
                         onChange={e => { editBuyer({ country: e.target.value }); setShipId(''); }}>
                         <option value="">Choose…</option>
                         {COUNTRY_LIST.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
                       </select>
                       {fieldError('country') && <small className="sp-field-error">{fieldError('country')}</small>}
                     </label>
-                    <BuyerField label="Delivery address" value={buyer.address} error={fieldError('address')} autoComplete="street-address" ink={ink}
+                    <BuyerField label="Delivery address" value={buyer.address} error={fieldError('address')} autoComplete="street-address" ink={cardInk}
                       onChange={v => editBuyer({ address: v })} />
-                    <BuyerField label="City or town" value={buyer.city} error={fieldError('city')} autoComplete="address-level2" ink={ink}
+                    <BuyerField label="City or town" value={buyer.city} error={fieldError('city')} autoComplete="address-level2" ink={cardInk}
                       onChange={v => editBuyer({ city: v })} />
                     <div className="sp-two">
-                      <BuyerField label="State / province" value={buyer.region} error="" autoComplete="address-level1" ink={ink}
+                      <BuyerField label="State / province" value={buyer.region} error="" autoComplete="address-level1" ink={cardInk}
                         onChange={v => editBuyer({ region: v })} />
-                      <BuyerField label="Postcode" value={buyer.postalCode} error="" autoComplete="postal-code" ink={ink}
+                      <BuyerField label="Postcode" value={buyer.postalCode} error="" autoComplete="postal-code" ink={cardInk}
                         onChange={v => editBuyer({ postalCode: v })} />
                     </div>
                     {blocked === 'abroad-off' && <div className="sp-pay-error" role="alert">This shop only delivers within {WORLD_BY_CODE.get(data.shipsFrom ?? '')?.name ?? 'its own country'}.</div>}
@@ -890,7 +892,7 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
                         {shipOptions.map(o => {
                           const on = chosen?.id === o.id;
                           return (
-                            <label key={o.id} className="sp-ful-opt" style={{ borderColor: on ? d.colors.accent : ink + '33' }}>
+                            <label key={o.id} className="sp-ful-opt" style={{ borderColor: on ? d.colors.accent : cardInk + '33' }}>
                               <input type="radio" name="ship" checked={on} onChange={() => { setShipId(o.id); setPayError(''); }} style={{ accentColor: d.colors.accent }} />
                               <span>
                                 <b>{o.name} · {o.price ? show(o.price) : 'Free'}</b>
@@ -916,7 +918,7 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
                   {LIVE ? 'You pay securely on Paystack: card, bank transfer or USSD.' : 'Demo store: no real payment is taken.'}
                   {foreign ? ` You're charged in ${country.curName} (${fmt(total)}, about ${show(total)}); your bank converts it.` : ''}
                 </p>
-                <button type="button" className="sp-back" style={{ color: ink }} onClick={() => setStage('bag')}>← Back to bag</button>
+                <button type="button" className="sp-back" style={{ color: cardInk }} onClick={() => setStage('bag')}>← Back to bag</button>
               </form>
             )}
             {stage === 'bag' && (
@@ -1123,6 +1125,7 @@ function ProductPhotos({ item, show, design: d, onClose, onAdd }: {
   const choiceOut = perChoice && picked[0] >= 0 && (groups[0].choices[picked[0]].stock ?? 0) <= 0;
   const soldOut = item.madeToOrderDays ? false : choiceOut || (groups.length && perChoice ? (allPicked ? left <= 0 : item.stock <= 0) : item.stock <= 0);
   const accent = d.colors.accent;
+  const cardText = cardTextOf(d);
   useEffect(() => {
     const key = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', key);
@@ -1134,7 +1137,7 @@ function ProductPhotos({ item, show, design: d, onClose, onAdd }: {
   };
   return (
     <div className="sheet-overlay pp-overlay" role="dialog" aria-modal="true" aria-label={item.name} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="pp-card" style={{ background: d.colors.card, color: d.colors.text }}>
+      <div className="pp-card" style={{ background: d.colors.card, color: cardText }}>
         <button type="button" className="pp-close" aria-label="Close" onClick={onClose}>×</button>
         {images.length > 0 && (
           <div className="pp-gallery" ref={gallery} onScroll={e => { const el = e.currentTarget; setAt(Math.round(el.scrollLeft / el.clientWidth)); }}>
@@ -1143,7 +1146,7 @@ function ProductPhotos({ item, show, design: d, onClose, onAdd }: {
         )}
         {images.length > 1 && (
           <div className="pp-dots" aria-hidden="true">
-            {images.map((url, i) => <span key={url} style={{ background: d.colors.text, opacity: i === at ? 0.9 : 0.25 }} />)}
+            {images.map((url, i) => <span key={url} style={{ background: cardText, opacity: i === at ? 0.9 : 0.25 }} />)}
           </div>
         )}
         <div className="pp-body">
@@ -1151,7 +1154,7 @@ function ProductPhotos({ item, show, design: d, onClose, onAdd }: {
           <div className="pp-price">{!allPicked && variesInPrice(item.price, item.options) ? 'From ' : ''}{show(price)}</div>
           {allPicked && groups.length > 0 && <div className="pp-picked">{groups.map((g, gi) => g.choices[picked[gi]].label).join(' · ')}</div>}
           {!!item.madeToOrderDays && (
-            <div className="pp-mto" style={{ borderColor: accent, color: d.colors.text }}>Made to order · ready in {item.madeToOrderDays} {item.madeToOrderDays === 1 ? 'day' : 'days'}</div>
+            <div className="pp-mto" style={{ borderColor: accent, color: cardText }}>Made to order · ready in {item.madeToOrderDays} {item.madeToOrderDays === 1 ? 'day' : 'days'}</div>
           )}
           {groups.map((g, gi) => (
             <div key={g.name} className="pp-opt" role="radiogroup" aria-label={g.name}>
@@ -1168,7 +1171,7 @@ function ProductPhotos({ item, show, design: d, onClose, onAdd }: {
                       role="radio"
                       aria-checked={on}
                       className={'pp-chip' + (on ? ' on' : '') + (out ? ' out' : '')}
-                      style={on ? { background: d.colors.text, color: d.colors.card, borderColor: d.colors.text } : { borderColor: d.colors.text + '33', color: d.colors.text }}
+                      style={on ? { background: cardText, color: d.colors.card, borderColor: cardText } : { borderColor: cardText + '33', color: cardText }}
                       onClick={() => setPicked(p => p.map((x, i) => (i === gi ? ci : x)))}
                     >
                       {c.image && <img className="pp-chip-img" src={c.image} alt="" />}
@@ -1183,17 +1186,17 @@ function ProductPhotos({ item, show, design: d, onClose, onAdd }: {
             <label className="pp-note">
               <span>{item.notePrompt}</span>
               <textarea rows={3} maxLength={500} value={buyerNote} onChange={e => setBuyerNote(e.target.value)}
-                style={{ color: d.colors.text, borderColor: d.colors.text + '33' }} />
+                style={{ color: cardText, borderColor: cardText + '33' }} />
             </label>
           )}
           {item.description && <p className="pp-desc">{item.description}</p>}
           {soldOut && (
             <NotifyBox key={groups[0]?.choices[picked[0]]?.label ?? ''} productId={item.key} choice={choiceOut && item.stock > 0 ? groups[0].choices[picked[0]].label : ''}
-              ink={d.colors.text} accent={accent} accentText={d.colors.accent_text} />
+              ink={cardText} accent={accent} accentText={d.colors.accent_text} />
           )}
-          <ReportLink productId={item.key} ink={d.colors.text} />
+          <ReportLink productId={item.key} ink={cardText} />
           <button type="button" className="pp-add" disabled={!!soldOut} onClick={add}
-            style={{ background: soldOut ? 'transparent' : accent, color: soldOut ? d.colors.text : d.colors.accent_text, border: soldOut ? '1px solid currentColor' : 'none' }}>
+            style={{ background: soldOut ? 'transparent' : accent, color: soldOut ? cardText : d.colors.accent_text, border: soldOut ? '1px solid currentColor' : 'none' }}>
             {soldOut ? 'Sold out' : allPicked ? `Add to bag · ${show(price)}` : groups.length ? 'Add to bag' : 'Add to bag'}
           </button>
           {tried && !allPicked && <div className="pp-opt-need" role="alert">Choose {groups.filter((_, gi) => picked[gi] < 0).map(g => g.name.toLowerCase()).join(' and ')} first.</div>}

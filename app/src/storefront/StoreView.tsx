@@ -1,6 +1,6 @@
 import { useEffect, type CSSProperties, type ReactNode } from 'react';
 import { fromPrice, variesInPrice, type ProductOptions } from '../options';
-import { BUTTON_RADIUS, loadFonts, RADIUS, STORE_FONTS, type StoreDesign } from '../design';
+import { BUTTON_RADIUS, cardTextOf, loadFonts, RADIUS, STORE_FONTS, type StoreDesign } from '../design';
 
 export interface StoreItem {
   key: string;
@@ -58,6 +58,7 @@ function mix(a: string, b: string, t: number) {
 export function StoreView({ name, design: d, items, fmt, variant, narrow, bagCount = 0, onAdd, onOpenBag, onOpen, maxWidth, verified, toolbar }: Props) {
   const page = variant === 'page';
   const { background: bg, text, accent, accent_text: onAccent, card } = d.colors;
+  const cardText = cardTextOf(d);
   const heading = STORE_FONTS[d.fonts.heading].family;
   const body = STORE_FONTS[d.fonts.body].family;
   const radius = RADIUS[d.shape.corners];
@@ -132,7 +133,7 @@ export function StoreView({ name, design: d, items, fmt, variant, narrow, bagCou
           const soldOut = p.stock <= 0 && !p.madeToOrderDays;
           const choose = needsChoosing(p) && !!onOpen;
           return (
-            <div key={p.key} className="sf-card" style={{ background: card, borderRadius: radius }}>
+            <div key={p.key} className="sf-card" style={{ background: card, color: cardText, borderRadius: radius }}>
               {p.images?.[0] && page && onOpen ? (
                 <button type="button" className="sf-img sf-img-btn" style={{ background: stripes(8), borderRadius: Math.max(0, radius - 4) }} aria-label={`See photos of ${p.name}`} onClick={() => onOpen(p)}>
                   <img src={p.images[0]} alt={p.name} loading="lazy" />
@@ -149,11 +150,11 @@ export function StoreView({ name, design: d, items, fmt, variant, narrow, bagCou
                 <div className="sf-card-stock">Made to order · {p.madeToOrderDays} {p.madeToOrderDays === 1 ? 'day' : 'days'}</div>
               ) : d.products.show_stock && !soldOut && <div className="sf-card-stock">{p.stock} left</div>}
               {!page ? (
-                <div className="sf-add" style={button(soldOut ? { background: 'transparent', color: text, border: `1px solid ${sa}`, opacity: 0.7 } : {})}>
+                <div className="sf-add" style={button(soldOut ? { background: 'transparent', color: cardText, border: `1px solid ${cardText}33`, opacity: 0.7 } : {})}>
                   {soldOut ? 'Sold out' : needsChoosing(p) ? 'Choose options' : 'Add to bag'}
                 </div>
               ) : soldOut ? (
-                <button type="button" className="sf-add" disabled={!onOpen} onClick={() => onOpen?.(p)} style={button({ background: 'transparent', color: text, border: `1px solid ${sa}` })}>
+                <button type="button" className="sf-add" disabled={!onOpen} onClick={() => onOpen?.(p)} style={button({ background: 'transparent', color: cardText, border: `1px solid ${cardText}33` })}>
                   {onOpen ? 'Sold out · Notify me' : 'Sold out'}
                 </button>
               ) : (
