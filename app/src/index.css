@@ -120,6 +120,7 @@ button { font-family: inherit; color: var(--ink); cursor: pointer; }
 .ob-head p { margin: 0; font-size: 16px; line-height: 1.5; color: var(--muted-2); text-wrap: pretty; }
 
 .ob-cats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.ob-cats .ob-cat:last-child:nth-child(odd) { grid-column: 1 / -1; }
 .ob-cat {
   text-align: left; padding: 16px; min-height: 64px; border-radius: 14px; border: 2px solid;
   font-size: 15px; font-weight: 600;
@@ -144,6 +145,8 @@ button { font-family: inherit; color: var(--ink); cursor: pointer; }
 .ob-label { display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600; }
 .ob-input { font-size: 17px; padding: 14px 16px; border-radius: 12px; font-weight: 500; }
 .ob-price { display: flex; align-items: center; border-radius: 12px; border: 2px solid var(--field); background: #fff; overflow: hidden; }
+.ob-lengths { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
+.ob-length { border: 2px solid; border-radius: 12px; padding: 12px 6px; font: inherit; font-weight: 700; font-size: 14px; color: var(--ink); cursor: pointer; }
 .ob-price span { padding: 0 6px 0 16px; font-size: 17px; color: var(--muted); }
 .ob-price input { flex: 1; font-size: 17px; padding: 14px 16px 14px 4px; border: none; outline: none; font-weight: 500; min-width: 0; }
 

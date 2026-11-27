@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react';
 import { prepareImage } from '../images';
 import { ImageCropper } from './ImageCropper';
-import { CATEGORIES, COUNTRIES, HELP, STEPS } from '../data';
+import { COUNTRIES, HELP, SERVICE_CATEGORY, SERVICE_STEP, SIGNUP_CATEGORIES, STEPS } from '../data';
 import { useStore } from '../store';
 import { Help } from './Help';
 import { Logo } from './Logo';
+import { defaultBookingSettings } from '../bookings';
 
 const SELECTED = { borderColor: 'var(--ink)', background: '#fff' };
 const UNSELECTED = { borderColor: 'var(--line)', background: 'var(--tile)' };
@@ -13,6 +14,8 @@ export function Onboarding() {
   const store = useStore();
   const { s, set, isMobile, slug, flash, h1Size, live, finishOnboarding, logOut } = store;
   const step = s.step;
+  const services = s.category === SERVICE_CATEGORY;
+  const [title, sub] = step === 3 && services ? SERVICE_STEP : STEPS[step];
   const canContinue = !s.busy && !((step === 1 && !s.shopName.trim()) || (step === 3 && !s.productName.trim()));
 
   const next = () => {
@@ -22,7 +25,7 @@ export function Onboarding() {
     } else if (live) {
       finishOnboarding(false);
     } else {
-      set({ screen: 'app', tab: 'home' });
+      set({ screen: 'app', tab: 'home', ...(services ? { bookings: defaultBookingSettings(s.country) } : {}) });
       flash('Your store is live at ' + slug + '.aquenora.com');
     }
   };
@@ -30,7 +33,7 @@ export function Onboarding() {
   const skip = () => {
     if (s.busy) return;
     if (live) finishOnboarding(true);
-    else set({ screen: 'app', tab: 'home' });
+    else set({ screen: 'app', tab: 'home', ...(services ? { bookings: defaultBookingSettings(s.country) } : {}) });
   };
 
   return (
@@ -57,14 +60,14 @@ export function Onboarding() {
       >
         <div className="ob-main">
           <div className="ob-head">
-            <h1 className="h1" style={{ fontSize: h1Size }}>{STEPS[step][0]}</h1>
-            <p>{STEPS[step][1]}</p>
+            <h1 className="h1" style={{ fontSize: h1Size }}>{title}</h1>
+            <p>{sub}</p>
           </div>
 
           {step === 0 && <StepCategory />}
           {step === 1 && <StepName />}
           {step === 2 && <StepCountry />}
-          {step === 3 && <StepProduct />}
+          {step === 3 && (services ? <StepService /> : <StepProduct />)}
           {step === 4 && <StepPayment />}
 
           <div className="ob-actions">
@@ -96,7 +99,7 @@ function StepCategory() {
   const { s, set } = useStore();
   return (
     <div className="ob-cats">
-      {CATEGORIES.map(label => (
+      {SIGNUP_CATEGORIES.map(label => (
         <button
           type="button"
           key={label}
@@ -222,6 +225,44 @@ function StepProduct() {
   );
 }
 
+const LENGTHS: [number, string][] = [[30, '30 min'], [60, '1 hour'], [90, '1½ hours'], [120, '2 hours'], [180, '3 hours'], [240, '4 hours']];
+
+/** Step 4 for service providers: the first thing customers can book. */
+function StepService() {
+  const { s, set, country } = useStore();
+  return (
+    <div className="ob-col-12">
+      <label className="ob-label">What do customers book?
+        <input
+          className="field ob-input"
+          value={s.productName}
+          onChange={e => set({ productName: e.target.value })}
+          placeholder="e.g. Knotless braids"
+        />
+      </label>
+      <label className="ob-label">Price
+        <div className="ob-price">
+          <span>{country.sym}</span>
+          <input
+            value={s.productPrice}
+            inputMode="numeric"
+            onChange={e => set({ productPrice: e.target.value.replace(/[^0-9]/g, '') })}
+          />
+        </div>
+      </label>
+      <div className="ob-label">How long does it take?
+        <div className="ob-lengths">
+          {LENGTHS.map(([m, label]) => (
+            <button type="button" key={m} className="ob-length" aria-pressed={s.serviceMinutes === m}
+              style={s.serviceMinutes === m ? SELECTED : UNSELECTED} onClick={() => set({ serviceMinutes: m })}>{label}</button>
+          ))}
+        </div>
+      </div>
+      <div className="ob-note">You can add more services, deposits and your opening hours later in Business.</div>
+    </div>
+  );
+}
+
 function StepPayment() {
   const { s, set, country, live } = useStore();
   const feeLine =
@@ -283,7 +324,7 @@ function LivePreview() {
           <div className="pv-cat">{s.category}</div>
           {s.productPhoto ? <div className="pv-photo pv-photo-set"><img src={s.productPhoto} alt="" /></div> : <div className="pv-photo stripes">product photo</div>}
           <div className="pv-line">
-            <span>{s.productName || 'Your first product'}</span><span>{fmt(s.productPrice)}</span>
+            <span>{s.productName || (s.category === SERVICE_CATEGORY ? 'Your first service' : 'Your first product')}</span><span>{fmt(s.productPrice)}</span>
           </div>
           <div className="pv-badges">
             {badges.map(b => <span key={b} className="pv-badge">{b}</span>)}

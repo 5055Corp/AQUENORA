@@ -1,6 +1,7 @@
 import { maybeAskForRating, startPush, stopPush } from './native';
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { COUNTRIES, nextStep, type Order, type Product } from './data';
+import { COUNTRIES, nextStep, SERVICE_CATEGORY, type Order, type Product } from './data';
+import { defaultBookingSettings } from './bookings';
 import { DAY_NAMES, DAYS, normalizePickup, type Pickup } from './pickup';
 import { normalizeShipping, type Shipping } from './shipping';
 import { prepareImage, type ImageKind } from './images';
@@ -398,7 +399,15 @@ function useStoreValue(settings: Settings) {
       } else {
         await api.updateMe(token, details);
       }
-      if (!skip) {
+      const services = s.category === SERVICE_CATEGORY;
+      // Service providers get bookings switched on, with their first service ready to book.
+      if (services) await api.updateMe(token, { booking_settings: defaultBookingSettings(s.country) });
+      if (!skip && services) {
+        if (s.productName.trim()) {
+          await api.addService(token, { name: s.productName.trim(), price: Number(s.productPrice) || 0, duration_min: s.serviceMinutes, payment: 'none' });
+        }
+        await api.updateMe(token, { onboarding_completed: true });
+      } else if (!skip) {
         if (s.productName.trim()) {
           // The photo chosen during set-up is uploaded now that the store exists.
           let images: string[] = [];

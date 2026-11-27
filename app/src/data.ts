@@ -39,6 +39,13 @@ export const CATEGORIES = [
   'Digital products',
 ];
 
+/** Signup only (not a shop search category): service providers get bookings turned on. */
+export const SERVICE_CATEGORY = 'Services & bookings';
+export const SIGNUP_CATEGORIES = [...CATEGORIES, SERVICE_CATEGORY];
+
+/** Step 4 for service providers. */
+export const SERVICE_STEP: [title: string, sub: string] = ['Add your first service', 'Just one is enough. Customers can book it straight away.'];
+
 export const STEPS: [title: string, sub: string][] = [
   ['What do you sell?', "Pick the closest one. We'll set up your store to suit it."],
   ["What's your shop called?", 'You can change this any time.'],

@@ -1,7 +1,7 @@
 // The Business tab: running, promoting and growing the business. Store design lives here too.
 // Booking tools only show for service providers (bookings switched on).
 import { useEffect, useState, type ReactNode } from 'react';
-import { api, type Audience, type BookingSettings, type CampaignSchedule, type EmailAllowance } from '../api';
+import { api, type Audience, type CampaignSchedule, type EmailAllowance } from '../api';
 import { IOS_APP, SELL_PRO_HERE, shareLink } from '../native';
 import { useStore } from '../store';
 import { InviteCard } from './InviteCard';
@@ -9,19 +9,11 @@ import { BookingEmailEditor, ServicesAndHours } from './BusinessBookings';
 
 type View = 'hub' | 'blasts' | 'auto' | 'share' | 'services' | 'invite';
 
-const TIMEZONES: Record<string, string> = { NG: 'Africa/Lagos', GH: 'Africa/Accra', ZA: 'Africa/Johannesburg', CI: 'Africa/Abidjan', SN: 'Africa/Dakar', DI: 'Europe/London' };
-
 /** The booking page: <shop>/book, or ?shop=x&book=1 before the shop has its own address. */
 export const bookingUrl = (storeUrl: string) => (storeUrl.includes('?') ? `${storeUrl}&book=1` : `${storeUrl.replace(/\/$/, '')}/book`);
 
-export function defaultBookingSettings(country: string): BookingSettings {
-  const day = [{ from: '09:00', to: '18:00' }];
-  return {
-    enabled: true, timezone: TIMEZONES[country] ?? 'Africa/Lagos', address: '',
-    hours: { sun: [], mon: day, tue: day, wed: day, thu: day, fri: day, sat: [{ from: '10:00', to: '16:00' }] },
-    buffer_min: 15, min_notice_min: 120, days_ahead: 60, cancel_hours: 24,
-  };
-}
+import { defaultBookingSettings } from '../bookings';
+export { defaultBookingSettings };
 
 /** Thin line icons, the same style as the menu. */
 export const ICON: Record<string, ReactNode> = {

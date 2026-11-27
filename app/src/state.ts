@@ -16,6 +16,8 @@ export interface State {
   country: CountryId;
   productName: string;
   productPrice: string;
+  /** Signup: how long the first service takes (service providers only). */
+  serviceMinutes: number;
   /** Set-up: the first product's photo (already adjusted), kept here until the store is created. */
   productPhoto: string;
   paystack: boolean;
@@ -112,6 +114,7 @@ export function initialState(settings: Settings): State {
     country: 'NG',
     productName: 'Indigo adire kimono',
     productPrice: '28000',
+    serviceMinutes: 60,
     productPhoto: '',
     paystack: false,
     intl: true,
@@ -174,6 +177,7 @@ export function initialState(settings: Settings): State {
     shopName: '',
     productName: '',
     productPrice: '',
+    serviceMinutes: 60,
     productPhoto: '',
     announce: '',
     products: [],
