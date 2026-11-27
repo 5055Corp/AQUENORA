@@ -8,7 +8,7 @@ import { LIVE, type Accent, type Campaign, type Payout, type PlanResponse } from
 
 export interface State {
   /** 'auth' and 'loading' are only used when connected to the backend (live mode). */
-  screen: 'auth' | 'loading' | 'onboarding' | 'app';
+  screen: 'auth' | 'loading' | 'device' | 'onboarding' | 'app';
   tab: Tab;
   step: number;
   category: string;
@@ -16,6 +16,8 @@ export interface State {
   country: CountryId;
   productName: string;
   productPrice: string;
+  /** Signup: how long the first service takes (service providers only). */
+  serviceMinutes: number;
   /** Set-up: the first product's photo (already adjusted), kept here until the store is created. */
   productPhoto: string;
   paystack: boolean;
@@ -31,6 +33,10 @@ export interface State {
   /** Demo: null until the seller adds a product from the dashboard; until then the list is derived from onboarding. */
   products: Product[] | null;
   orders: Order[];
+  /** Problems buyers reported on orders (live: from the backend; demo: one sample). */
+  disputes: import('./api').Dispute[];
+  /** Shoppers waiting for sold-out products: { productId: { choice ('' = the product): count } }. */
+  waiting: Record<string, Record<string, number>>;
   filter: OrderFilter;
   newName: string;
   newPrice: string;
@@ -61,7 +67,19 @@ export interface State {
   verification: 'unverified' | 'pending' | 'verified' | 'rejected';
   /** Why AQUENORA couldn't verify the seller last time (shown so they can fix it). */
   verifyReason: string;
+  /** Collections inside the store ("Wigs", "Bundles"...), in display order. */
+  collections: import('./api').StoreCollection[];
+  /** Bookings (service providers only): null = never set up. */
+  bookings: import('./api').BookingSettings | null;
+  bookingEmail: import('./api').BookingEmail | null;
+  /** Paused by AQUENORA: the reason ('' = not paused). */
+  suspended: string;
   password: string;
+  /** Sign-in on a new device: where the code was emailed (masked), and any error. */
+  deviceSentTo: string;
+  deviceError: string;
+  /** The web address of the seller who invited this one (from an invite link ?ref=), sent when the store is created. */
+  referral: string;
   token: string;
   /** The store's web address as saved on the server (may differ from the name-derived one). */
   handle: string;
@@ -75,9 +93,20 @@ export interface State {
 
 export const ACCENT_KEYS: Accent[] = ['terracotta', 'leaf', 'indigo', 'hibiscus'];
 
+/** An invite link (?ref=adirehouse) is remembered until the store is created. */
+function inviteRef(): string {
+  try {
+    const fromUrl = new URLSearchParams(window.location.search).get('ref')?.toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 40) ?? '';
+    if (fromUrl) localStorage.setItem('aq-ref', fromUrl);
+    return fromUrl || localStorage.getItem('aq-ref') || '';
+  } catch {
+    return '';
+  }
+}
+
 export function initialState(settings: Settings): State {
   const base: State = {
-    screen: settings.startScreen === 'onboarding' ? 'onboarding' : 'app',
+    screen: settings.startScreen === 'onboarding' ? 'onboarding' : settings.startScreen === 'device' ? 'device' : 'app',
     tab: settings.startScreen === 'theme-editor' ? 'design' : 'home',
     step: 0,
     category: 'Fashion & clothing',
@@ -85,6 +114,7 @@ export function initialState(settings: Settings): State {
     country: 'NG',
     productName: 'Indigo adire kimono',
     productPrice: '28000',
+    serviceMinutes: 60,
     productPhoto: '',
     paystack: false,
     intl: true,
@@ -98,6 +128,14 @@ export function initialState(settings: Settings): State {
     designed: false,
     products: null,
     orders: ORDERS,
+    // Demo: one sample problem so the seller can see how it works.
+    disputes: [{
+      id: 'demo-dispute', order_id: '1042', order_display_id: 1042, reason: 'wrong_item', reason_label: 'Wrong item', status: 'open',
+      messages: [{ from: 'buyer', text: 'I ordered the indigo kimono in size L but got size M.', at: new Date().toISOString() }],
+      refund: null, decision: null, reply_by: new Date(Date.now() + 2 * 86400000).toISOString(), can_escalate: false,
+    }],
+    // Demo: shoppers waiting for the sold-out sample product.
+    waiting: { 'Silk head wrap': { '': 3 } },
     filter: 'all',
     newName: '',
     newPrice: '',
@@ -115,7 +153,14 @@ export function initialState(settings: Settings): State {
     listed: true,
     verification: 'verified',
     verifyReason: '',
+    suspended: '',
+    bookings: null,
+    bookingEmail: null,
+    collections: [],
     password: '',
+    deviceSentTo: settings.startScreen === 'device' ? 'a******@gmail.com' : '',
+    deviceError: '',
+    referral: inviteRef(),
     token: '',
     handle: '',
     busy: false,
@@ -132,10 +177,13 @@ export function initialState(settings: Settings): State {
     shopName: '',
     productName: '',
     productPrice: '',
+    serviceMinutes: 60,
     productPhoto: '',
     announce: '',
     products: [],
     orders: [],
+    disputes: [],
+    waiting: {},
   };
 }
 

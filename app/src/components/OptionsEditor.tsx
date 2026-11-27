@@ -1,4 +1,6 @@
+import { useRef, useState } from 'react';
 import type { OptionChoice, ProductOptions } from '../options';
+import { useStore } from '../store';
 import { MAX_OPTION_GROUPS } from '../options';
 
 export interface OptionSettings {
@@ -34,6 +36,34 @@ export function cleanSettings(s: OptionSettings): OptionSettings {
     madeToOrderDays: s.madeToOrderDays,
     notePrompt: s.notePrompt.trim(),
   };
+}
+
+/** "+ Photo" for one choice: uploads it and shows a small thumbnail. */
+function ChoicePhoto({ value, onChange, label }: { value?: string | null; onChange: (url: string | null) => void; label: string }) {
+  const { uploadPhoto } = useStore();
+  const input = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const pick = async (file?: File) => {
+    if (!file) return;
+    setBusy(true);
+    setError('');
+    try {
+      onChange(await uploadPhoto('product', file));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not upload.');
+    }
+    setBusy(false);
+  };
+  return (
+    <span className="oe-photo">
+      <button type="button" className={'oe-photo-btn' + (value ? ' set' : '')} aria-label={value ? `Change photo of ${label}` : `Add a photo of ${label}`} title={error || undefined}
+        onClick={() => (value ? onChange(null) : input.current?.click())} disabled={busy}>
+        {busy ? '…' : value ? <><img src={value} alt="" /><span className="oe-photo-x">×</span></> : '+📷'}
+      </button>
+      <input ref={input} type="file" accept="image/*" hidden onChange={e => { pick(e.target.files?.[0]); e.target.value = ''; }} />
+    </span>
+  );
 }
 
 function Switch({ on, onChange, label }: { on: boolean; onChange: (on: boolean) => void; label: string }) {
@@ -83,6 +113,7 @@ export function OptionsEditor({ value, onChange, sym, basePrice }: {
               <span className="oe-hd">Choice</span>
               <span className="oe-hd">{gi === 0 ? `Price ${sym}` : `Extra ${sym} (optional)`}</span>
               {gi === 0 && perChoice && <span className="oe-hd">Stock</span>}
+              <span className="oe-hd">Photo</span>
               <span />
               {g.choices.map((c, ci) => (
                 <div key={ci} className="oe-choice">
@@ -99,6 +130,7 @@ export function OptionsEditor({ value, onChange, sym, basePrice }: {
                     <input className="field" inputMode="numeric" aria-label={`Stock of ${c.label || 'this choice'}`} placeholder="0"
                       value={c.stock ?? ''} onChange={e => setChoice(gi, ci, { ...c, stock: num(e.target.value) })} />
                   )}
+                  <ChoicePhoto value={c.image} label={c.label || 'this choice'} onChange={image => setChoice(gi, ci, { ...c, image })} />
                   <button type="button" className="oe-x" aria-label={`Remove ${c.label || 'choice'}`}
                     onClick={() => setGroup(gi, { ...g, choices: g.choices.filter((_, i) => i !== ci) })}>×</button>
                 </div>

@@ -11,6 +11,8 @@ export type CreateSellerData = {
   country_code?: "NG" | "GH" | "ZA" | "CI" | "SN" | "DI"
   currency_code?: string
   sells_abroad?: boolean
+  /** The seller who invited this one (referrals). */
+  referred_by?: string | null
 }
 
 export type UpdateSellerData = Partial<Omit<CreateSellerData, "email">> & {
@@ -18,6 +20,7 @@ export type UpdateSellerData = Partial<Omit<CreateSellerData, "email">> & {
   payout?: Record<string, unknown> | null
   pro_billing?: Record<string, unknown> | null
   shipping?: Record<string, unknown> | null
+  collections?: { id: string; name: string }[] | null
   theme?: "harmattan" | "lagos" | "savanna"
   accent?: "terracotta" | "leaf" | "indigo" | "hibiscus"
   font?: "classic" | "modern" | "friendly"
@@ -26,6 +29,9 @@ export type UpdateSellerData = Partial<Omit<CreateSellerData, "email">> & {
   marketplace_listed?: boolean
   design?: Record<string, unknown> | null
   pickup?: Record<string, unknown> | null
+  referral_rewarded_at?: Date | null
+  booking_settings?: Record<string, unknown> | null
+  booking_email?: { subject: string; message: string } | null
   // Set only by the plan and domain routes (never from the seller's own settings body).
   trial_ends_at?: Date | null
   pro_paid_until?: Date | null
@@ -88,7 +94,7 @@ export const updateSellerStep = createStep(
   async (input: { id: string; data: UpdateSellerData }, { container }) => {
     const sellers: SellerModuleService = container.resolve(SELLER_MODULE)
     const before = await sellers.retrieveSeller(input.id)
-    const updated = await sellers.updateSellers({ id: input.id, ...input.data })
+    const updated = await sellers.updateSellers({ id: input.id, ...input.data } as never)
 
     // Keep only the fields we changed so compensation restores exactly those.
     const previous: Record<string, unknown> = { id: input.id }

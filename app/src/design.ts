@@ -11,7 +11,8 @@ export type FontKey =
 
 export interface StoreDesign {
   version: 1;
-  colors: { background: string; text: string; accent: string; accent_text: string; card: string };
+  /** text = words on the page background; card_text = words on product cards, the product window, bag and checkout (absent = same as text). */
+  colors: { background: string; text: string; accent: string; accent_text: string; card: string; card_text?: string };
   fonts: { heading: FontKey; body: FontKey };
   header: { align: 'left' | 'center' };
   /** Uploaded logo address, or null to show the shop name in text. */
@@ -145,6 +146,7 @@ export function normalizeDesign(raw: unknown, fallback: StoreDesign): StoreDesig
       accent: pick(c.accent, isHex, fallback.colors.accent),
       accent_text: pick(c.accent_text, isHex, fallback.colors.accent_text),
       card: pick(c.card, isHex, fallback.colors.card),
+      ...(isHex(c.card_text) ? { card_text: c.card_text } : {}),
     },
     fonts: {
       heading: pick(r.fonts?.heading, v => FONT_KEYS.includes(v as FontKey), fallback.fonts.heading),
@@ -182,3 +184,6 @@ export const BUTTON_RADIUS = { pill: 999, rounded: 10, square: 0 } as const;
 /** Kept for the editor's "accent name" line; colours are free now. */
 export const ACCENT_NAMES = ACCENTS.map(a => a.name);
 export { LEGACY_FONTS };
+
+/** The text colour on product cards, the product window, bag and checkout. */
+export const cardTextOf = (d: StoreDesign) => d.colors.card_text ?? d.colors.text;

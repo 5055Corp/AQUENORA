@@ -1,6 +1,6 @@
-import { useEffect, type CSSProperties } from 'react';
+import { useEffect, type CSSProperties, type ReactNode } from 'react';
 import { fromPrice, variesInPrice, type ProductOptions } from '../options';
-import { BUTTON_RADIUS, loadFonts, RADIUS, STORE_FONTS, type StoreDesign } from '../design';
+import { BUTTON_RADIUS, cardTextOf, loadFonts, RADIUS, STORE_FONTS, type StoreDesign } from '../design';
 
 export interface StoreItem {
   key: string;
@@ -16,6 +16,8 @@ export interface StoreItem {
   madeToOrderDays?: number | null;
   /** Question for the buyer's notes box. */
   notePrompt?: string | null;
+  /** Ids of the store's collections this product is in. */
+  collections?: string[];
 }
 
 /** Buyers choose options or write a note on the product's own view before adding it. */
@@ -38,6 +40,8 @@ interface Props {
   maxWidth?: number | string;
   /** AQUENORA has checked this seller's ID or CAC documents. */
   verified?: boolean;
+  /** Shown above the products (collection tabs and sort). */
+  toolbar?: ReactNode;
 }
 
 /** Mixes a colour with the background (for subtle stripes and borders). */
@@ -51,9 +55,10 @@ function mix(a: string, b: string, t: number) {
  * The store as buyers see it. The theme editor's preview and the public store page both draw
  * with this, so the preview always matches the real thing.
  */
-export function StoreView({ name, design: d, items, fmt, variant, narrow, bagCount = 0, onAdd, onOpenBag, onOpen, maxWidth, verified }: Props) {
+export function StoreView({ name, design: d, items, fmt, variant, narrow, bagCount = 0, onAdd, onOpenBag, onOpen, maxWidth, verified, toolbar }: Props) {
   const page = variant === 'page';
   const { background: bg, text, accent, accent_text: onAccent, card } = d.colors;
+  const cardText = cardTextOf(d);
   const heading = STORE_FONTS[d.fonts.heading].family;
   const body = STORE_FONTS[d.fonts.body].family;
   const radius = RADIUS[d.shape.corners];
@@ -120,6 +125,7 @@ export function StoreView({ name, design: d, items, fmt, variant, narrow, bagCou
         </div>
       )}
 
+      {toolbar}
       {page && items.length === 0 && <div className="sf-empty">New products are coming soon. Check back shortly.</div>}
 
       <div className="sf-grid" style={{ gridTemplateColumns: `repeat(${columns},minmax(0,1fr))` }}>
@@ -127,7 +133,7 @@ export function StoreView({ name, design: d, items, fmt, variant, narrow, bagCou
           const soldOut = p.stock <= 0 && !p.madeToOrderDays;
           const choose = needsChoosing(p) && !!onOpen;
           return (
-            <div key={p.key} className="sf-card" style={{ background: card, borderRadius: radius }}>
+            <div key={p.key} className="sf-card" style={{ background: card, color: cardText, borderRadius: radius }}>
               {p.images?.[0] && page && onOpen ? (
                 <button type="button" className="sf-img sf-img-btn" style={{ background: stripes(8), borderRadius: Math.max(0, radius - 4) }} aria-label={`See photos of ${p.name}`} onClick={() => onOpen(p)}>
                   <img src={p.images[0]} alt={p.name} loading="lazy" />
@@ -144,12 +150,12 @@ export function StoreView({ name, design: d, items, fmt, variant, narrow, bagCou
                 <div className="sf-card-stock">Made to order · {p.madeToOrderDays} {p.madeToOrderDays === 1 ? 'day' : 'days'}</div>
               ) : d.products.show_stock && !soldOut && <div className="sf-card-stock">{p.stock} left</div>}
               {!page ? (
-                <div className="sf-add" style={button(soldOut ? { background: 'transparent', color: text, border: `1px solid ${sa}`, opacity: 0.7 } : {})}>
+                <div className="sf-add" style={button(soldOut ? { background: 'transparent', color: cardText, border: `1px solid ${cardText}33`, opacity: 0.7 } : {})}>
                   {soldOut ? 'Sold out' : needsChoosing(p) ? 'Choose options' : 'Add to bag'}
                 </div>
               ) : soldOut ? (
-                <button type="button" className="sf-add" disabled style={button({ background: 'transparent', color: text, border: `1px solid ${sa}`, opacity: 0.7 })}>
-                  Sold out
+                <button type="button" className="sf-add" disabled={!onOpen} onClick={() => onOpen?.(p)} style={button({ background: 'transparent', color: cardText, border: `1px solid ${cardText}33` })}>
+                  {onOpen ? 'Sold out · Notify me' : 'Sold out'}
                 </button>
               ) : (
                 <button type="button" className="sf-add" style={button()} onClick={() => (choose ? onOpen!(p) : onAdd?.(p))}>

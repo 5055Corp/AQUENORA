@@ -2,7 +2,7 @@ import { createWorkflow, transform, WorkflowResponse } from "@medusajs/framework
 import { sendNotificationsStep, useQueryGraphStep } from "@medusajs/medusa/core-flows"
 import { publicApiUrl, renderCampaignEmail, shopUrl } from "../lib/campaign-email"
 import type { Audience } from "../lib/customers"
-import { createCampaignStep, prepareCampaignRecipientsStep, recordCampaignResultStep } from "./steps/marketing-steps"
+import { chargeEmailsStep, createCampaignStep, prepareCampaignRecipientsStep, recordCampaignResultStep } from "./steps/marketing-steps"
 
 export type SendCampaignInput = {
   seller_id: string
@@ -49,6 +49,7 @@ export const sendCampaignWorkflow = createWorkflow("send-campaign", function (in
     recipient_count: recipients.length,
   }))
   const campaign = createCampaignStep(campaignInput)
+  chargeEmailsStep(transform({ input, recipients }, ({ input, recipients }) => ({ seller_id: input.seller_id, count: recipients.length })))
 
   const notifications = transform({ input, recipients, seller, campaign }, ({ input, recipients, seller, campaign }) =>
     recipients.map((r) => ({

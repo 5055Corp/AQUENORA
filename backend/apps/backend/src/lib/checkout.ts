@@ -16,6 +16,9 @@ import { PRODUCT_FIELDS, toSellerProduct } from "../api/sellers/fields"
 import { SELLER_MODULE } from "../modules/seller"
 import type SellerModuleService from "../modules/seller/service"
 import { createSellerOrderWorkflow } from "../workflows/create-seller-order"
+import { rewardReferralWorkflow } from "../workflows/referrals"
+import { pushToSeller } from "./push"
+import { money } from "./order-email"
 import {
   fromSubunit,
   initializeTransaction,
@@ -45,6 +48,7 @@ type CheckoutSeller = {
   custom_domain?: string | null
   paystack_subaccount_code?: string | null
   verification_status?: string | null
+  suspended_at?: string | Date | null
   pickup?: { enabled?: boolean; address?: string; area?: string } | null
   sells_abroad?: boolean
   shipping?: Shipping | null
@@ -86,7 +90,11 @@ type CheckoutData = {
 const round2 = (n: number) => Math.round(n * 100) / 100
 
 /** Why a store can't take payments right now, or null if it can. */
-export function paymentsBlocker(seller: Pick<CheckoutSeller, "country_code" | "paystack_subaccount_code" | "verification_status">): string | null {
+export function paymentsBlocker(seller: Pick<CheckoutSeller, "country_code" | "paystack_subaccount_code" | "verification_status"> & { suspended_at?: string | Date | null }): string | null {
+  // Paused by AQUENORA (moderation): no payments at all.
+  if (seller.suspended_at) {
+    return "This shop is unavailable right now."
+  }
   if (!paystackEnabled()) {
     return "Paying online isn't switched on yet."
   }
@@ -117,6 +125,7 @@ async function sellerByHandle(container: MedusaContainer, handle: string): Promi
       "custom_domain",
       "paystack_subaccount_code",
       "verification_status",
+      "suspended_at",
       "pickup",
       "sells_abroad",
       "shipping",
@@ -191,7 +200,7 @@ export async function startCheckout(container: MedusaContainer, handle: string, 
   const wanted = new Map<string, number>()
   for (const line of lines.values()) {
     const p = products.get(line.product_id)
-    if (!p || p.status !== "published") {
+    if (!p || p.status !== "published" || p.hidden) {
       throw new MedusaError(MedusaError.Types.INVALID_DATA, "Something in your bag is no longer for sale. Please remove it and try again.")
     }
     const raw = (seller.products ?? []).find((x) => (x as { id?: string } | null)?.id === p.id) as { metadata?: Record<string, unknown> | null }
@@ -415,6 +424,14 @@ async function confirmLocked(container: MedusaContainer, reference: string): Pro
   })
   await sellers.updateCheckouts({ id: checkout.id, status: "paid", order_id: order.id })
   await emailBuyer(container, { seller, data, order, currency: checkout.currency_code })
+  // The seller's iPhone: "New order".
+  await pushToSeller(container, seller.id, {
+    title: `New order #${order.display_id} 🎉`,
+    body: `${data.name.split(/\s+/)[0]} paid ${money(Number(checkout.amount), checkout.currency_code)} for ${data.items.map((i) => `${i.quantity} × ${i.title}`).join(", ")}`.slice(0, 180),
+    tab: "orders",
+  })
+  // Invited sellers: their first sale gives them and their inviter a free Pro month (once).
+  await rewardReferralWorkflow(container).run({ input: { seller_id: seller.id } }).catch(() => undefined)
   return { status: "paid", order: { id: order.id, display_id: order.display_id }, checkout: summary, track_token: trackToken(order.id) }
 }
 

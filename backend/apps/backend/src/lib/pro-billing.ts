@@ -146,7 +146,7 @@ export async function startProCheckout(container: MedusaContainer, sellerId: str
 }
 
 /** One month after `from` (or after now, if Pro has already run out). */
-function extendFrom(paidUntil: string | Date | null, now = new Date()): Date {
+export function extendFrom(paidUntil: string | Date | null, now = new Date()): Date {
   const start = paidUntil && new Date(paidUntil) > now ? new Date(paidUntil) : now
   const end = new Date(start)
   end.setMonth(end.getMonth() + 1)

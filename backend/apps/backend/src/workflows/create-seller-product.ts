@@ -30,6 +30,7 @@ export type CreateSellerProductInput = {
   options?: ProductOptions | null
   made_to_order_days?: number | null
   note_prompt?: string | null
+  collections?: string[]
 }
 
 /**
@@ -79,6 +80,7 @@ export const createSellerProductWorkflow = createWorkflow(
               stock,
               ...(input.cost_price != null ? { cost_price: input.cost_price } : {}),
               ...optionMetadata(input),
+              ...(input.collections?.length ? { collections: input.collections } : {}),
             },
           },
         ],

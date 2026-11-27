@@ -1,0 +1,70 @@
+/* AQUENORA owner area (midnight brand colours) */
+.ow { position: fixed; inset: 0; z-index: 60; background: #f4f1fb; color: #14101c; display: flex; flex-direction: column; overflow: hidden; }
+.ow-top { background: #0A0612; color: #fff; display: flex; align-items: center; gap: 10px; padding: calc(env(safe-area-inset-top, 0px) + 12px) 14px 12px; }
+.ow-title { flex: 1; font-weight: 800; font-size: 18px; letter-spacing: .5px; }
+.ow-crown { color: #cdbcf2; }
+.ow-full { color: #0A0612; background: #cdbcf2; border-radius: 999px; padding: 7px 12px; font-weight: 700; font-size: 13px; text-decoration: none; white-space: nowrap; }
+.ow-tabs { display: flex; background: #0A0612; padding: 0 10px; gap: 4px; }
+.ow-tabs button { flex: 1; background: none; border: 0; color: #a99cc4; font: inherit; font-weight: 700; padding: 11px 0 12px; border-bottom: 3px solid transparent; cursor: pointer; }
+.ow-tabs button.on { color: #fff; border-bottom-color: #8b5cf6; }
+.ow-body { flex: 1; overflow-y: auto; padding: 16px 16px calc(env(safe-area-inset-bottom, 0px) + 28px); display: flex; flex-direction: column; gap: 12px; max-width: 720px; width: 100%; margin: 0 auto; box-sizing: border-box; }
+.ow-muted { color: #6d6580; font-size: 13.5px; margin: 0; }
+.ow-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.ow-chips button { border: 1.5px solid #d9d0ee; background: #fff; border-radius: 999px; padding: 8px 14px; font: inherit; font-weight: 600; font-size: 13.5px; cursor: pointer; color: #14101c; }
+.ow-chips button.on { background: #0A0612; color: #fff; border-color: #0A0612; }
+.ow-alert { display: grid; grid-template-columns: 1fr auto; text-align: left; background: #fff4e5; border: 1.5px solid #f3c78a; color: #7a4300; border-radius: 16px; padding: 12px 14px; font: inherit; cursor: pointer; }
+.ow-alert span { font-size: 13px; grid-column: 1; }
+.ow-alert i { grid-row: 1 / span 2; grid-column: 2; align-self: center; font-style: normal; font-size: 22px; }
+.ow-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ow-stat { background: #fff; border-radius: 16px; padding: 14px; display: grid; gap: 4px; box-shadow: 0 1px 0 #e7e1f4; }
+.ow-stat span { font-size: 12.5px; color: #6d6580; }
+.ow-stat b { font-size: 21px; letter-spacing: -.3px; overflow-wrap: anywhere; }
+.ow-stat small { font-size: 11.5px; color: #8a829c; }
+.ow-stat.accent { background: #0A0612; color: #fff; }
+.ow-stat.accent span, .ow-stat.accent small { color: #cdbcf2; }
+.ow-card { background: #fff; border-radius: 16px; padding: 14px; box-shadow: 0 1px 0 #e7e1f4; display: flex; flex-direction: column; gap: 8px; }
+.ow-card h3 { margin: 0; font-size: 15px; }
+.ow-row-stats { display: grid; grid-template-columns: repeat(4, 1fr); text-align: center; }
+.ow-row-stats span { display: grid; font-size: 12px; color: #6d6580; }
+.ow-row-stats b { font-size: 20px; color: #14101c; }
+.ow-top-list { margin: 0; padding: 0 0 0 20px; display: grid; gap: 8px; }
+.ow-top-list li { font-size: 14px; }
+.ow-top-list li > * { vertical-align: top; }
+.ow-top-list li span { display: inline-flex; flex-direction: column; width: calc(100% - 110px); }
+.ow-top-list li small { color: #8a829c; font-size: 12px; }
+.ow-top-list li b { float: right; }
+.ow-h { font-size: 15px; margin: 8px 2px 0; color: #3b1680; }
+.ow-empty { background: #fff; border-radius: 16px; padding: 28px 16px; text-align: center; font-weight: 700; color: #1e6b34; }
+.ow-item-head { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+.ow-tag { align-self: flex-start; line-height: 1.3; font-size: 11.5px; font-weight: 700; border-radius: 999px; padding: 3px 9px; background: #efeaf8; color: #3b1680; white-space: nowrap; text-transform: capitalize; }
+.ow-tag.warn { background: #fdecea; color: #8a1f17; }
+.ow-tag.ok { background: #e6f4ea; color: #1e6b34; }
+.ow-tag.pro { background: #0A0612; color: #cdbcf2; }
+.ow-tags { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; align-items: flex-start; align-content: flex-start; }
+.ow-dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; margin: 0; font-size: 13.5px; }
+.ow-dl dt { color: #8a829c; }
+.ow-dl dd { margin: 0; text-transform: none; }
+.ow-docs { display: flex; gap: 8px; flex-wrap: wrap; }
+.ow-text, .ow-amount { width: 100%; box-sizing: border-box; border-radius: 12px; padding: 10px 12px; font: inherit; font-size: 14px; resize: vertical; }
+.ow-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.ow-actions button { border-radius: 999px; }
+.ow-go { background: #1e6b34 !important; }
+.ow-danger { background: #8a1f17 !important; }
+.ow-thread { background: #f7f5fb; border-radius: 12px; padding: 8px 10px; display: grid; gap: 6px; }
+.ow-msg { margin: 0; font-size: 13.5px; line-height: 1.4; }
+.ow-msg.seller b { color: #3b1680; }
+.ow-report { display: flex; gap: 10px; }
+.ow-report img, .ow-thumb { width: 58px; height: 58px; border-radius: 10px; object-fit: cover; background: repeating-linear-gradient(45deg, #eee8f6 0 6px, #f6f2fb 6px 12px); flex-shrink: 0; }
+.ow-reasons { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+.ow-search { display: flex; gap: 8px; }
+.ow-search .field { flex: 1; min-width: 0; border-radius: 12px; padding: 10px 12px; font: inherit; }
+.ow-seller { display: flex; justify-content: space-between; gap: 8px; background: none; border: 0; padding: 0; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.ow-seller > span:first-child { display: grid; }
+.ow-seller small { color: #8a829c; font-size: 12.5px; }
+.ow-seller-more { display: grid; gap: 8px; border-top: 1px solid #eee8f6; padding-top: 10px; justify-items: start; }
+.ow-seller-more .ow-text { justify-self: stretch; }
+.ow-paused { background: #fdecea; color: #8a1f17; border-radius: 10px; padding: 6px 10px; font-size: 13px; }
+.ow-signout { align-self: center; background: none; border: 0; color: #6d6580; text-decoration: underline; font: inherit; font-size: 13.5px; margin-top: 10px; cursor: pointer; }
+.ow-signin { display: grid; gap: 10px; }
+.ow-signin .field { border-radius: 12px; padding: 12px; font: inherit; }
+.ow-wide { min-height: 48px; border-radius: 999px; }

@@ -61,6 +61,7 @@ test('serves the seller app and store pages by address', async () => {
   // Privacy policy and support pages (App Store listing, Settings).
   assert.match((await get('/privacy', 'app.aquenora.com')).body, /<title>Privacy policy · AQUENORA<\/title>/);
   assert.match((await get('/seller-agreement', 'app.aquenora.com')).body, /<title>Seller agreement · AQUENORA<\/title>/);
+  assert.match((await get('/help', 'app.aquenora.com')).body, /<title>Help centre · AQUENORA<\/title>/);
   assert.match((await get('/support', 'app.aquenora.com')).body, /<title>Support · AQUENORA<\/title>/);
   assert.match((await get('/privacy', 'adirehouse.aquenora.com')).body, /<title>AQUENORA store<\/title>/);
 });
@@ -85,4 +86,33 @@ test('assets, 404s, health, compression, HTTPS header and path tricks', async ()
   const head = await get('/', 'app.aquenora.com', {}, 'HEAD');
   assert.equal(head.status, 200);
   assert.equal(head.body, '');
+});
+
+test('link previews: store and product tags, escaped', async () => {
+  const { previewTags } = await import('./server.mjs');
+  const data = {
+    store: { name: 'Adire <House>', currency_code: 'ngn', verified: true, design: { banner: { headline: 'New season', image: 'https://cdn.test/b.jpg' } } },
+    products: [{ id: 'prod_1', handle: 'bone-wig', title: 'Bone wig', price: 45000, currency_code: 'ngn', images: ['https://cdn.test/w.jpg'], description: 'Human hair', options: { groups: [{ name: 'Length', choices: [{ label: '12', price: 45000 }, { label: '20', price: 60000 }] }] } }],
+  };
+  const store = previewTags(data, null, 'https://adirehouse.aquenora.com/');
+  assert.match(store, /<title>Adire &lt;House&gt;<\/title>/);
+  assert.match(store, /og:image" content="https:\/\/cdn.test\/b.jpg"/);
+  assert.match(store, /Verified seller/);
+  const product = previewTags(data, 'bone-wig', 'https://adirehouse.aquenora.com/p/bone-wig');
+  assert.match(product, /og:title" content="Bone wig · ₦45,000 – ₦60,000"/);
+  assert.match(product, /og:image" content="https:\/\/cdn.test\/w.jpg"/);
+  assert.match(product, /og:type" content="product"/);
+});
+
+test('live updates: the manifest is fresh and readable by the iPhone app; bundles are cached', async () => {
+  const m = await get('/live/manifest.json', 'app.aquenora.com');
+  if (m.status === 404) return; // only after scripts/live-bundle.mjs has run
+  assert.equal(m.status, 200);
+  assert.equal(m.headers['cache-control'], 'no-cache');
+  assert.equal(m.headers['access-control-allow-origin'], '*');
+  const { url } = JSON.parse(m.body);
+  const z = await get(url, 'app.aquenora.com', {}, 'HEAD');
+  assert.equal(z.status, 200);
+  assert.equal(z.headers['content-type'], 'application/zip');
+  assert.match(z.headers['cache-control'], /immutable/);
 });

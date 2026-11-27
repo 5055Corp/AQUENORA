@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Mark } from '../components/Logo';
 import { TAGLINE } from '../brand';
 import { requestPasswordReset, sellerAuth, shopperAuth, type Shopper } from './accountApi';
+import { openOwnerArea, tryOwnerSignIn } from '../owner/OwnerEntry';
 import '../shop/shop.css';
 
 /**
@@ -57,6 +58,8 @@ export function AccountLogin({ startSeller, onShopper, onSeller, onBack, initial
         onShopper(await shopperAuth(em, password, signup, name));
       }
     } catch (err) {
+      // AQUENORA's own admin login opens the owner area instead (nothing to see for anyone else).
+      if (!signup && (await tryOwnerSignIn(em, password))) return openOwnerArea();
       setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
       setBusy(false);
     }
@@ -107,6 +110,11 @@ export function AccountLogin({ startSeller, onShopper, onSeller, onBack, initial
             {mode === 'login' && <button type="button" className="acc-forgot" onClick={() => { setMode('forgot'); setError(''); }}>Forgot password?</button>}
             {error && <div className="acc-error" role="alert">{error}</div>}
             <button type="submit" className={'acc-btn' + (seller && mode !== 'forgot' ? ' acc-btn-seller' : '')} disabled={busy}>{busy ? 'Please wait…' : button}</button>
+            {signup && (
+              <p className="acc-terms">
+                By continuing you agree to AQUENORA's {seller && <><a href="https://app.aquenora.com/seller-agreement" target="_blank" rel="noopener">Seller agreement</a> and </>}<a href="https://app.aquenora.com/privacy" target="_blank" rel="noopener">Privacy policy</a>.
+              </p>
+            )}
             <p className="acc-alt">
               {mode === 'forgot' ? (
                 <button type="button" onClick={() => { setMode('login'); setError(''); }}>Back to log in</button>

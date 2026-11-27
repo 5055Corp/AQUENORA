@@ -5,6 +5,8 @@ import { useStore } from '../store';
 import { PhotoStrip } from './PhotoStrip';
 import { cleanSettings, OptionsEditor, optionsProblem, type OptionSettings } from './OptionsEditor';
 import { fromPrice, variesInPrice } from '../options';
+import { CollectionPicker, CollectionsCard } from './Collections';
+import { ImportProducts } from './ImportProducts';
 
 export function Products() {
   const { s, set, addProduct, setProductCost, setProductImages, products, fmt, country, h1Size, live } = useStore();
@@ -13,6 +15,7 @@ export function Products() {
   const [newImages, setNewImages] = useState<string[]>([]);
   const emptyExtras: OptionSettings = { options: null, madeToOrderDays: null, notePrompt: '' };
   const [more, setMore] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [extras, setExtras] = useState<OptionSettings>(emptyExtras);
   const [addError, setAddError] = useState('');
 
@@ -75,10 +78,13 @@ export function Products() {
         {more && <OptionsEditor value={extras} onChange={setExtras} sym={sym} basePrice={Number(s.newPrice) || 0} />}
         {addError && <div className="form-error" role="alert">{addError}</div>}
       </form>
+      <button type="button" className="link-btn add-many" onClick={() => setImporting(true)}>+ Add many at once (spreadsheet)</button>
+      {importing && <ImportProducts onClose={() => setImporting(false)} />}
+      <CollectionsCard />
       {products.length === 0 && <div className="empty">No products yet. Add your first one above.</div>}
       <div className="list">
         {products.map((p, i) => (
-          <ProductRow key={p.id ?? i + p.name} product={p} cost={costOf(p, i)} fmt={fmt} sym={sym} onSaveCost={c => setProductCost(i, c)} onSaveImages={imgs => setProductImages(i, imgs)} onEdit={() => setEditing(i)} />
+          <ProductRow key={p.id ?? i + p.name} product={p} cost={costOf(p, i)} fmt={fmt} sym={sym} onSaveCost={c => setProductCost(i, c)} onSaveImages={imgs => setProductImages(i, imgs)} onEdit={() => setEditing(i)} waiting={s.waiting[p.id ?? p.name]} />
         ))}
       </div>
       {editing !== null && products[editing] && (
@@ -88,7 +94,19 @@ export function Products() {
   );
 }
 
-function ProductRow({ product: p, cost, fmt, sym, onSaveCost, onSaveImages, onEdit }: {
+/** "3 people waiting" / "2 waiting for 20 inch, 1 for 12 inch". */
+function waitingText(w: Record<string, number> | undefined): string {
+  if (!w) return '';
+  const parts = Object.entries(w).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]);
+  if (!parts.length) return '';
+  const total = parts.reduce((n, [, c]) => n + c, 0);
+  const people = `${total} ${total === 1 ? 'person' : 'people'} waiting`;
+  if (parts.length === 1 && !parts[0][0]) return `${people} for it to be back`;
+  return `${people}: ${parts.map(([c, n]) => `${n} for ${c || 'any'}`).join(', ')}`;
+}
+
+function ProductRow({ product: p, cost, fmt, sym, onSaveCost, onSaveImages, onEdit, waiting }: {
+  waiting?: Record<string, number>;
   product: Product;
   cost: number | null;
   fmt: (n: number) => string;
@@ -122,6 +140,8 @@ function ProductRow({ product: p, cost, fmt, sym, onSaveCost, onSaveImages, onEd
         <div style={{ color: p.stock === 0 && !p.madeToOrderDays ? 'var(--alert)' : 'var(--muted)' }}>
           {p.madeToOrderDays ? `Made to order · ${p.madeToOrderDays} days` : p.stock === 0 ? 'Sold out' : p.stock + ' in stock'}
         </div>
+        {waitingText(waiting) && <div className="prod-waiting">🔔 {waitingText(waiting)}. We'll email them when you restock.</div>}
+        {p.hiddenReason && <div className="prod-hidden">Hidden by AQUENORA: {p.hiddenReason}</div>}
         {!!p.options?.groups.length && (
           <div className="prod-opts">{p.options.groups.map(g => `${g.name} (${g.choices.length})`).join(' · ')}</div>
         )}
@@ -183,6 +203,7 @@ function EditProductSheet({ index, product: p, cost, sym, onClose }: {
   const [error, setError] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [extras, setExtras] = useState<OptionSettings>({ options: p.options ?? null, madeToOrderDays: p.madeToOrderDays ?? null, notePrompt: p.notePrompt ?? '' });
+  const [collections, setCollections] = useState<string[]>(p.collections ?? []);
   const perChoice = !!extras.options?.stock_per_choice;
   const digits = (v: string) => v.replace(/[^0-9]/g, '');
 
@@ -204,6 +225,7 @@ function EditProductSheet({ index, product: p, cost, sym, onClose }: {
       options: clean.options,
       madeToOrderDays: clean.madeToOrderDays,
       notePrompt: clean.notePrompt,
+      collections,
     });
     setBusy(false);
     if (msg) setError(msg);
@@ -259,6 +281,7 @@ function EditProductSheet({ index, product: p, cost, sym, onClose }: {
             <label className="ob-label"><span>Cost price ({sym}) <span className="pe-opt">(optional, only you see it)</span></span>
               <input className="field ob-input" inputMode="numeric" value={costValue} placeholder="What one costs you" onChange={e => setCostValue(digits(e.target.value))} />
             </label>
+            <CollectionPicker value={collections} onChange={setCollections} />
             <OptionsEditor value={extras} onChange={setExtras} sym={sym} basePrice={Number(price) || 0} />
             <PhotoStrip images={p.images ?? []} onChange={imgs => setProductImages(index, imgs)} />
             {error && <div className="form-error" role="alert">{error}</div>}

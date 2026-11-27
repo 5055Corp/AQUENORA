@@ -39,6 +39,8 @@ export function storeLink(handle: string): string {
 
 export type Accent = 'terracotta' | 'leaf' | 'indigo' | 'hibiscus';
 
+export interface StoreCollection { id: string; name: string }
+
 export type VerificationStatus = 'unverified' | 'pending' | 'verified' | 'rejected';
 export type IdType = 'nin' | 'drivers_licence' | 'passport' | 'voters_card' | 'national_id';
 export interface VerificationInfo {
@@ -74,6 +76,11 @@ export interface ApiSeller {
   marketplace_listed?: boolean;
   /** Anti-scam check by AQUENORA: only verified sellers can take payments. */
   verification_status?: VerificationStatus;
+  /** Collections inside the store, in display order. */
+  collections?: StoreCollection[] | null;
+  /** Paused by AQUENORA (moderation). */
+  suspended_at?: string | null;
+  suspend_reason?: string | null;
   /** Full store design (see design.ts), or null if the seller hasn't customised it. */
   design: unknown;
   /** In-store pickup settings (see pickup.ts), or null if never set. */
@@ -82,6 +89,97 @@ export interface ApiSeller {
   shipping: unknown;
   /** The bank account sales are paid into (set once Paystack is connected). */
   payout: Payout | null;
+  /** Bookings (service providers only). null = never set up. */
+  booking_settings?: BookingSettings | null;
+  /** The "Appointment booked" email in the provider's words (null = AQUENORA's default). */
+  booking_email?: BookingEmail | null;
+}
+
+// ---- bookings (service providers) ----
+export type Day = 'sun' | 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat';
+export interface BookingSettings {
+  enabled: boolean;
+  timezone: string;
+  address: string;
+  hours: Record<Day, { from: string; to: string }[]>;
+  buffer_min: number;
+  min_notice_min: number;
+  days_ahead: number;
+  cancel_hours: number;
+  /** Shown for "Contact to book" services. */
+  phone?: string;
+  contact_email?: string;
+  /** Blocked-off time: breaks, days off, holidays (once or repeating). */
+  blocks?: TimeBlock[];
+  /** Team members customers can book (salons with more than one stylist). */
+  staff?: Staff[];
+  calendar_key?: string;
+}
+/** Once: `date` (to `end_date`). Repeating: on `days`, from `date` (until `end_date`). Wall-clock times. */
+export interface TimeBlock { id: string; label: string; all_day: boolean; from: string; to: string; date: string; end_date?: string | null; days?: Day[]; staff_id?: string | null }
+export interface Staff { id: string; name: string; title?: string; service_ids: string[] | null; hours: Record<Day, { from: string; to: string }[]> | null; active: boolean }
+export interface BookingEmail { subject: string; message: string }
+export interface Service {
+  id: string;
+  name: string;
+  description: string | null;
+  duration_min: number;
+  price: number;
+  /** 'contact': listed, but customers get in touch to book (e.g. bridal). */
+  payment: 'deposit' | 'full' | 'none' | 'contact';
+  deposit_type: 'fixed' | 'percent';
+  deposit_value: number;
+  deposit: number;
+  /** Extras the customer can add (more money and time), e.g. Hollywood waves. */
+  addons?: Addon[];
+  active: boolean;
+  sort: number;
+}
+export interface Addon { id: string; name: string; price: number; duration_min: number }
+export type ServiceInput = Partial<Pick<Service, 'name' | 'description' | 'duration_min' | 'price' | 'payment' | 'deposit_type' | 'deposit_value' | 'active'>> & { addons?: (Omit<Addon, 'id'> & { id?: string })[] };
+export interface SellerBooking {
+  id: string;
+  service_id: string;
+  service_name: string;
+  staff_id?: string | null;
+  staff_name?: string | null;
+  duration_min: number;
+  starts_at: string;
+  ends_at: string;
+  status: 'confirmed' | 'cancelled' | 'completed' | 'no_show';
+  customer_name: string;
+  email: string;
+  phone: string;
+  note: string | null;
+  currency_code: string;
+  price: number;
+  deposit: number;
+  paid: number;
+  owed: number;
+  tips: number;
+  refund_due: number;
+  refunded_at: string | null;
+  cancelled_by: 'customer' | 'seller' | null;
+}
+export interface EmailAllowance {
+  free_per_month: number;
+  used_this_month: number;
+  free_left: number;
+  credits: number;
+  price_per_email: number;
+  currency_code: string;
+  resets_at: string;
+}
+export interface CampaignSchedule {
+  id: string;
+  subject: string;
+  message: string;
+  audience: Audience;
+  every: 'week' | 'month';
+  next_run_at: string;
+  active: boolean;
+  last_sent_at: string | null;
+  last_error: string | null;
 }
 
 export interface Payout {
@@ -115,6 +213,11 @@ export interface ApiProduct {
   note_prompt?: string | null;
   /** Lowest price with options. */
   from_price?: number;
+  /** Ids of the store's collections this product is in. */
+  collections?: string[];
+  /** Hidden from buyers by AQUENORA, with the reason. */
+  hidden?: boolean;
+  hidden_reason?: string | null;
 }
 
 export type SellerOrderStatus = 'new' | 'shipped' | 'delivered' | 'ready' | 'collected' | 'canceled';
@@ -229,10 +332,36 @@ export interface Campaign {
 /** An error from the backend, with a message that's fine to show the seller. */
 export class ApiError extends Error {
   status: number;
-  constructor(status: number, message: string) {
+  /** e.g. 'device_unverified': this phone or computer must be confirmed with an emailed code. */
+  type: string;
+  constructor(status: number, message: string, type = '') {
     super(message);
     this.status = status;
+    this.type = type;
   }
+}
+
+/** This device's random id, so AQUENORA can ask for an emailed code when a seller signs in somewhere new. */
+export function deviceId(): string {
+  try {
+    let id = localStorage.getItem('aq-device');
+    if (!id || !/^[A-Za-z0-9-]{16,64}$/.test(id)) {
+      id = crypto.randomUUID();
+      localStorage.setItem('aq-device', id);
+    }
+    return id;
+  } catch {
+    return 'nostorage-' + Math.random().toString(36).slice(2).padEnd(12, '0');
+  }
+}
+
+/** "iPhone", "Chrome on Mac"... shown in the sign-in code email. */
+export function deviceName(): string {
+  const ua = navigator.userAgent;
+  const os = /iPhone/.test(ua) ? 'iPhone' : /iPad/.test(ua) ? 'iPad' : /Android/.test(ua) ? 'Android' : /Mac/.test(ua) ? 'Mac' : /Windows/.test(ua) ? 'Windows' : '';
+  const app = (window as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.() ? 'AQUENORA app'
+    : /Edg\//.test(ua) ? 'Edge' : /Chrome\//.test(ua) ? 'Chrome' : /Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : 'a browser';
+  return os ? `${app} on ${os}` : app;
 }
 
 async function request<T>(path: string, init: { method?: string; body?: unknown; token?: string } = {}): Promise<T> {
@@ -243,6 +372,7 @@ async function request<T>(path: string, init: { method?: string; body?: unknown;
       headers: {
         ...(init.body ? { 'content-type': 'application/json' } : {}),
         ...(init.token ? { authorization: `Bearer ${init.token}` } : {}),
+        ...(path.startsWith('/sellers') ? { 'x-aq-device': deviceId() } : {}),
       },
       body: init.body ? JSON.stringify(init.body) : undefined,
     });
@@ -251,7 +381,7 @@ async function request<T>(path: string, init: { method?: string; body?: unknown;
   }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new ApiError(res.status, friendly(res.status, path, data?.message));
+    throw new ApiError(res.status, friendly(res.status, path, data?.message), typeof data?.type === 'string' ? data.type : '');
   }
   return data as T;
 }
@@ -282,7 +412,7 @@ export function sellerIdFromToken(token: string): string {
 const PUBLISHABLE_KEY: string = import.meta.env.VITE_MEDUSA_PUBLISHABLE_KEY ?? '';
 
 export interface PublicStore {
-  store: Pick<ApiSeller, 'id' | 'name' | 'handle' | 'category' | 'country_code' | 'currency_code' | 'sells_abroad' | 'theme' | 'accent' | 'font' | 'announcement' | 'design'> & { show_badge?: boolean; pickup?: unknown; accepts_payments?: boolean; verified?: boolean; shipping?: { ships_from: string | null; options: unknown[] } };
+  store: Pick<ApiSeller, 'id' | 'name' | 'handle' | 'category' | 'country_code' | 'currency_code' | 'sells_abroad' | 'theme' | 'accent' | 'font' | 'announcement' | 'design' | 'collections'> & { show_badge?: boolean; pickup?: unknown; accepts_payments?: boolean; verified?: boolean; bookings?: boolean; shipping?: { ships_from: string | null; options: unknown[] } };
   products: ApiProduct[];
 }
 
@@ -318,7 +448,88 @@ export interface TrackedOrder {
     pickup_address: string | null;
   };
   store: { name: string; handle: string; whatsapp: string | null };
+  dispute: Dispute | null;
 }
+
+/** A buyer's problem with an order. Sellers refund buyers directly; AQUENORA can step in. */
+export type DisputeReason = 'not_arrived' | 'wrong_item' | 'damaged' | 'not_as_described' | 'other';
+export interface Dispute {
+  id: string;
+  order_id: string;
+  order_display_id: number;
+  reason: DisputeReason;
+  reason_label: string;
+  status: 'open' | 'replied' | 'refunded' | 'escalated' | 'resolved';
+  messages: { from: 'buyer' | 'seller' | 'aquenora'; text: string; at: string; files?: string[] }[];
+  refund: { amount: number; note?: string; at: string; file?: string } | null;
+  decision: { outcome: 'refund_required' | 'seller'; note: string; amount?: number; due?: string } | null;
+  reply_by: string;
+  can_escalate: boolean;
+}
+export interface PhotoFile { mime_type: string; data: string }
+
+async function storeSend<T>(path: string, method: 'POST' | 'PATCH', body: unknown): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(`${storeApi()}${path}`, { method, headers: { 'content-type': 'application/json', 'x-publishable-api-key': PUBLISHABLE_KEY }, body: JSON.stringify(body) });
+  } catch {
+    throw new ApiError(0, "Can't reach the shop right now. Check your internet connection and try again.");
+  }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new ApiError(res.status, (data as { message?: string }).message ?? 'Something went wrong. Please try again.');
+  return data as T;
+}
+
+export const openDispute = (token: string, body: { reason: DisputeReason; message: string; files?: PhotoFile[] }) =>
+  storeSend<{ dispute: Dispute }>(`/store/orders/track/${encodeURIComponent(token)}/dispute`, 'POST', body);
+export const buyerDisputeAction = (token: string, body: { action: 'message' | 'confirm' | 'escalate'; text?: string; files?: PhotoFile[] }) =>
+  storeSend<{ dispute: Dispute }>(`/store/orders/track/${encodeURIComponent(token)}/dispute`, 'PATCH', body);
+export const buyerDisputeFileUrl = (token: string, file: string) => `${storeApi()}/store/orders/track/${encodeURIComponent(token)}/dispute/files/${file}`;
+/** "Email me when it's back": a shopper waits for a sold-out product (or one choice of it). */
+export const notifyWhenBack = (productId: string, body: { email: string; choice?: string }) =>
+  storeSend<{ waiting: true }>(`/store/products/${encodeURIComponent(productId)}/notify`, 'POST', body);
+export const reportProduct = (productId: string, body: { reason: 'counterfeit' | 'prohibited' | 'misleading' | 'offensive' | 'scam' | 'other'; note?: string }) =>
+  storeSend<{ reported: true }>(`/store/products/${encodeURIComponent(productId)}/report`, 'POST', body);
+
+// ---- bookings: the customer side (store page) ----
+export type PayChoice = 'deposit' | 'full' | 'later';
+export interface BookingPage {
+  shop: { name: string; handle: string; address: string; timezone: string; cancel_hours: number; days_ahead: number; currency_code: string; phone?: string | null; email?: string | null };
+  fee_percent: number;
+  staff?: { id: string; name: string; title: string | null; service_ids: string[] | null }[];
+  services: (Service & { pay_choices: PayChoice[] })[];
+}
+export interface CustomerBooking {
+  id: string; service_id?: string; service_name: string; staff_id?: string | null; staff_name?: string | null; duration_min: number; starts_at: string; ends_at: string;
+  status: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'no_show'; customer_name: string; currency_code: string;
+  price: number; paid: number; owed: number; tips: number; refund_due: number; refunded: boolean; can_change: boolean; cancel_hours: number; timezone: string;
+  shop: { name: string; handle: string; address: string };
+}
+async function storeGet<T>(path: string): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(`${storeApi()}${path}`, { headers: { 'x-publishable-api-key': PUBLISHABLE_KEY } });
+  } catch {
+    throw new ApiError(0, "Can't reach the shop right now. Check your internet connection and try again.");
+  }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new ApiError(res.status, (data as { message?: string }).message ?? 'Something went wrong. Please try again.');
+  return data as T;
+}
+export const bookingApi = {
+  page: (handle: string) => storeGet<BookingPage>(`/store/sellers/${encodeURIComponent(handle)}/booking`),
+  slots: (handle: string, serviceId: string, date: string, addons: string[] = [], staff?: string | null) =>
+    storeGet<{ slots: string[] }>(`/store/sellers/${encodeURIComponent(handle)}/booking/slots?service_id=${encodeURIComponent(serviceId)}&date=${date}${addons.length ? `&addons=${addons.map(encodeURIComponent).join(',')}` : ''}${staff ? `&staff=${encodeURIComponent(staff)}` : ''}`),
+  book: (handle: string, body: { service_id: string; starts_at: string; name: string; email: string; phone: string; note?: string; pay: PayChoice; return_url: string; marketing_opt_in?: boolean; addon_ids?: string[]; staff_id?: string | null }) =>
+    storeSend<{ booking: CustomerBooking; token: string; payment_url: string | null }>(`/store/sellers/${encodeURIComponent(handle)}/booking`, 'POST', body),
+  verify: (reference: string) => storeSend<{ status: 'paid' | 'pending' | 'failed'; kind: string; booking: CustomerBooking; token: string }>('/store/booking-payments/verify', 'POST', { reference }),
+  get: (token: string) => storeGet<{ booking: CustomerBooking; online: boolean; fee_percent: number }>(`/store/bookings/${encodeURIComponent(token)}`),
+  act: (token: string, body: { action: 'cancel' } | { action: 'reschedule'; starts_at: string } | { action: 'pay_balance'; return_url: string } | { action: 'tip'; amount: number; return_url: string }) =>
+    storeSend<{ booking?: CustomerBooking; payment_url?: string }>(`/store/bookings/${encodeURIComponent(token)}`, 'POST', body),
+  /** Free times to move this booking to (its own length and team member). */
+  moveSlots: (token: string, date: string) => storeGet<{ slots: string[] }>(`/store/bookings/${encodeURIComponent(token)}/slots?date=${date}`),
+  calendarFile: (token: string) => `${storeApi()}/bookings/${encodeURIComponent(token)}/calendar`,
+};
 
 export async function fetchTracking(token: string): Promise<TrackedOrder> {
   let res: Response;
@@ -433,7 +644,14 @@ export const api = {
   /** A fresh token; after creating the store it carries the new seller id. */
   refresh: (token: string) => request<{ token: string }>('/auth/token/refresh', { method: 'POST', token }),
 
-  createSeller: (token: string, body: { name: string; category: string; country_code: CountryId; sells_abroad: boolean }) =>
+  /** Email a 6-digit code to confirm this device. */
+  sendDeviceCode: (token: string) => request<{ sent_to: string }>('/sellers/me/device-code', { token, body: { device_name: deviceName() } }),
+  verifyDeviceCode: (token: string, code: string) => request<{ trusted: true }>('/sellers/me/device-code/verify', { token, body: { code } }),
+  savePushToken: (token: string, push: string) => request<{ saved: boolean }>('/sellers/me/push-token', { token, body: { token: push } }),
+  forgetPushToken: (token: string, push: string) => request<{ saved: boolean }>('/sellers/me/push-token', { token, method: 'DELETE', body: { token: push } }),
+  /** The seller's invite link and how many friends joined / made a first sale. */
+  referrals: (token: string) => request<{ link: string; joined: number; rewarded: number }>('/sellers/me/referrals', { token }),
+  createSeller: (token: string, body: { name: string; category: string; country_code: CountryId; sells_abroad: boolean; referral?: string }) =>
     request<{ seller: ApiSeller }>('/sellers', { body, token }),
   me: (token: string) => request<{ seller: ApiSeller }>('/sellers/me', { token }),
   deleteAccount: (token: string) => request<{ deleted: true }>('/sellers/me', { method: 'DELETE', token }),
@@ -444,11 +662,25 @@ export const api = {
     request<{ seller: ApiSeller }>('/sellers/me', { body, token }),
 
   products: (token: string) => request<{ products: ApiProduct[] }>('/sellers/me/products', { token }),
-  addProduct: (token: string, body: { title: string; price: number; stock?: number; cost_price?: number; images?: string[]; options?: import('./options').ProductOptions | null; made_to_order_days?: number | null; note_prompt?: string | null }) =>
+  addProduct: (token: string, body: { title: string; price: number; stock?: number; cost_price?: number; images?: string[]; options?: import('./options').ProductOptions | null; made_to_order_days?: number | null; note_prompt?: string | null; collections?: string[] }) =>
     request<{ product: ApiProduct }>('/sellers/me/products', { body, token }),
-  updateProduct: (token: string, id: string, body: { title?: string; price?: number; stock?: number; cost_price?: number | null; images?: string[]; description?: string; options?: import('./options').ProductOptions | null; made_to_order_days?: number | null; note_prompt?: string | null }) =>
+  /** Many products at once, from the seller's spreadsheet. */
+  importProducts: (token: string, products: import('./productCsv').ImportRow[]) =>
+    request<{ created: number; failed: { row: number; title: string; message: string }[] }>('/sellers/me/product-imports', { body: { products }, token }),
+  updateProduct: (token: string, id: string, body: { title?: string; price?: number; stock?: number; cost_price?: number | null; images?: string[]; description?: string; options?: import('./options').ProductOptions | null; made_to_order_days?: number | null; note_prompt?: string | null; collections?: string[] }) =>
     request<{ product: ApiProduct }>(`/sellers/me/products/${encodeURIComponent(id)}`, { body, token }),
   deleteProduct: (token: string, id: string) => request<{ id: string; deleted: true }>(`/sellers/me/products/${id}`, { token, method: 'DELETE' }),
+  disputes: (token: string) => request<{ disputes: Dispute[] }>('/sellers/me/disputes', { token }),
+  /** Shoppers waiting for a sold-out product: { productId: { choice ('' = the product): count } }. */
+  stockAlerts: (token: string) => request<{ waiting: Record<string, Record<string, number>> }>('/sellers/me/stock-alerts', { token }),
+  disputeAction: (token: string, id: string, body: { action: 'message' | 'refunded'; text?: string; amount?: number; files?: PhotoFile[] }) =>
+    request<{ dispute: Dispute }>(`/sellers/me/disputes/${id}`, { token, body }),
+  /** A dispute photo as an object URL (the request needs the seller's login). */
+  disputeFile: async (token: string, id: string, file: string) => {
+    const res = await fetch(`${API_URL}/sellers/me/disputes/${id}/files/${file}`, { headers: { authorization: `Bearer ${token}`, 'x-aq-device': deviceId() } });
+    if (!res.ok) throw new ApiError(res.status, 'Could not load the photo.');
+    return URL.createObjectURL(await res.blob());
+  },
 
   orders: (token: string) => request<{ orders: ApiOrder[] }>('/sellers/me/orders', { token }),
   updateOrder: (token: string, id: string, status: 'shipped' | 'delivered' | 'ready' | 'collected') =>
@@ -479,6 +711,29 @@ export const api = {
   setPayout: (token: string, body: { bank_code: string; account_number: string }) =>
     request<{ seller: ApiSeller }>('/sellers/me/payouts', { body, token }),
 
+  // ---- bookings ----
+  services: (token: string) => request<{ services: Service[] }>('/sellers/me/services', { token }),
+  addService: (token: string, body: ServiceInput) => request<{ service: Service }>('/sellers/me/services', { token, body }),
+  updateService: (token: string, id: string, body: ServiceInput) => request<{ service: Service }>(`/sellers/me/services/${encodeURIComponent(id)}`, { token, body }),
+  deleteService: (token: string, id: string) => request<{ deleted: boolean }>(`/sellers/me/services/${encodeURIComponent(id)}`, { token, method: 'DELETE' }),
+  bookings: (token: string, from?: string, to?: string) =>
+    request<{ bookings: SellerBooking[]; stats: { today: number; next_7_days: number; paid_online: number; tips: number; refunds_due: number }; timezone: string }>(
+      `/sellers/me/bookings${from ? `?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to ?? '')}` : ''}`, { token }),
+  bookingAction: (token: string, id: string, body: { action: 'complete' | 'no_show' | 'refunded' | 'cancel'; reason?: string }) =>
+    request<{ booking: SellerBooking }>(`/sellers/me/bookings/${encodeURIComponent(id)}`, { token, body }),
+  addBooking: (token: string, body: { service_id: string; starts_at: string; name: string; phone?: string; email?: string; note?: string; paid?: number; addon_ids?: string[]; price?: number; staff_id?: string | null }) =>
+    request<{ booking: SellerBooking }>('/sellers/me/bookings', { token, body }),
+  calendarLink: (token: string, renew = false) => request<{ url: string; webcal: string }>('/sellers/me/booking-calendar', { token, body: { renew } }),
+  // ---- email blasts ----
+  emailAllowance: (token: string) => request<{ allowance: EmailAllowance }>('/sellers/me/email-allowance', { token }),
+  buyEmails: (token: string, count: number, return_url: string) =>
+    request<{ payment_url: string; amount: number; currency_code: string }>('/sellers/me/email-credits', { token, body: { count, return_url } }),
+  confirmEmails: (token: string, reference: string) => request<{ status: string; count: number; credits: number | null }>('/sellers/me/email-credits/verify', { token, body: { reference } }),
+  schedules: (token: string) => request<{ schedules: CampaignSchedule[] }>('/sellers/me/campaign-schedules', { token }),
+  addSchedule: (token: string, body: { subject: string; message: string; audience: Audience; every: 'week' | 'month'; first_send_at: string }) =>
+    request<{ schedule: CampaignSchedule }>('/sellers/me/campaign-schedules', { token, body }),
+  setSchedule: (token: string, id: string, active: boolean) => request<{ schedule: CampaignSchedule }>(`/sellers/me/campaign-schedules/${encodeURIComponent(id)}`, { token, body: { active } }),
+  deleteSchedule: (token: string, id: string) => request<{ deleted: boolean }>(`/sellers/me/campaign-schedules/${encodeURIComponent(id)}`, { token, method: 'DELETE' }),
   sendCampaign: (token: string, body: { audience: Audience; subject: string; message: string }) =>
     request<{ campaign: Campaign }>('/sellers/me/campaigns', { body, token }),
 };

@@ -1,5 +1,5 @@
 """Writes the public pages in app/public: privacy.html, support.html and seller-agreement.html
-(served at app.aquenora.com/privacy, /support and /seller-agreement).
+and help.html (served at app.aquenora.com/privacy, /support, /seller-agreement and /help).
 
 Run from the app folder:  python3 scripts/legal_pages.py public
 """
@@ -11,6 +11,8 @@ ORDERS = 'orders@aquenora.com'
 COMPANY = 'AQUENORA Ltd'
 RC = '10023798'
 ADDRESS = ''
+# WhatsApp number for support, international format without + (e.g. 2348012345678). Empty = no WhatsApp button.
+SUPPORT_WHATSAPP = ''
 COMPANY_LINE = COMPANY + (f', RC {RC}' if RC else '') + ', a company registered in Nigeria' + (f', {ADDRESS}' if ADDRESS else '')
 MARK = ('<svg viewBox="0 0 512 512" width="34" height="34" aria-hidden="true"><defs><clipPath id="l">'
         '<path d="M100 424 L146 424 L248 160 L222 160 Z"/><path d="M412 424 L366 424 L264 160 L290 160 Z"/></clipPath></defs>'
@@ -45,6 +47,12 @@ CSS = """
   details p { margin:10px 0 0; }
   footer { border-top:1px solid var(--line); padding:24px 0 40px; color:var(--muted); font-size:14px; }
   footer a { margin-right:16px; }
+  .search input { width:100%; font:inherit; font-size:17px; padding:14px 16px; border-radius:14px; border:1.5px solid var(--line); background:#fff; margin-top:4px; }
+  .sr { position:absolute; left:-9999px; }
+  .chips { display:flex; flex-wrap:wrap; gap:8px; margin:14px 0 4px; }
+  .chip { background:#fff; border:1.5px solid var(--line); border-radius:999px; padding:7px 14px; font-weight:600; font-size:14px; text-decoration:none; color:var(--ink); }
+  .still { margin-top:28px; background:#f3eeff; border-color:#d9ccf5; }
+  .btn.wa { background:#1f9d55; }
 """
 
 def page(title, desc, body):
@@ -67,7 +75,7 @@ def page(title, desc, body):
 <main><div class="wrap">
 {body}
 </div></main>
-<footer><div class="wrap"><a href="/support">Support</a><a href="/privacy">Privacy policy</a><a href="/seller-agreement">Seller agreement</a><span>© {COMPANY}</span></div></footer>
+<footer><div class="wrap"><a href="/support">Support</a><a href="/privacy">Privacy policy</a><a href="/help">Help centre</a><a href="/seller-agreement">Seller agreement</a><span>© {COMPANY}</span></div></footer>
 </body>
 </html>
 """
@@ -180,6 +188,67 @@ SUPPORT = f"""
 <details><summary>I forgot my password</summary><p>Email us from the address you signed up with and we'll help you get back into your account.</p></details>
 """
 
+
+HELP_TOPICS = [
+  ('Selling', [
+    ('How do I open a store?', 'Download AQUENORA or go to app.aquenora.com, tap <strong>Open your free store</strong>, and follow the steps: your shop name, what you sell and your first product. Your store link (yourshop.aquenora.com) works straight away.'),
+    ('How long does verification take?', 'Usually 1 working day. Registered businesses send their CAC number and certificate; others send a government ID, a selfie and their social media pages. You can build your store while you wait, and you can take payments once you\'re verified. You\'ll get an email either way.'),
+    ('How do I add sizes, lengths and colours?', 'In <strong>Products</strong>, tap <strong>Edit</strong> on a product (or <strong>+ Sizes, lengths, colours</strong> when adding one). Add up to 7 options. The first option can have its own price per choice (for example 12 inch ₦45,000, 20 inch ₦60,000) and its own stock; other options can add an extra amount.'),
+    ('What is "made to order"?', 'Turn it on for items you make after someone buys (tailoring, wigs, cakes). Set how many days it takes. The item never shows as sold out, and buyers see when it will be ready.'),
+    ('How do I make my store look like my brand?', 'Open <strong>Store design</strong>: choose colours, fonts and layout, and add your logo and banner. You see a live preview before you publish.'),
+    ('What can\'t I sell?', 'Counterfeits, weapons, drugs and prescription medicines, adult products, stolen goods, live animals, dangerous goods, financial or crypto schemes, and anything illegal. See the full list in the <a href="/seller-agreement">Seller agreement</a>.'),
+  ]),
+  ('Getting paid', [
+    ('When do I get paid?', 'When a buyer pays, Paystack splits the payment automatically and your share goes straight to your bank account, usually by the next working day. AQUENORA never holds your money.'),
+    ('How do I add my bank account?', 'Go to <strong>Financials → Get paid</strong>, choose your bank and enter your account number. The account name should match your verified name or business.'),
+    ('What are the fees?', 'AQUENORA keeps 3% of each sale on the Free plan, or 1% on Pro, plus Paystack\'s processing fee. Delivery charges are not included in AQUENORA\'s fee. Your Financials page shows every fee.'),
+    ('I sell outside Nigeria. Can I get paid?', 'Payouts for sellers outside Nigeria are coming soon. You can build your store now, and we\'ll let you know as soon as payouts open in your country.'),
+    ('A buyer says they paid but I can\'t see the order', 'Orders only appear once Paystack confirms the payment, which protects you from fake alerts. If it hasn\'t appeared after a few minutes, email ' + ORDERS + ' with the buyer\'s name and the time they paid.'),
+  ]),
+  ('Orders and delivery', [
+    ('How do I set delivery prices?', 'In <strong>Orders → Delivery &amp; shipping</strong>, add your own rates for local delivery, DHL, FedEx, UPS, Aramex or post, by country or continent.'),
+    ('How do buyers track their order?', 'Every buyer gets an email with a <strong>Track my order</strong> link. It updates when you tap the steps in Orders (packed, shipped, delivered, or ready for pickup).'),
+    ('Can buyers pick up from my shop?', 'Yes. Turn on <strong>In-store pickup</strong> in Orders and add your address and opening hours. Buyers choose delivery or pickup at checkout.'),
+    ('A buyer reported a problem. What now?', 'Reply within 2 working days and try to agree on a fix: a replacement, a part refund or a full refund. If you can\'t agree, the AQUENORA team looks at both sides and decides.'),
+  ]),
+  ('Buying', [
+    ('Is it safe to buy on AQUENORA?', 'Every seller is checked before they can take payments, and payments go through Paystack, so your card details are never shared with the seller. Look for the <strong>✓ Verified seller</strong> badge.'),
+    ('My order hasn\'t arrived', 'Open the <strong>Track my order</strong> link in your confirmation email to see where it is. If something is wrong, tap <strong>Problem with your order?</strong> on that page.'),
+    ('How do I get a refund?', 'Report the problem from your tracking page. The seller can refund you straight to your card or bank. If you can\'t agree, AQUENORA steps in.'),
+  ]),
+  ('Account and safety', [
+    ('I forgot my password', 'On the login screen, tap <strong>Forgot password?</strong> and we\'ll email you a link to choose a new one.'),
+    ('How do I delete my account?', 'In the app, go to <strong>Settings → Delete account</strong>. Your store goes offline straight away. See our <a href="/privacy">privacy policy</a> for what is deleted and what the law requires us to keep.'),
+    ('How do I stop my Pro plan?', 'Open <strong>Plan &amp; domain</strong> on app.aquenora.com and tap <strong>Stop automatic renewal</strong>. Pro stays active until the end of the month you\'ve paid for.'),
+  ]),
+]
+
+def help_page():
+    import re
+    chips = ''.join(f'<a class="chip" href="#t{i}">{name}</a>' for i, (name, _) in enumerate(HELP_TOPICS))
+    sections = ''
+    for i, (name, qs) in enumerate(HELP_TOPICS):
+        items = ''.join(f'<details data-q="{re.sub(r"<[^>]+>", "", q + " " + a).lower().replace(chr(34), "")}"><summary>{q}</summary><p>{a}</p></details>' for q, a in qs)
+        sections += f'<section id="t{i}" class="topic"><h2>{name}</h2>{items}</section>'
+    wa = f'<a class="btn wa" href="https://wa.me/{SUPPORT_WHATSAPP}">WhatsApp</a>' if SUPPORT_WHATSAPP else ''
+    return f"""
+<label class="search"><span class="sr">Search help</span><input id="q" type="search" placeholder="Search: payout, refund, verify…" autocomplete="off"></label>
+<nav class="chips">{chips}</nav>
+<p id="none" hidden>No answers match that. Try another word, or contact us below.</p>
+{sections}
+<div class="card still"><h2>Still need help?</h2><p>A real person replies within 1 working day.</p>
+<a class="btn" href="mailto:{EMAIL}?subject=AQUENORA%20help">Email support</a> {wa}</div>
+<script>
+const q = document.getElementById('q'), none = document.getElementById('none');
+q.addEventListener('input', () => {{
+  const w = q.value.toLowerCase().trim().split(/\\s+/).filter(Boolean); let shown = 0;
+  document.querySelectorAll('details').forEach(d => {{ const hit = w.every(x => d.dataset.q.includes(x)); d.hidden = !hit; d.open = w.length > 0 && hit; shown += hit; }});
+  document.querySelectorAll('.topic').forEach(s => s.hidden = !s.querySelector('details:not([hidden])'));
+  none.hidden = shown > 0;
+}});
+</script>
+"""
+
 SELLER = f"""
 <p><strong>Last updated: 26 November 2026</strong></p>
 <p>This agreement is between you (the seller) and {COMPANY_LINE} (“AQUENORA”, “we”, “us”). It applies when you open a store on AQUENORA, on the web or in the app. By creating a store you agree to it. Our <a href="/privacy">privacy policy</a> explains how we handle personal data.</p>
@@ -271,4 +340,5 @@ SELLER = f"""
 open(os.path.join(OUT, 'privacy.html'), 'w').write(page('Privacy policy', 'How AQUENORA collects, uses and protects your personal data.', PRIVACY))
 open(os.path.join(OUT, 'support.html'), 'w').write(page('Support', "We're here to help you sell.", SUPPORT))
 open(os.path.join(OUT, 'seller-agreement.html'), 'w').write(page('Seller agreement', 'The rules for selling on AQUENORA.', SELLER))
+open(os.path.join(OUT, 'help.html'), 'w').write(page('Help centre', 'Answers for sellers and buyers on AQUENORA.', help_page()))
 print('ok')

@@ -37,6 +37,8 @@ export const StoreDesignSchema = z
         accent: hex,
         accent_text: hex,
         card: hex,
+        /** Words on product cards, the product window, bag and checkout (absent = same as text). */
+        card_text: hex.optional(),
       })
       .strict(),
     fonts: z.object({ heading: z.enum(STORE_FONTS), body: z.enum(STORE_FONTS) }).strict(),

@@ -9,6 +9,8 @@ import {
 } from "@medusajs/framework/http"
 import { parseCorsOrigins } from "@medusajs/framework/utils"
 import cors from "cors"
+import { deviceGuard } from "./device-guard"
+import { errorHandlerWithAlerts } from "../lib/error-alerts"
 import {
   CreateSellerProductSchema,
   CreateSellerSchema,
@@ -30,6 +32,27 @@ import {
   UpdateSellerOrderSchema,
   UpdateSellerProductSchema,
   StoreVisitSchema,
+  OpenDisputeSchema,
+  BuyerDisputeActionSchema,
+  SellerDisputeActionSchema,
+  AdminDisputeActionSchema,
+  ReportProductSchema,
+  ReviewReportSchema,
+  SuspendSellerSchema,
+  StockAlertSchema,
+  ImportProductsSchema,
+  DeviceCodeSchema,
+  VerifyDeviceCodeSchema,
+  PushTokenSchema,
+  CreateServiceSchema,
+  UpdateServiceSchema,
+  StartBookingSchema,
+  CustomerBookingActionSchema,
+  SellerBookingActionSchema,
+  ManualBookingSchema,
+  BuyEmailsSchema,
+  CreateScheduleSchema,
+  UpdateScheduleSchema,
   UpdateSellerSchema,
 } from "./sellers/validators"
 
@@ -44,6 +67,8 @@ const sellerCors = (req: MedusaRequest, res: MedusaResponse, next: MedusaNextFun
 const sellerAuth = authenticate("seller", ["bearer", "session"])
 
 export default defineMiddlewares({
+  // Real server errors also alert AQUENORA (Sentry), when SENTRY_DSN is set.
+  errorHandler: errorHandlerWithAlerts,
   routes: [
     // The product index declares filterable `status` and `sales_channel_ids`, so
     // the route narrows it to published products in the key's sales channels.
@@ -61,6 +86,98 @@ export default defineMiddlewares({
     {
       matcher: "/sellers*",
       middlewares: [sellerCors],
+    },
+    {
+      // Sign-in safety: new devices confirm with an emailed code (see api/device-guard.ts).
+      matcher: "/sellers/me*",
+      middlewares: [deviceGuard],
+    },
+    // ---- email blasts: buying extra emails ----
+    {
+      methods: ["POST"],
+      matcher: "/sellers/me/email-credits",
+      middlewares: [sellerAuth, validateAndTransformBody(BuyEmailsSchema)],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/sellers/me/email-credits/verify",
+      middlewares: [sellerAuth, validateAndTransformBody(VerifyPaymentSchema)],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/sellers/me/campaign-schedules",
+      middlewares: [sellerAuth, validateAndTransformBody(CreateScheduleSchema)],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/sellers/me/campaign-schedules/:id",
+      middlewares: [sellerAuth, validateAndTransformBody(UpdateScheduleSchema)],
+    },
+    {
+      methods: ["DELETE"],
+      matcher: "/sellers/me/campaign-schedules/:id",
+      middlewares: [sellerAuth],
+    },
+    // ---- bookings (service providers) ----
+    {
+      methods: ["POST"],
+      matcher: "/sellers/me/services",
+      middlewares: [sellerAuth, validateAndTransformBody(CreateServiceSchema)],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/sellers/me/services/:id",
+      middlewares: [sellerAuth, validateAndTransformBody(UpdateServiceSchema)],
+    },
+    {
+      methods: ["DELETE"],
+      matcher: "/sellers/me/services/:id",
+      middlewares: [sellerAuth],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/sellers/me/bookings",
+      middlewares: [sellerAuth, validateAndTransformBody(ManualBookingSchema)],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/sellers/me/bookings/:id",
+      middlewares: [sellerAuth, validateAndTransformBody(SellerBookingActionSchema)],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/sellers/me/booking-calendar",
+      middlewares: [sellerAuth],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/store/sellers/:handle/booking",
+      middlewares: [validateAndTransformBody(StartBookingSchema)],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/store/bookings/:token",
+      middlewares: [validateAndTransformBody(CustomerBookingActionSchema)],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/store/booking-payments/verify",
+      middlewares: [validateAndTransformBody(VerifyPaymentSchema)],
+    },
+    {
+      methods: ["POST", "DELETE"],
+      matcher: "/sellers/me/push-token",
+      middlewares: [sellerAuth, validateAndTransformBody(PushTokenSchema)],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/sellers/me/device-code",
+      middlewares: [sellerAuth, validateAndTransformBody(DeviceCodeSchema)],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/sellers/me/device-code/verify",
+      middlewares: [sellerAuth, validateAndTransformBody(VerifyDeviceCodeSchema)],
     },
     {
       // A new login has no store yet, so it isn't a registered seller.
@@ -99,6 +216,51 @@ export default defineMiddlewares({
       matcher: "/admin/verifications/:id",
       middlewares: [validateAndTransformBody(ReviewVerificationSchema)],
     },
+    // ---- disputes (up to 3 photos, shrunk by the browser first) ----
+    {
+      methods: ["POST"],
+      matcher: "/store/orders/track/:token/dispute",
+      bodyParser: { sizeLimit: "8mb" },
+      middlewares: [validateAndTransformBody(OpenDisputeSchema)],
+    },
+    {
+      methods: ["PATCH"],
+      matcher: "/store/orders/track/:token/dispute",
+      bodyParser: { sizeLimit: "8mb" },
+      middlewares: [validateAndTransformBody(BuyerDisputeActionSchema)],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/sellers/me/disputes/:id",
+      bodyParser: { sizeLimit: "8mb" },
+      middlewares: [sellerAuth, validateAndTransformBody(SellerDisputeActionSchema)],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/admin/disputes/:id",
+      middlewares: [validateAndTransformBody(AdminDisputeActionSchema)],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/store/products/:id/notify",
+      middlewares: [validateAndTransformBody(StockAlertSchema)],
+    },
+    // ---- moderation ----
+    {
+      methods: ["POST"],
+      matcher: "/store/products/:id/report",
+      middlewares: [validateAndTransformBody(ReportProductSchema)],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/admin/reports/:id",
+      middlewares: [validateAndTransformBody(ReviewReportSchema)],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/admin/sellers/:id/suspend",
+      middlewares: [validateAndTransformBody(SuspendSellerSchema)],
+    },
     {
       // Delete account (Settings → Delete account).
       methods: ["DELETE"],
@@ -114,6 +276,12 @@ export default defineMiddlewares({
       methods: ["POST"],
       matcher: "/sellers/me/products/:id",
       middlewares: [sellerAuth, validateAndTransformBody(UpdateSellerProductSchema)],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/sellers/me/product-imports",
+      bodyParser: { sizeLimit: "2mb" },
+      middlewares: [sellerAuth, validateAndTransformBody(ImportProductsSchema)],
     },
     {
       methods: ["DELETE"],

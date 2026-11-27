@@ -20,6 +20,8 @@ const Checkout = model.define("checkout", {
   /** Buyer, items and delivery or pickup (see api/store/sellers/[handle]/checkout). */
   data: model.json(),
   order_id: model.text().nullable(),
+  /** When the "you left something in your bag" email was sent (once per checkout). */
+  reminded_at: model.dateTime().nullable(),
 })
 
 export default Checkout

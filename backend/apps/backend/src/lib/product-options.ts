@@ -13,6 +13,7 @@
 
 import { MedusaError } from "@medusajs/framework/utils"
 import { z } from "@medusajs/framework/zod"
+import { isOwnFileUrl } from "./files"
 
 export const MAX_OPTION_GROUPS = 7
 export const MAX_CHOICES = 30
@@ -28,6 +29,8 @@ const ChoiceSchema = z
     extra: amount.nullable().optional(),
     /** How many of this choice are left (first option, when stock_per_choice is on). */
     stock: z.number().int().min(0).max(1_000_000).nullable().optional(),
+    /** A photo for this choice (e.g. the burgundy wig), uploaded through AQUENORA. */
+    image: z.string().url().max(600).refine(isOwnFileUrl, "Upload photos through AQUENORA first.").nullable().optional(),
   })
   .strict()
 
@@ -82,6 +85,7 @@ export function cleanOptions(o: ProductOptions | null | undefined): ProductOptio
         ...(gi === 0 && c.price != null ? { price: c.price } : {}),
         ...(gi > 0 && c.extra ? { extra: c.extra } : {}),
         ...(gi === 0 && perChoice ? { stock: c.stock ?? 0 } : {}),
+        ...(c.image ? { image: c.image } : {}),
       })),
     })),
     ...(perChoice ? { stock_per_choice: true } : {}),

@@ -80,3 +80,10 @@ export function audienceCounts(customers: Customer[], now = new Date()) {
     lapsed: inAudience(customers, "lapsed", now).length,
   }
 }
+
+/** Bookings count like orders for the customer list (name, visits, money spent). Cancelled ones don't. */
+export function bookingsAsOrders(bookings: { status: string; email: string; customer_name: string; starts_at: string | Date; price: unknown }[]): unknown[] {
+  return bookings
+    .filter((b) => b.status === "confirmed" || b.status === "completed")
+    .map((b) => ({ status: "completed", email: b.email, created_at: b.starts_at, shipping_address: { first_name: b.customer_name, last_name: null }, items: [{ quantity: 1, unit_price: Number(b.price) }] }))
+}

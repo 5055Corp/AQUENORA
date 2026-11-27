@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { fetchTracking, LIVE, type TrackedOrder } from '../api';
 import { STORE_FONTS, type StoreDesign } from '../design';
+import { ProblemPanel } from './ProblemPanel';
 
 type Step = { label: string; detail: string };
 
@@ -31,6 +32,7 @@ const DEMO: TrackedOrder = {
     total: 65000, shipping: { name: 'Lagos delivery', price: 0, days: '1-2 days' }, made_to_order_days: 5, place: 'Lekki, Lagos', pickup_address: null,
   },
   store: { name: '', handle: '', whatsapp: '2348012345678' },
+  dispute: null,
 };
 
 /** "Track my order": opened from the link in the buyer's confirmation email (?track=...). */
@@ -97,6 +99,7 @@ export function TrackOrder({ token, design: d, shopName, verified, fmt, onBack }
                 ))}
                 <div className="tr-total"><span>Paid</span><span>{fmt(o.total)}</span></div>
               </section>
+              <ProblemPanel token={token} initial={state.data.dispute} shop={shopName} accent={c.accent} accentText={c.accent_text} ink={c.text} card={c.card} money={fmt} />
               {wa && (
                 <a className="tr-wa" href={`https://wa.me/${wa}?text=${encodeURIComponent(`Hi ${shopName}, about my order #${o.display_id}`)}`} target="_blank" rel="noreferrer" style={{ color: c.text, borderColor: c.text + '33' }}>
                   Message {shopName} on WhatsApp

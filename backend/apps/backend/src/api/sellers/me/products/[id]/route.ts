@@ -2,6 +2,7 @@ import type { AuthenticatedMedusaRequest, MedusaResponse } from "@medusajs/frame
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import { deleteSellerProductWorkflow } from "../../../../../workflows/delete-seller-product"
 import { updateSellerProductWorkflow } from "../../../../../workflows/update-seller-product"
+import { notifyRestockWorkflow } from "../../../../../workflows/stock-alerts"
 import { PRODUCT_FIELDS, toSellerProduct } from "../../../fields"
 import type { UpdateSellerProductBody } from "../../../validators"
 
@@ -10,6 +11,8 @@ export async function POST(req: AuthenticatedMedusaRequest<UpdateSellerProductBo
   await updateSellerProductWorkflow(req.scope).run({
     input: { seller_id: req.auth_context.actor_id, product_id: req.params.id, ...req.validatedBody },
   })
+  // Shoppers waiting for this product (or one of its choices) are emailed if it's back in stock.
+  await notifyRestockWorkflow(req.scope).run({ input: { product_id: req.params.id } })
   const query = req.scope.resolve(ContainerRegistrationKeys.QUERY)
   const { data } = await query.graph({
     entity: "product",

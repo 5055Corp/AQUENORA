@@ -49,6 +49,34 @@ const Seller = model.define("seller", {
   // { authorization_code, signature, email, brand, last4, exp_month, exp_year, auto_renew,
   //   failures, last_error, last_attempt_at }
   pro_billing: model.json().nullable(),
+  // Collections inside the store ("Wigs", "Bundles"...), in the seller's order: [{ id, name }].
+  // Products list the ids they belong to in metadata.collections.
+  collections: model.json().nullable(),
+  // ---- moderation ----
+  // A suspended store is hidden everywhere and can't take payments (AQUENORA admin decision).
+  suspended_at: model.dateTime().nullable(),
+  suspend_reason: model.text().nullable(),
+  // ---- sign-in safety ----
+  // Devices this seller has confirmed with an emailed code: [{ hash, at }] (newest last, at most 10).
+  trusted_devices: model.json().nullable(),
+  // The latest emailed code: { hash, device, expires_at, attempts, sends: [iso...] }.
+  device_code: model.json().nullable(),
+  // iPhones to send push notifications to: [{ token, at }] (newest last, at most 5).
+  push_tokens: model.json().nullable(),
+  // ---- bookings (service providers) ----
+  // { enabled, timezone, address, hours: { mon: [{ from: "09:00", to: "18:00" }], ... }, buffer_min,
+  //   min_notice_min, days_ahead, cancel_hours, calendar_key } (see lib/bookings.ts)
+  booking_settings: model.json().nullable(),
+  // The "Appointment booked" email the seller can edit: { subject, message } with {placeholders}.
+  booking_email: model.json().nullable(),
+  // ---- email blasts: free allowance per month, then paid extras ----
+  // { month: "2026-11", sent: 40 }
+  email_usage: model.json().nullable(),
+  email_credits: model.number().default(0),
+  // ---- referrals ----
+  // The seller who invited this one (their id), and when both got their free Pro month.
+  referred_by: model.text().nullable(),
+  referral_rewarded_at: model.dateTime().nullable(),
   // ---- own domain (Pro) ----
   custom_domain: model.text().nullable(),
   domain_verified_at: model.dateTime().nullable(),

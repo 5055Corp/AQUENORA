@@ -39,6 +39,13 @@ export const CATEGORIES = [
   'Digital products',
 ];
 
+/** Signup only (not a shop search category): service providers get bookings turned on. */
+export const SERVICE_CATEGORY = 'Services & bookings';
+export const SIGNUP_CATEGORIES = [...CATEGORIES, SERVICE_CATEGORY];
+
+/** Step 4 for service providers. */
+export const SERVICE_STEP: [title: string, sub: string] = ['Add your first service', 'Just one is enough. Customers can book it straight away.'];
+
 export const STEPS: [title: string, sub: string][] = [
   ['What do you sell?', "Pick the closest one. We'll set up your store to suit it."],
   ["What's your shop called?", 'You can change this any time.'],
@@ -147,7 +154,7 @@ export function matchesFilter(o: Order, f: OrderFilter): boolean {
   return o.status === f;
 }
 
-export type Tab = 'home' | 'orders' | 'products' | 'money' | 'customers' | 'design' | 'plan' | 'settings';
+export type Tab = 'home' | 'orders' | 'products' | 'money' | 'customers' | 'business' | 'design' | 'plan' | 'settings';
 
 /** Sidebar items; `phone: false` keeps an item out of the phone tab bar (reached from Home instead). */
 export const NAV: { key: Tab; label: string; short: string; phone?: boolean }[] = [
@@ -156,7 +163,7 @@ export const NAV: { key: Tab; label: string; short: string; phone?: boolean }[] 
   { key: 'products', label: 'Products', short: 'Products' },
   { key: 'money', label: 'Financials', short: 'Financials' },
   { key: 'customers', label: 'Customers', short: 'Buyers' },
-  { key: 'design', label: 'Store design', short: 'Store design' },
+  { key: 'business', label: 'Business', short: 'Business' },
   { key: 'plan', label: 'Plan & domain', short: 'Plan', phone: false },
   { key: 'settings', label: 'Settings', short: 'Settings', phone: false },
 ];
@@ -179,6 +186,10 @@ export interface Product {
   madeToOrderDays?: number | null;
   /** Question for the buyer's notes box. */
   notePrompt?: string | null;
+  /** Hidden by AQUENORA (moderation): the reason the seller was given. */
+  hiddenReason?: string | null;
+  /** Ids of the store's collections this product is in. */
+  collections?: string[];
 }
 
 export const HELP = {

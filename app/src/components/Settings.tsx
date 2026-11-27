@@ -56,7 +56,9 @@ export function Settings() {
       <section className="card money-card" aria-labelledby="set-help">
         <h2 id="set-help" className="card-title">Help</h2>
         <nav className="set-links">
+          <a href={`${SITE}/help`} target="_blank" rel="noopener">Help centre<span>›</span></a>
           <a href={`${SITE}/support`} target="_blank" rel="noopener">Support and contact<span>›</span></a>
+          <a href={`${SITE}/seller-agreement`} target="_blank" rel="noopener">Seller agreement<span>›</span></a>
           <a href={`${SITE}/privacy`} target="_blank" rel="noopener">Privacy policy<span>›</span></a>
         </nav>
       </section>

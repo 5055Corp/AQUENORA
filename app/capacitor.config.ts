@@ -13,6 +13,17 @@ const config: CapacitorConfig = {
     limitsNavigationsToAppBoundDomains: false,
   },
   plugins: {
+    // Live updates from app.aquenora.com/live (see src/native.ts checkLiveUpdate); no Capgo account.
+    CapacitorUpdater: {
+      autoUpdate: false,
+      // A new App Store version always starts from its own built-in screens.
+      resetWhenUpdate: true,
+      // If a downloaded version doesn't start properly within 10 s, the app goes back to the last good one.
+      appReadyTimeout: 10000,
+    },
+    PushNotifications: {
+      presentationOptions: ['badge', 'sound', 'alert'],
+    },
     SplashScreen: {
       launchAutoHide: false,
       backgroundColor: '#0A0612',

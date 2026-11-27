@@ -1,6 +1,8 @@
 import { medusaIntegrationTestRunner } from "@medusajs/test-utils"
 import { Modules } from "@medusajs/framework/utils"
 import { createSellerOrderWorkflow } from "../../src/workflows/create-seller-order"
+import { sendDueCampaigns } from "../../src/lib/scheduled-campaigns"
+import { monthKey } from "../../src/lib/email-allowance"
 
 jest.setTimeout(120 * 1000)
 
@@ -113,6 +115,58 @@ medusaIntegrationTestRunner({
         .catch((e) => e.response)
       expect(res.status).toEqual(400)
       expect((await api.get("/sellers/me/customers").catch((e) => e.response)).status).toEqual(401)
+    })
+    const sellers = () => getContainer().resolve("seller") as { updateSellers: (d: unknown) => Promise<unknown> }
+
+    it("gives 100 free emails a month, then uses bought emails at ₦20 each", async () => {
+      const shop = await shopWithBuyers()
+      const allowance = async () => (await api.get("/sellers/me/email-allowance", { headers: shop.headers })).data.allowance
+      expect(await allowance()).toMatchObject({ free_per_month: 100, used_this_month: 0, free_left: 100, credits: 0, price_per_email: 20, currency_code: "ngn" })
+
+      // 99 used this month: a blast to 2 people needs 1 bought email, and there are none.
+      await sellers().updateSellers({ id: shop.seller.id, email_usage: { month: monthKey(), sent: 99 } })
+      const short = await api.post("/sellers/me/campaigns", { audience: "all", subject: "Hi", message: "Hi" }, { headers: shop.headers }).catch((e) => e.response)
+      expect(short.status).toBe(400)
+      expect(short.data.message).toContain("you have 1 free email left this month. You need 1 more")
+
+      // With 5 bought emails: 1 free + 1 bought.
+      await sellers().updateSellers({ id: shop.seller.id, email_credits: 5 })
+      expect((await api.post("/sellers/me/campaigns", { audience: "all", subject: "Hi", message: "Hi" }, { headers: shop.headers })).status).toBe(201)
+      expect(await allowance()).toMatchObject({ used_this_month: 101, free_left: 0, credits: 4 })
+
+      // Last month's use doesn't count.
+      await sellers().updateSellers({ id: shop.seller.id, email_usage: { month: "2020-01", sent: 500 } })
+      expect((await allowance()).free_left).toBe(100)
+
+      const tooFew = await api.post("/sellers/me/email-credits", { count: 10, return_url: "https://app.aquenora.test/business" }, { headers: shop.headers }).catch((e) => e.response)
+      expect(tooFew.status).toBe(400)
+    })
+
+    it("sends repeating blasts when they're due, then moves them on a week", async () => {
+      const shop = await shopWithBuyers()
+      const body = { audience: "all", subject: "Weekly news, {name}", message: "Hi {name}", every: "week", first_send_at: new Date(Date.now() - 60000).toISOString() }
+      const made = (await api.post("/sellers/me/campaign-schedules", body, { headers: shop.headers })).data.schedule
+      expect(made).toMatchObject({ every: "week", active: true })
+
+      expect(await sendDueCampaigns(getContainer())).toEqual({ due: 1, sent: 1 })
+      const [after] = (await api.get("/sellers/me/campaign-schedules", { headers: shop.headers })).data.schedules
+      expect(new Date(after.next_run_at).getTime()).toBeGreaterThan(Date.now() + 6 * 86400000)
+      expect(after.last_sent_at).toBeTruthy()
+      expect(after.last_error).toBeNull()
+      const campaigns = (await api.get("/sellers/me/campaigns", { headers: shop.headers })).data.campaigns
+      expect(campaigns).toHaveLength(1)
+      expect(campaigns[0]).toMatchObject({ sent_count: 2 })
+
+      // Not due again yet; paused ones never send.
+      expect(await sendDueCampaigns(getContainer())).toEqual({ due: 0, sent: 0 })
+      await api.post(`/sellers/me/campaign-schedules/${made.id}`, { active: false }, { headers: shop.headers })
+      expect(await sendDueCampaigns(getContainer(), new Date(Date.now() + 8 * 86400000))).toEqual({ due: 0, sent: 0 })
+
+      // Another seller can't touch it.
+      const other = await signUpSeller("nosy@example.com", "Nosy Shop")
+      expect((await api.delete(`/sellers/me/campaign-schedules/${made.id}`, { headers: other.headers }).catch((e) => e.response)).status).toBe(404)
+      expect((await api.delete(`/sellers/me/campaign-schedules/${made.id}`, { headers: shop.headers })).status).toBe(200)
+      expect((await api.get("/sellers/me/campaign-schedules", { headers: shop.headers })).data.schedules).toEqual([])
     })
   },
 })

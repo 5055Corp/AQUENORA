@@ -1,12 +1,14 @@
+import { maybeAskForRating, startPush, stopPush } from './native';
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { COUNTRIES, nextStep, type Order, type Product } from './data';
+import { COUNTRIES, nextStep, SERVICE_CATEGORY, type Order, type Product } from './data';
+import { defaultBookingSettings } from './bookings';
 import { DAY_NAMES, DAYS, normalizePickup, type Pickup } from './pickup';
 import { normalizeShipping, type Shipping } from './shipping';
 import { prepareImage, type ImageKind } from './images';
 import type { ProductOptions } from './options';
 import type { Settings } from './settings';
 import * as persist from './persist';
-import { api, ApiError, LIVE, sellerIdFromToken, storeLink, type ApiOrder, type ApiProduct, type ApiSeller, type PlanResponse, type VerificationBody } from './api';
+import { api, ApiError, LIVE, sellerIdFromToken, storeLink, type ApiOrder, type ApiProduct, type ApiSeller, type PlanResponse, type VerificationBody, type PhotoFile, type StoreCollection } from './api';
 import { demoCost } from './demo';
 import { designFromLegacy, normalizeDesign, type StoreDesign } from './design';
 import { demoPlan } from './plan';
@@ -39,7 +41,7 @@ async function dataUrlToFile(url: string): Promise<File> {
   return new File([blob], 'product.jpg', { type: blob.type || 'image/jpeg' });
 }
 
-const toProduct = (p: ApiProduct): Product => ({ id: p.id, name: p.title, price: p.price, stock: p.stock, cost: p.cost_price, images: p.images ?? [], description: p.description ?? null, options: p.options ?? null, madeToOrderDays: p.made_to_order_days ?? null, notePrompt: p.note_prompt ?? null });
+const toProduct = (p: ApiProduct): Product => ({ id: p.id, name: p.title, price: p.price, stock: p.stock, cost: p.cost_price, images: p.images ?? [], description: p.description ?? null, options: p.options ?? null, madeToOrderDays: p.made_to_order_days ?? null, notePrompt: p.note_prompt ?? null, hiddenReason: p.hidden ? p.hidden_reason || 'It breaks AQUENORA rules.' : null, collections: p.collections ?? [] });
 
 function fromSeller(se: ApiSeller): Partial<State> {
   return {
@@ -60,6 +62,10 @@ function fromSeller(se: ApiSeller): Partial<State> {
     paystack: !!se.paystack_subaccount_code,
     listed: se.marketplace_listed !== false,
     verification: se.verification_status ?? 'verified',
+    suspended: se.suspended_at ? se.suspend_reason || 'Contact AQUENORA support.' : '',
+    collections: se.collections ?? [],
+    bookings: se.booking_settings ?? null,
+    bookingEmail: se.booking_email ?? null,
   };
 }
 
@@ -174,6 +180,8 @@ function useStoreValue(settings: Settings) {
   // ---------------- live mode actions ----------------
 
   const logOut = (message?: string) => {
+    // This iPhone stops getting the store's notifications (needs the old login, so before clearing it).
+    if (s.token) stopPush(push => api.forgetPushToken(s.token, push));
     persist.saveLive(null);
     setS({ ...initialState(settings), authMode: 'login', authError: message ?? '' });
     window.scrollTo(0, 0);
@@ -190,6 +198,50 @@ function useStoreValue(settings: Settings) {
     } catch (e) {
       set({ listed: before });
       fail(e);
+    }
+  };
+
+  /** Saves the store's collections ("Wigs", "Bundles"...). Returns an error message, or '' when saved. */
+  const setCollections = async (collections: StoreCollection[]): Promise<string> => {
+    const before = s.collections;
+    set({ collections });
+    if (!LIVE) return '';
+    try {
+      await api.updateMe(s.token, { collections });
+      return '';
+    } catch (e) {
+      set({ collections: before });
+      return e instanceof Error ? e.message : 'Could not save. Please try again.';
+    }
+  };
+
+  /** Bookings on/off, hours and rules. Returns an error message, or '' when saved. */
+  const saveBookings = async (bookings: import('./api').BookingSettings): Promise<string> => {
+    const before = s.bookings;
+    set({ bookings });
+    if (!LIVE) return '';
+    try {
+      const { calendar_key: _k, ...body } = bookings;
+      void _k;
+      await api.updateMe(s.token, { booking_settings: body });
+      return '';
+    } catch (e) {
+      set({ bookings: before });
+      return e instanceof Error ? e.message : 'Could not save. Please try again.';
+    }
+  };
+
+  /** The "Appointment booked" email (null = AQUENORA's default). */
+  const saveBookingEmail = async (bookingEmail: import('./api').BookingEmail | null): Promise<string> => {
+    const before = s.bookingEmail;
+    set({ bookingEmail });
+    if (!LIVE) return '';
+    try {
+      await api.updateMe(s.token, { booking_email: bookingEmail });
+      return '';
+    } catch (e) {
+      set({ bookingEmail: before });
+      return e instanceof Error ? e.message : 'Could not save. Please try again.';
     }
   };
 
@@ -220,6 +272,14 @@ function useStoreValue(settings: Settings) {
       busy: false,
       loadError: '',
     });
+    // iPhone notifications for new orders and problems; tapping one opens that tab.
+    startPush(push => api.savePushToken(token, push), tab => set({ tab: (['home', 'orders', 'products', 'settings'].includes(tab) ? tab : 'home') as State['tab'] }));
+    // Happy sellers (3+ paid orders) are asked once to rate the iPhone app.
+    maybeAskForRating(orders.filter(o => o.status !== 'canceled').length);
+    // Problems buyers reported (shown on Orders).
+    api.disputes(token).then(r => set({ disputes: r.disputes })).catch(() => {});
+    // Shoppers waiting for sold-out products (shown on Products).
+    api.stockAlerts(token).then(r => set({ waiting: r.waiting })).catch(() => {});
     // A rejected seller sees why, so they can fix it and send again.
     if (seller.verification_status === 'rejected') {
       api.verification(token).then(({ verification: v }) => set({ verifyReason: v.details?.reject_reason ?? '' })).catch(() => {});
@@ -243,10 +303,42 @@ function useStoreValue(settings: Settings) {
     }
   };
 
+  /** A new device: email a code and show the code screen. */
+  const askDeviceCode = async (token: string) => {
+    if (!LIVE) return set({ deviceSentTo: 'a******@gmail.com' });
+    set({ token, screen: 'device', busy: false, deviceError: '', deviceSentTo: '' });
+    try {
+      const { sent_to } = await api.sendDeviceCode(token);
+      set({ deviceSentTo: sent_to });
+    } catch (e) {
+      set({ deviceError: e instanceof Error ? e.message : 'Could not send the code. Try again.' });
+    }
+  };
+  const isNewDevice = (e: unknown) => e instanceof ApiError && e.type === 'device_unverified';
+
+  /** Checks the emailed code; the right one opens the store. Returns an error message, or ''. */
+  const confirmDevice = async (code: string): Promise<string> => {
+    if (!LIVE) {
+      set({ screen: 'app' });
+      return '';
+    }
+    set({ busy: true, deviceError: '' });
+    try {
+      await api.verifyDeviceCode(s.token, code);
+      await loadStore(s.token);
+      return '';
+    } catch (e) {
+      set({ busy: false });
+      return e instanceof Error ? e.message : 'Something went wrong. Please try again.';
+    }
+  };
+  const resendDeviceCode = () => askDeviceCode(s.token);
+
   const retryLoad = () => {
     set({ loadError: '' });
     loadStore(s.token).catch(e => {
-      if (e instanceof ApiError && e.status === 401) logOut('Please log in again.');
+      if (isNewDevice(e)) askDeviceCode(s.token);
+      else if (e instanceof ApiError && e.status === 401) logOut('Please log in again.');
       else set({ loadError: e instanceof Error ? e.message : 'Could not load your store.' });
     });
   };
@@ -267,10 +359,11 @@ function useStoreValue(settings: Settings) {
     if (!s.password) return set({ authError: 'Enter your password.' });
 
     set({ busy: true, authError: '' });
+    let token = '';
     try {
-      const { token } = s.authMode === 'signup'
+      ({ token } = s.authMode === 'signup'
         ? await api.register(email, s.password)
-        : await api.login(email, s.password);
+        : await api.login(email, s.password));
       set({ password: '', email });
       if (sellerIdFromToken(token)) {
         await loadStore(token);
@@ -279,6 +372,7 @@ function useStoreValue(settings: Settings) {
         set({ token, screen: 'onboarding', step: 0, busy: false });
       }
     } catch (e) {
+      if (isNewDevice(e) && token) return askDeviceCode(token);
       set({ busy: false, authError: e instanceof Error ? e.message : 'Something went wrong. Please try again.' });
     }
   };
@@ -297,14 +391,23 @@ function useStoreValue(settings: Settings) {
       let token = s.token;
       const details = { name: s.shopName.trim(), category: s.category, country_code: s.country, sells_abroad: s.intl };
       if (!sellerIdFromToken(token)) {
-        await api.createSeller(token, details);
+        await api.createSeller(token, { ...details, ...(s.referral ? { referral: s.referral } : {}) });
+        try { localStorage.removeItem('aq-ref'); } catch { /* storage unavailable */ }
         // The old token was issued before the store existed; the refreshed one carries the store id.
         token = (await api.refresh(token)).token;
         set({ token });
       } else {
         await api.updateMe(token, details);
       }
-      if (!skip) {
+      const services = s.category === SERVICE_CATEGORY;
+      // Service providers get bookings switched on, with their first service ready to book.
+      if (services) await api.updateMe(token, { booking_settings: defaultBookingSettings(s.country) });
+      if (!skip && services) {
+        if (s.productName.trim()) {
+          await api.addService(token, { name: s.productName.trim(), price: Number(s.productPrice) || 0, duration_min: s.serviceMinutes, payment: 'none' });
+        }
+        await api.updateMe(token, { onboarding_completed: true });
+      } else if (!skip) {
         if (s.productName.trim()) {
           // The photo chosen during set-up is uploaded now that the store exists.
           let images: string[] = [];
@@ -373,6 +476,24 @@ function useStoreValue(settings: Settings) {
     }
   };
 
+  /** Adds many products from the seller's spreadsheet. Returns how many were added and which rows failed. */
+  const importProducts = async (rows: import('./productCsv').ImportRow[]): Promise<{ created: number; failed: { row: number; title: string; message: string }[] }> => {
+    if (!LIVE) {
+      const added = rows.map(r => ({
+        name: r.title, price: r.price, stock: r.stock ?? 1, cost: r.cost_price ?? null, images: [],
+        options: r.options ?? null, madeToOrderDays: r.made_to_order_days ?? null, notePrompt: null,
+      }));
+      set({ products: [...added, ...withCosts()] });
+      flash(`${rows.length} products added to your store`);
+      return { created: rows.length, failed: [] };
+    }
+    const res = await api.importProducts(s.token, rows);
+    const { products: fresh } = await api.products(s.token);
+    set({ products: fresh.map(toProduct) });
+    if (res.created) flash(`${res.created} products added to your store`);
+    return res;
+  };
+
   /** Replaces a product's photos (first = main photo). Returns an error message, or '' when saved. */
   const setProductImages = async (index: number, images: string[]): Promise<string> => {
     const target = products[index];
@@ -393,7 +514,7 @@ function useStoreValue(settings: Settings) {
   };
 
   /** Saves changes to a product (name, price, stock, description, cost). Returns an error message, or '' when saved. */
-  const editProduct = async (index: number, changes: { name?: string; price?: number; stock?: number; description?: string; cost?: number | null; options?: ProductOptions | null; madeToOrderDays?: number | null; notePrompt?: string }): Promise<string> => {
+  const editProduct = async (index: number, changes: { name?: string; price?: number; stock?: number; description?: string; cost?: number | null; options?: ProductOptions | null; madeToOrderDays?: number | null; notePrompt?: string; collections?: string[] }): Promise<string> => {
     const target = products[index];
     if (!target) return 'Product not found.';
     if (changes.name !== undefined && !changes.name.trim()) return 'Add a product name.';
@@ -420,6 +541,7 @@ function useStoreValue(settings: Settings) {
         ...(changes.options !== undefined ? { options: changes.options } : {}),
         ...(changes.madeToOrderDays !== undefined ? { made_to_order_days: changes.madeToOrderDays } : {}),
         ...(changes.notePrompt !== undefined ? { note_prompt: changes.notePrompt || null } : {}),
+        ...(changes.collections !== undefined ? { collections: changes.collections } : {}),
       });
       set(st => ({ products: (st.products ?? []).map(p => (p.id === product.id ? toProduct(product) : p)) }));
       flash('Product saved');
@@ -448,6 +570,31 @@ function useStoreValue(settings: Settings) {
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) logOut('Please log in again.');
       return e instanceof Error ? e.message : 'Could not delete. Please try again.';
+    }
+  };
+
+  /** The seller replies to a buyer's problem, or marks it refunded. Returns an error message, or '' when done. */
+  const disputeAction = async (id: string, body: { action: 'message' | 'refunded'; text?: string; amount?: number; files?: PhotoFile[] }): Promise<string> => {
+    if (!LIVE) {
+      set(st => ({
+        disputes: st.disputes.map(d => d.id !== id ? d : {
+          ...d,
+          status: body.action === 'refunded' ? 'refunded' : d.status === 'open' ? 'replied' : d.status,
+          refund: body.action === 'refunded' ? { amount: body.amount ?? 0, note: body.text, at: new Date().toISOString() } : d.refund,
+          messages: [...d.messages, { from: 'seller', text: body.action === 'refunded' ? `Refunded ${body.amount}${body.text ? `: ${body.text}` : ''}` : body.text ?? '', at: new Date().toISOString() }],
+        }),
+      }));
+      flash(body.action === 'refunded' ? 'Marked as refunded. The buyer will confirm.' : 'Reply sent');
+      return '';
+    }
+    try {
+      const { dispute } = await api.disputeAction(s.token, id, body);
+      set(st => ({ disputes: st.disputes.map(d => (d.id === id ? dispute : d)) }));
+      flash(body.action === 'refunded' ? 'Marked as refunded. The buyer will confirm.' : 'Reply sent');
+      return '';
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) logOut('Please log in again.');
+      return e instanceof Error ? e.message : 'Could not send. Please try again.';
     }
   };
 
@@ -725,7 +872,7 @@ function useStoreValue(settings: Settings) {
     pickup, savePickup, savePayout,
     s, set, settings, toast, flash, isMobile, framed, country, fmt, fromUsd, slug, shopNameShown, storeUrl,
     products, toggleHelp, advanceOrder, copyLink, shareWhatsApp, startOver,
-    design, setDesign, planInfo, refreshPlan, startTrial, requestUpgrade, setAutoRenew, connectDomain, checkDomain, removeDomain, live: LIVE, submitAuth, finishOnboarding, addProduct, setProductCost, publishDesign, logOut, deleteAccount, setListed, retryLoad, submitVerification,
+    design, setDesign, planInfo, refreshPlan, startTrial, requestUpgrade, setAutoRenew, connectDomain, checkDomain, removeDomain, live: LIVE, submitAuth, confirmDevice, resendDeviceCode, finishOnboarding, addProduct, importProducts, setProductCost, publishDesign, logOut, deleteAccount, setListed, retryLoad, submitVerification, disputeAction, setCollections, saveBookings, saveBookingEmail,
     showHints: settings.showHelpHints,
     h1Size: isMobile ? '30px' : '40px',
   };

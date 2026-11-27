@@ -1,7 +1,7 @@
 import { useStore } from './store';
 import { Onboarding } from './components/Onboarding';
 import { Dashboard } from './components/Dashboard';
-import { Auth, Loading } from './components/Auth';
+import { Auth, DeviceCode, Loading } from './components/Auth';
 
 export default function App() {
   const { s, framed, toast } = useStore();
@@ -16,6 +16,7 @@ export default function App() {
       >
         {s.screen === 'auth' && <Auth />}
         {s.screen === 'loading' && <Loading />}
+        {s.screen === 'device' && <DeviceCode />}
         {s.screen === 'onboarding' && <Onboarding />}
         {s.screen === 'app' && <Dashboard />}
         {toast && <div className="toast" role="status">{toast}</div>}

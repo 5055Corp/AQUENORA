@@ -1,13 +1,14 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError, isOwnDomain, fetchHandleForDomain, fetchPublicStore, LIVE, RESERVED_SUBDOMAINS, startCheckout, STORE_DOMAIN, verifyPayment, type PaymentResult } from '../api';
 import { COUNTRIES } from '../data';
 import * as persist from '../persist';
 import { ACCENT_KEYS, demoProducts, initialState, usdConverter } from '../state';
-import { designFromLegacy, normalizeDesign, STORE_FONTS, type StoreDesign } from '../design';
+import { cardTextOf, designFromLegacy, normalizeDesign, STORE_FONTS, type StoreDesign } from '../design';
 import type { CountryId } from '../data';
 import { StoreView, type StoreItem } from './StoreView';
 import { TrackOrder } from './TrackOrder';
-import { recordVisit, type VisitSource } from '../api';
+import { BookingFlow, ManageBooking } from './Booking';
+import { notifyWhenBack, recordVisit, reportProduct, type VisitSource } from '../api';
 
 /** Where a visitor came from: ?from=..., or the website that sent them. */
 function visitSource(embedded: boolean): VisitSource {
@@ -43,7 +44,7 @@ function countVisit(handle: string, embedded: boolean) {
   }
   recordVisit(handle, visitSource(embedded));
 }
-import { fromPrice, pickedFromLabels, priceFor, stockFor, variesInPrice } from '../options';
+import { fromPrice, photosFor, pickedFromLabels, priceFor, stockFor, variesInPrice } from '../options';
 import { TAGLINE } from '../brand';
 import { Logo, Mark } from '../components/Logo';
 import { DAY_NAMES, DAYS, hoursText, isOpenNow, normalizePickup, shopNow, type Pickup } from '../pickup';
@@ -66,9 +67,13 @@ export interface StoreData {
   acceptsPayments: boolean;
   /** AQUENORA has verified the seller. */
   verified: boolean;
+  /** Collections inside the store, shown as tabs. */
+  collections: { id: string; name: string }[];
   /** Delivery options (DHL, local courier...) and the country the shop ships from. */
   shipping: Shipping;
   shipsFrom: string | null;
+  /** Service provider taking bookings: the store shows "Book an appointment". */
+  bookings: boolean;
 }
 
 type Load =
@@ -101,14 +106,16 @@ function demoStore(): StoreData {
     name,
     country: s.country,
     design: normalizeDesign(s.design, designFromLegacy({ theme: s.theme, accent: s.accent, font: s.font, announce: s.announce, country: country.id === 'DI' ? 'Africa' : country.name })),
-    items: demoProducts(s, usdConverter(country.rate)).map((p, i) => ({ key: `demo-${i}`, name: p.name, price: p.price, stock: p.stock, images: p.images ?? [], description: p.description ?? null, options: p.options ?? null, madeToOrderDays: p.madeToOrderDays ?? null, notePrompt: p.notePrompt ?? null })),
+    items: demoProducts(s, usdConverter(country.rate)).map((p, i) => ({ key: `demo-${i}`, name: p.name, price: p.price, stock: p.stock, images: p.images ?? [], description: p.description ?? null, options: p.options ?? null, madeToOrderDays: p.madeToOrderDays ?? null, notePrompt: p.notePrompt ?? null, collections: p.collections ?? [] })),
     sellsAbroad: s.intl,
     showBadge: true,
     pickup: offered(s.pickup),
     acceptsPayments: true,
     verified: true,
+    collections: s.collections ?? [],
     shipping: normalizeShipping(s.shipping),
     shipsFrom: homeCountry(s.country, normalizeShipping(s.shipping)),
+    bookings: !!s.bookings?.enabled,
   };
 }
 
@@ -139,12 +146,14 @@ export async function liveStore(handle: string): Promise<StoreData> {
         country: liveCountryName(store.country_code),
       }),
     ),
-    items: products.map(p => ({ key: p.id, name: p.title, price: p.price, stock: p.stock, images: p.images ?? [], description: p.description ?? null, options: p.options ?? null, madeToOrderDays: p.made_to_order_days ?? null, notePrompt: p.note_prompt ?? null })),
+    items: products.map(p => ({ key: p.id, name: p.title, price: p.price, stock: p.stock, images: p.images ?? [], description: p.description ?? null, options: p.options ?? null, madeToOrderDays: p.made_to_order_days ?? null, notePrompt: p.note_prompt ?? null, collections: p.collections ?? [] })),
     sellsAbroad: store.sells_abroad,
     showBadge: store.show_badge !== false,
     pickup: offered(store.pickup),
     acceptsPayments: store.accepts_payments === true,
     verified: store.verified === true,
+    bookings: store.bookings === true,
+    collections: store.collections ?? [],
     shipping: normalizeShipping({ from: null, options: store.shipping?.options ?? [] }),
     shipsFrom: store.shipping?.ships_from ?? (store.country_code === 'DI' ? null : store.country_code),
   };
@@ -185,6 +194,19 @@ export function parseLineKey(key: string): BagLine {
     }
   }
   return { product: key, choices: [], note: '' };
+}
+
+/** The bag in a reminder email's link (?bag=<base64url JSON>), or null. */
+function bagFromLink(): Bag | null {
+  try {
+    const raw = new URLSearchParams(window.location.search).get('bag');
+    if (!raw) return null;
+    const bytes = Uint8Array.from(atob(raw.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
+    const v = JSON.parse(new TextDecoder().decode(bytes));
+    return v && typeof v === 'object' && !Array.isArray(v) ? v : null;
+  } catch {
+    return null;
+  }
 }
 
 function loadBag(handle: string): Bag {
@@ -378,6 +400,8 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
   const pickCurrency = (code: string) => { setCur(code); saveCurrency(code); };
   const d = data.design;
   const ink = d.colors.text;
+  // Words on card-coloured panels (receipt, bag, checkout, shop visit): the "Text on products" colour.
+  const cardInk = cardTextOf(d);
   // ?track=... (from the buyer's confirmation email): the order's progress instead of the shop.
   const [tracking, setTracking] = useState(() => (embedded ? '' : new URLSearchParams(window.location.search).get('track') ?? ''));
   const openTracking = (token: string) => {
@@ -415,7 +439,8 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
   }, [byKey]);
   const [bag, setBag] = useState<Bag>(() => {
     // Drop anything no longer for sale, and cap quantities at what's in stock.
-    const saved = loadBag(data.handle);
+    // A "you left something in your bag" email link (?bag=...) puts those items back.
+    const saved = (!embedded && bagFromLink()) || loadBag(data.handle);
     const clean: Bag = {};
     for (const [k, q] of Object.entries(saved)) {
       const line = lineOf(k);
@@ -423,7 +448,14 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
     }
     return clean;
   });
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(() => !embedded && !!bagFromLink());
+  useEffect(() => {
+    // Once refilled, take the bag out of the address so a refresh doesn't undo later changes.
+    if (embedded || !bagFromLink()) return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete('bag');
+    window.history.replaceState(null, '', url.toString());
+  }, [embedded]);
   const [note, setNote] = useState('');
   // Delivery or pickup, remembered for checkout. Pickup only while the seller offers it.
   const [choice, setChoice] = useState<Fulfillment>(() => (data.pickup ? loadFulfillment(data.handle) : 'delivery'));
@@ -440,14 +472,36 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
   const [showErrors, setShowErrors] = useState(false);
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState('');
-  const [paid, setPaid] = useState<Paid | null>(() => (!embedded && new URLSearchParams(window.location.search).get('reference') ? { kind: 'checking' } : null));
+  // Order payments come back with ?reference=aq_...; booking payments (aqb_) go to the booking page instead.
+  const orderReference = () => { const r = new URLSearchParams(window.location.search).get('reference'); return r && !r.startsWith('aqb_') ? r : null; };
+  const [paid, setPaid] = useState<Paid | null>(() => (!embedded && orderReference() ? { kind: 'checking' } : null));
+  // Bookings: /book (or ?book=1) opens the booking page; ?booking=<token> is a customer's own booking.
+  const [bookOpen, setBookOpen] = useState(() => !embedded && (/^\/book\/?$/.test(window.location.pathname) || new URLSearchParams(window.location.search).has('book')));
+  const [bookingToken, setBookingToken] = useState(() => (embedded ? '' : new URLSearchParams(window.location.search).get('booking') ?? ''));
+  const closeBooking = () => {
+    setBookOpen(false);
+    setBookingToken('');
+    const url = new URL(window.location.href);
+    ['book', 'booking', 'reference', 'trxref'].forEach(k => url.searchParams.delete(k));
+    if (/^\/book\/?$/.test(url.pathname)) url.pathname = '/';
+    window.history.replaceState(null, '', url.toString());
+  };
   const [query, setQuery] = useState(embedded?.query ?? '');
   const found = useMemo(() => {
     const w = words(query);
     if (!w.length) return null;
     return new Set(data.items.filter(i => w.every(x => plain(`${i.name} ${i.description ?? ''}`).includes(x))).map(i => i.key));
   }, [query, data.items]);
-  const shown = useMemo(() => (found ? [...data.items.filter(i => found.has(i.key)), ...data.items.filter(i => !found.has(i.key))] : data.items), [found, data.items]);
+  const [collection, setCollection] = useState('all');
+  const [sort, setSort] = useState<'newest' | 'low' | 'high'>('newest');
+  const shown = useMemo(() => {
+    const searched = found ? [...data.items.filter(i => found.has(i.key)), ...data.items.filter(i => !found.has(i.key))] : data.items;
+    const inCollection = collection === 'all' ? searched : searched.filter(i => i.collections?.includes(collection));
+    if (sort === 'newest') return inCollection;
+    const price = (i: StoreItem) => fromPrice(i.price, i.options);
+    return [...inCollection].sort((a, b) => (sort === 'low' ? price(a) - price(b) : price(b) - price(a)));
+  }, [found, data.items, collection, sort]);
+  const usedCollections = data.collections.filter(c => data.items.some(i => i.collections?.includes(c.id)));
 
   // Back from Paystack: ask the shop whether the payment went through.
   const checkPayment = useCallback((reference: string) => {
@@ -467,7 +521,7 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
       .catch(e => setPaid({ kind: 'error', message: e instanceof Error ? e.message : 'Could not check your payment.', reference }));
   }, []);
   useEffect(() => {
-    const reference = new URLSearchParams(window.location.search).get('reference');
+    const reference = orderReference();
     if (reference && LIVE) checkPayment(reference);
   }, [checkPayment]);
 
@@ -607,6 +661,13 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
   };
   const fieldError = (k: keyof Buyer) => (showErrors && errors[k] ? errors[k] : '');
 
+  if (bookingToken) {
+    const ref = new URLSearchParams(window.location.search).get('reference');
+    return <ManageBooking token={bookingToken} reference={ref?.startsWith('aqb_') ? ref : null} design={d} fmt={fmt} onBack={closeBooking} />;
+  }
+  if (bookOpen) {
+    return <BookingFlow handle={data.handle} shopName={data.name} design={d} fmt={fmt} onBack={closeBooking} />;
+  }
   if (tracking) {
     return <TrackOrder token={tracking} design={d} shopName={data.name} verified={data.verified} fmt={fmt} onBack={closeTracking} />;
   }
@@ -628,6 +689,35 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
         variant="page"
         name={data.name}
         verified={data.verified}
+        toolbar={data.items.length > 1 || data.bookings ? (
+          <div className="sp-tools">
+            {data.bookings && (
+              <button type="button" className="sp-book" style={{ background: d.colors.accent, color: d.colors.accent_text }} onClick={() => setBookOpen(true)}>
+                <span>Book an appointment</span><span aria-hidden="true">›</span>
+              </button>
+            )}
+            {usedCollections.length > 0 && (
+              <div className="sp-tabs" role="tablist" aria-label="Collections">
+                {[{ id: 'all', name: 'All' }, ...usedCollections].map(c => (
+                  <button key={c.id} type="button" role="tab" aria-selected={collection === c.id} className="sp-tab"
+                    style={collection === c.id ? { background: d.colors.text, color: d.colors.background, borderColor: d.colors.text } : { color: d.colors.text, borderColor: d.colors.text + '33' }}
+                    onClick={() => setCollection(c.id)}>{c.name}</button>
+                ))}
+              </div>
+            )}
+            <div className="sp-sortbar">
+              <span>{shown.length} {shown.length === 1 ? 'product' : 'products'}</span>
+              <label className="sp-sort" style={{ color: d.colors.text, borderColor: d.colors.text + '33' }}>
+                <span className="sr-only">Sort</span>
+                <select value={sort} onChange={e => setSort(e.target.value as typeof sort)} style={{ color: d.colors.text }}>
+                  <option value="newest">Newest</option>
+                  <option value="low">Price: low to high</option>
+                  <option value="high">Price: high to low</option>
+                </select>
+              </label>
+            </div>
+          </div>
+        ) : null}
         design={d}
         narrow={width < 600}
         items={shown}
@@ -647,12 +737,12 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
         />
       )}
 
-      {data.pickup && <ShopVisit pickup={data.pickup} country={data.country} ink={ink} card={d.colors.card} />}
+      {data.pickup && <ShopVisit pickup={data.pickup} country={data.country} ink={cardInk} card={d.colors.card} />}
 
       <footer className="sp-foot">
         <label className="sp-cur">
           <span>Prices in</span>
-          <select value={showCur} onChange={e => pickCurrency(e.target.value)} style={{ color: ink, borderColor: ink + '40', background: d.colors.card }}>
+          <select value={showCur} onChange={e => pickCurrency(e.target.value)} style={{ color: cardInk, borderColor: cardInk + '40', background: d.colors.card }}>
             {currencyChoices(rates, homeCur).map(c => <option key={c.code} value={c.code}>{c.label}</option>)}
           </select>
         </label>
@@ -670,7 +760,7 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
 
       {paid && (
         <div className="sp-overlay sp-center">
-          <div className="sp-receipt" role="dialog" aria-modal="true" aria-labelledby="sp-receipt-title" style={{ background: d.colors.card, color: ink }}>
+          <div className="sp-receipt" role="dialog" aria-modal="true" aria-labelledby="sp-receipt-title" style={{ background: d.colors.card, color: cardInk }}>
             {paid.kind === 'checking' && <p role="status" id="sp-receipt-title">Checking your payment…</p>}
             {paid.kind === 'paid' && (
               <>
@@ -696,7 +786,7 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
                     Track my order
                   </button>
                 )}
-                <button type="button" className={paid.trackToken && !embedded ? 'sp-back' : 'sp-checkout'} style={paid.trackToken && !embedded ? { color: ink } : { background: d.colors.accent, color: d.colors.accent_text, opacity: 1 }} onClick={() => setPaid(null)}>
+                <button type="button" className={paid.trackToken && !embedded ? 'sp-back' : 'sp-checkout'} style={paid.trackToken && !embedded ? { color: cardInk } : { background: d.colors.accent, color: d.colors.accent_text, opacity: 1 }} onClick={() => setPaid(null)}>
                   Keep shopping
                 </button>
               </>
@@ -710,7 +800,7 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
                     Check again
                   </button>
                 )}
-                <button type="button" className="sp-back" style={{ color: ink }} onClick={() => setPaid(null)}>Back to the shop</button>
+                <button type="button" className="sp-back" style={{ color: cardInk }} onClick={() => setPaid(null)}>Back to the shop</button>
               </>
             )}
           </div>
@@ -724,12 +814,12 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
             role="dialog"
             aria-modal="true"
             aria-label="Your bag"
-            style={{ background: d.colors.card, color: ink }}
+            style={{ background: d.colors.card, color: cardInk }}
             onClick={e => e.stopPropagation()}
           >
             <div className="sp-bag-head">
               <h2>Your bag</h2>
-              <button type="button" className="sp-close" style={{ color: ink }} onClick={closeBag} aria-label="Close bag">×</button>
+              <button type="button" className="sp-close" style={{ color: cardInk }} onClick={closeBag} aria-label="Close bag">×</button>
             </div>
             {lines.length === 0 ? (
               <p className="sp-bag-empty">Your bag is empty.</p>
@@ -742,12 +832,12 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
                       <span>{show(price * qty)}</span>
                     </div>
                     {lineNote && <div className="sp-line-note">Your note: {lineNote}</div>}
-                    <div className="sp-qty" style={{ borderColor: ink + '33' }}>
-                      <button type="button" style={{ color: ink }} onClick={() => setQty(key, qty - 1)} aria-label={`One less ${label}`}>−</button>
+                    <div className="sp-qty" style={{ borderColor: cardInk + '33' }}>
+                      <button type="button" style={{ color: cardInk }} onClick={() => setQty(key, qty - 1)} aria-label={`One less ${label}`}>−</button>
                       <span aria-live="polite">{qty}</span>
                       <button
                         type="button"
-                        style={{ color: ink }}
+                        style={{ color: cardInk }}
                         disabled={qty >= stock}
                         onClick={() => setQty(key, qty + 1)}
                         aria-label={`One more ${label}`}
@@ -765,7 +855,7 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
                 {(['delivery', 'pickup'] as const).map(f => {
                   const on = fulfillment === f;
                   return (
-                    <label key={f} className="sp-ful-opt" style={{ borderColor: on ? d.colors.accent : ink + '33' }}>
+                    <label key={f} className="sp-ful-opt" style={{ borderColor: on ? d.colors.accent : cardInk + '33' }}>
                       <input type="radio" name="fulfillment" value={f} checked={on} onChange={() => setChoice(f)} style={{ accentColor: d.colors.accent }} />
                       <span>
                         <b>{f === 'delivery' ? 'Delivery' : 'Pick up in store'}</b>
@@ -796,32 +886,32 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
             {stage === 'details' && lines.length > 0 && (
               <form className="sp-form" noValidate onSubmit={e => { e.preventDefault(); pay(); }}>
                 <h3>Your details</h3>
-                <BuyerField label="Full name" value={buyer.name} error={fieldError('name')} autoComplete="name" ink={ink}
+                <BuyerField label="Full name" value={buyer.name} error={fieldError('name')} autoComplete="name" ink={cardInk}
                   onChange={v => editBuyer({ name: v })} />
-                <BuyerField label="Email" type="email" value={buyer.email} error={fieldError('email')} autoComplete="email" ink={ink}
+                <BuyerField label="Email" type="email" value={buyer.email} error={fieldError('email')} autoComplete="email" ink={cardInk}
                   hint="Your receipt is sent here." onChange={v => editBuyer({ email: v })} />
-                <BuyerField label="Phone (WhatsApp if you have it)" type="tel" value={buyer.phone} error={fieldError('phone')} autoComplete="tel" ink={ink}
+                <BuyerField label="Phone (WhatsApp if you have it)" type="tel" value={buyer.phone} error={fieldError('phone')} autoComplete="tel" ink={cardInk}
                   onChange={v => editBuyer({ phone: v })} />
                 {fulfillment === 'delivery' && (
                   <>
                     <label className="sp-field">
                       <span>Country</span>
                       <select value={buyer.country} autoComplete="country" aria-invalid={!!fieldError('country')}
-                        style={{ color: ink, borderColor: fieldError('country') ? 'oklch(0.55 0.18 30)' : ink + '33', background: d.colors.card }}
+                        style={{ color: cardInk, borderColor: fieldError('country') ? 'oklch(0.55 0.18 30)' : cardInk + '33', background: d.colors.card }}
                         onChange={e => { editBuyer({ country: e.target.value }); setShipId(''); }}>
                         <option value="">Choose…</option>
                         {COUNTRY_LIST.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
                       </select>
                       {fieldError('country') && <small className="sp-field-error">{fieldError('country')}</small>}
                     </label>
-                    <BuyerField label="Delivery address" value={buyer.address} error={fieldError('address')} autoComplete="street-address" ink={ink}
+                    <BuyerField label="Delivery address" value={buyer.address} error={fieldError('address')} autoComplete="street-address" ink={cardInk}
                       onChange={v => editBuyer({ address: v })} />
-                    <BuyerField label="City or town" value={buyer.city} error={fieldError('city')} autoComplete="address-level2" ink={ink}
+                    <BuyerField label="City or town" value={buyer.city} error={fieldError('city')} autoComplete="address-level2" ink={cardInk}
                       onChange={v => editBuyer({ city: v })} />
                     <div className="sp-two">
-                      <BuyerField label="State / province" value={buyer.region} error="" autoComplete="address-level1" ink={ink}
+                      <BuyerField label="State / province" value={buyer.region} error="" autoComplete="address-level1" ink={cardInk}
                         onChange={v => editBuyer({ region: v })} />
-                      <BuyerField label="Postcode" value={buyer.postalCode} error="" autoComplete="postal-code" ink={ink}
+                      <BuyerField label="Postcode" value={buyer.postalCode} error="" autoComplete="postal-code" ink={cardInk}
                         onChange={v => editBuyer({ postalCode: v })} />
                     </div>
                     {blocked === 'abroad-off' && <div className="sp-pay-error" role="alert">This shop only delivers within {WORLD_BY_CODE.get(data.shipsFrom ?? '')?.name ?? 'its own country'}.</div>}
@@ -832,7 +922,7 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
                         {shipOptions.map(o => {
                           const on = chosen?.id === o.id;
                           return (
-                            <label key={o.id} className="sp-ful-opt" style={{ borderColor: on ? d.colors.accent : ink + '33' }}>
+                            <label key={o.id} className="sp-ful-opt" style={{ borderColor: on ? d.colors.accent : cardInk + '33' }}>
                               <input type="radio" name="ship" checked={on} onChange={() => { setShipId(o.id); setPayError(''); }} style={{ accentColor: d.colors.accent }} />
                               <span>
                                 <b>{o.name} · {o.price ? show(o.price) : 'Free'}</b>
@@ -858,7 +948,7 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
                   {LIVE ? 'You pay securely on Paystack: card, bank transfer or USSD.' : 'Demo store: no real payment is taken.'}
                   {foreign ? ` You're charged in ${country.curName} (${fmt(total)}, about ${show(total)}); your bank converts it.` : ''}
                 </p>
-                <button type="button" className="sp-back" style={{ color: ink }} onClick={() => setStage('bag')}>← Back to bag</button>
+                <button type="button" className="sp-back" style={{ color: cardInk }} onClick={() => setStage('bag')}>← Back to bag</button>
               </form>
             )}
             {stage === 'bag' && (
@@ -955,6 +1045,87 @@ function BuyerField(props: { label: string; value: string; onChange: (v: string)
   );
 }
 
+const REPORT_REASONS = [
+  ['counterfeit', 'Fake or counterfeit'],
+  ['prohibited', 'Not allowed to be sold'],
+  ['scam', 'Looks like a scam'],
+  ['misleading', 'Misleading photos or description'],
+  ['offensive', 'Offensive'],
+  ['other', 'Something else'],
+] as const;
+
+/** "Report this product": a shopper tells AQUENORA about a product that breaks the rules. */
+function ReportLink({ productId, ink }: { productId: string; ink: string }) {
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState<(typeof REPORT_REASONS)[number][0] | null>(null);
+  const [note, setNote] = useState('');
+  const [state, setState] = useState<'' | 'sending' | 'sent'>('');
+  const [error, setError] = useState('');
+  if (state === 'sent') return <p className="pp-report-done">Thank you. AQUENORA will look at this product.</p>;
+  if (!open) return <button type="button" className="pp-report" style={{ color: ink }} onClick={() => setOpen(true)}>Report this product</button>;
+  const send = async () => {
+    if (!reason) return setError('Choose a reason.');
+    setState('sending');
+    setError('');
+    try {
+      if (LIVE) await reportProduct(productId, { reason, ...(note.trim() ? { note: note.trim() } : {}) });
+      setState('sent');
+    } catch (e) {
+      setState('');
+      setError(e instanceof Error ? e.message : 'Could not send. Please try again.');
+    }
+  };
+  return (
+    <div className="pp-report-box" style={{ borderColor: ink + '33' }}>
+      <b>What's wrong with this product?</b>
+      <div className="pp-chips">
+        {REPORT_REASONS.map(([k, l]) => (
+          <button key={k} type="button" className={'pp-chip' + (reason === k ? ' on' : '')} aria-pressed={reason === k}
+            style={reason === k ? { background: ink, color: '#fff', borderColor: ink } : { borderColor: ink + '33', color: ink }} onClick={() => setReason(k)}>{l}</button>
+        ))}
+      </div>
+      <textarea rows={2} maxLength={500} placeholder="Anything else? (optional)" value={note} onChange={e => setNote(e.target.value)} style={{ color: ink, borderColor: ink + '33' }} />
+      {error && <small className="pp-opt-need" role="alert">{error}</small>}
+      <div className="pp-report-actions">
+        <button type="button" className="pp-report" style={{ color: ink }} onClick={() => setOpen(false)}>Cancel</button>
+        <button type="button" className="pp-chip on" style={{ background: ink, color: '#fff', borderColor: ink }} disabled={state === 'sending'} onClick={send}>{state === 'sending' ? 'Sending…' : 'Send report'}</button>
+      </div>
+    </div>
+  );
+}
+
+/** Sold out: "Email me when it's back" (for the chosen choice of the first option, if stock is per choice). */
+function NotifyBox({ productId, choice, ink, accent, accentText }: { productId: string; choice: string; ink: string; accent: string; accentText: string }) {
+  const [email, setEmail] = useState('');
+  const [state, setState] = useState<'' | 'sending' | 'sent'>('');
+  const [error, setError] = useState('');
+  if (state === 'sent') return <p className="pp-notify-done">✓ We'll email {email.trim()} when {choice || 'it'}'s back. Just once.</p>;
+  const send = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) return setError('Enter your email address.');
+    setState('sending');
+    setError('');
+    try {
+      if (LIVE) await notifyWhenBack(productId, { email: email.trim(), ...(choice ? { choice } : {}) });
+      setState('sent');
+    } catch (err) {
+      setState('');
+      setError(err instanceof Error ? err.message : 'Could not save. Please try again.');
+    }
+  };
+  return (
+    <form className="pp-notify" onSubmit={send} style={{ borderColor: ink + '33' }}>
+      <b>{choice ? `${choice} is sold out.` : 'Sold out.'} Want it when it's back?</b>
+      <div className="pp-notify-row">
+        <input type="email" inputMode="email" autoComplete="email" placeholder="Your email" aria-label="Your email" value={email}
+          onChange={e => setEmail(e.target.value)} style={{ color: ink, borderColor: ink + '33' }} />
+        <button type="submit" disabled={state === 'sending'} style={{ background: accent, color: accentText }}>{state === 'sending' ? 'Saving…' : 'Email me'}</button>
+      </div>
+      {error && <small className="pp-opt-need" role="alert">{error}</small>}
+    </form>
+  );
+}
+
 /** A product's photos, swipeable, with its name, price and description; buyers pick options here. */
 function ProductPhotos({ item, show, design: d, onClose, onAdd }: {
   item: StoreItem;
@@ -968,13 +1139,23 @@ function ProductPhotos({ item, show, design: d, onClose, onAdd }: {
   const [picked, setPicked] = useState<number[]>(() => groups.map(() => -1));
   const [buyerNote, setBuyerNote] = useState('');
   const [tried, setTried] = useState(false);
-  const images = item.images ?? [];
+  const images = photosFor(item.images ?? [], item.options, picked);
+  // Picking a colour with its own photo jumps back to the first photo.
+  const gallery = useRef<HTMLDivElement>(null);
+  const lead = images[0];
+  useEffect(() => {
+    gallery.current?.scrollTo({ left: 0, behavior: 'smooth' });
+    setAt(0);
+  }, [lead]);
   const perChoice = !!item.options?.stock_per_choice && !item.madeToOrderDays;
   const allPicked = picked.every(i => i >= 0);
   const price = allPicked ? priceFor(item.price, item.options, picked) : fromPrice(item.price, item.options);
   const left = stockFor(item.stock, item.options, picked, item.madeToOrderDays);
-  const soldOut = item.madeToOrderDays ? false : groups.length && perChoice ? (allPicked ? left <= 0 : item.stock <= 0) : item.stock <= 0;
+  // A sold-out choice of the first option can still be picked, to ask to be told when it's back.
+  const choiceOut = perChoice && picked[0] >= 0 && (groups[0].choices[picked[0]].stock ?? 0) <= 0;
+  const soldOut = item.madeToOrderDays ? false : choiceOut || (groups.length && perChoice ? (allPicked ? left <= 0 : item.stock <= 0) : item.stock <= 0);
   const accent = d.colors.accent;
+  const cardText = cardTextOf(d);
   useEffect(() => {
     const key = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', key);
@@ -986,16 +1167,16 @@ function ProductPhotos({ item, show, design: d, onClose, onAdd }: {
   };
   return (
     <div className="sheet-overlay pp-overlay" role="dialog" aria-modal="true" aria-label={item.name} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="pp-card" style={{ background: d.colors.card, color: d.colors.text }}>
+      <div className="pp-card" style={{ background: d.colors.card, color: cardText }}>
         <button type="button" className="pp-close" aria-label="Close" onClick={onClose}>×</button>
         {images.length > 0 && (
-          <div className="pp-gallery" onScroll={e => { const el = e.currentTarget; setAt(Math.round(el.scrollLeft / el.clientWidth)); }}>
+          <div className="pp-gallery" ref={gallery} onScroll={e => { const el = e.currentTarget; setAt(Math.round(el.scrollLeft / el.clientWidth)); }}>
             {images.map((url, i) => <img key={url} src={url} alt={`${item.name}, photo ${i + 1} of ${images.length}`} />)}
           </div>
         )}
         {images.length > 1 && (
           <div className="pp-dots" aria-hidden="true">
-            {images.map((url, i) => <span key={url} style={{ background: d.colors.text, opacity: i === at ? 0.9 : 0.25 }} />)}
+            {images.map((url, i) => <span key={url} style={{ background: cardText, opacity: i === at ? 0.9 : 0.25 }} />)}
           </div>
         )}
         <div className="pp-body">
@@ -1003,7 +1184,7 @@ function ProductPhotos({ item, show, design: d, onClose, onAdd }: {
           <div className="pp-price">{!allPicked && variesInPrice(item.price, item.options) ? 'From ' : ''}{show(price)}</div>
           {allPicked && groups.length > 0 && <div className="pp-picked">{groups.map((g, gi) => g.choices[picked[gi]].label).join(' · ')}</div>}
           {!!item.madeToOrderDays && (
-            <div className="pp-mto" style={{ borderColor: accent, color: d.colors.text }}>Made to order · ready in {item.madeToOrderDays} {item.madeToOrderDays === 1 ? 'day' : 'days'}</div>
+            <div className="pp-mto" style={{ borderColor: accent, color: cardText }}>Made to order · ready in {item.madeToOrderDays} {item.madeToOrderDays === 1 ? 'day' : 'days'}</div>
           )}
           {groups.map((g, gi) => (
             <div key={g.name} className="pp-opt" role="radiogroup" aria-label={g.name}>
@@ -1019,11 +1200,11 @@ function ProductPhotos({ item, show, design: d, onClose, onAdd }: {
                       type="button"
                       role="radio"
                       aria-checked={on}
-                      disabled={out}
                       className={'pp-chip' + (on ? ' on' : '') + (out ? ' out' : '')}
-                      style={on ? { background: d.colors.text, color: d.colors.card, borderColor: d.colors.text } : { borderColor: d.colors.text + '33', color: d.colors.text }}
+                      style={on ? { background: cardText, color: d.colors.card, borderColor: cardText } : { borderColor: cardText + '33', color: cardText }}
                       onClick={() => setPicked(p => p.map((x, i) => (i === gi ? ci : x)))}
                     >
+                      {c.image && <img className="pp-chip-img" src={c.image} alt="" />}
                       {c.label}{extra}{out ? ' · sold out' : ''}
                     </button>
                   );
@@ -1035,12 +1216,17 @@ function ProductPhotos({ item, show, design: d, onClose, onAdd }: {
             <label className="pp-note">
               <span>{item.notePrompt}</span>
               <textarea rows={3} maxLength={500} value={buyerNote} onChange={e => setBuyerNote(e.target.value)}
-                style={{ color: d.colors.text, borderColor: d.colors.text + '33' }} />
+                style={{ color: cardText, borderColor: cardText + '33' }} />
             </label>
           )}
           {item.description && <p className="pp-desc">{item.description}</p>}
+          {soldOut && (
+            <NotifyBox key={groups[0]?.choices[picked[0]]?.label ?? ''} productId={item.key} choice={choiceOut && item.stock > 0 ? groups[0].choices[picked[0]].label : ''}
+              ink={cardText} accent={accent} accentText={d.colors.accent_text} />
+          )}
+          <ReportLink productId={item.key} ink={cardText} />
           <button type="button" className="pp-add" disabled={!!soldOut} onClick={add}
-            style={{ background: soldOut ? 'transparent' : accent, color: soldOut ? d.colors.text : d.colors.accent_text, border: soldOut ? '1px solid currentColor' : 'none' }}>
+            style={{ background: soldOut ? 'transparent' : accent, color: soldOut ? cardText : d.colors.accent_text, border: soldOut ? '1px solid currentColor' : 'none' }}>
             {soldOut ? 'Sold out' : allPicked ? `Add to bag · ${show(price)}` : groups.length ? 'Add to bag' : 'Add to bag'}
           </button>
           {tried && !allPicked && <div className="pp-opt-need" role="alert">Choose {groups.filter((_, gi) => picked[gi] < 0).map(g => g.name.toLowerCase()).join(' and ')} first.</div>}

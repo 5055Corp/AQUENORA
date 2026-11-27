@@ -3,6 +3,8 @@ import { ContainerRegistrationKeys, MedusaError } from "@medusajs/framework/util
 import { paymentsBlocker } from "../../../../lib/checkout"
 import { homeCountry, type Shipping } from "../../../../modules/seller/shipping"
 import { resolvePlan } from "../../../../lib/plans"
+import { SELLER_MODULE } from "../../../../modules/seller"
+import type SellerModuleService from "../../../../modules/seller/service"
 import { newestFirst, PRODUCT_FIELDS, toSellerProduct } from "../../../sellers/fields"
 
 /**
@@ -30,6 +32,9 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       "pickup",
       "paystack_subaccount_code",
       "verification_status",
+      "suspended_at",
+      "collections",
+      "booking_settings",
       "shipping",
       "trial_ends_at",
       "pro_paid_until",
@@ -43,12 +48,18 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     throw new MedusaError(MedusaError.Types.NOT_FOUND, `No store at ${req.params.handle}.aquenora.com`)
   }
 
-  const { products, trial_ends_at, pro_paid_until, paystack_subaccount_code, verification_status, shipping, ...store } = seller as typeof seller & {
+  const { products, trial_ends_at, pro_paid_until, paystack_subaccount_code, verification_status, suspended_at, shipping, booking_settings, ...store } = seller as typeof seller & {
+    booking_settings?: { enabled?: boolean } | null
+    suspended_at?: string | Date | null
     trial_ends_at?: string | null
     pro_paid_until?: string | null
     paystack_subaccount_code?: string | null
     verification_status?: string | null
     shipping?: Shipping | null
+  }
+  // A store AQUENORA has paused looks like no store at all to buyers.
+  if (suspended_at) {
+    throw new MedusaError(MedusaError.Types.NOT_FOUND, `No store at ${req.params.handle}.aquenora.com`)
   }
   const plan = await resolvePlan(req.scope, { trial_ends_at, pro_paid_until })
   const pickup = (store as unknown as { pickup?: { enabled?: boolean } | null }).pickup
@@ -66,12 +77,14 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       },
       accepts_payments: paymentsBlocker({ country_code: store.country_code, paystack_subaccount_code, verification_status }) === null,
       verified: verification_status === "verified",
+      // Service providers: the store shows "Book an appointment" (details from /store/sellers/:handle/booking).
+      bookings: !!booking_settings?.enabled && (await req.scope.resolve<SellerModuleService>(SELLER_MODULE).listBookingServices({ seller_id: store.id, active: true }, { take: 1, select: ["id"] })).length > 0,
     },
     products: newestFirst(
       (products ?? [])
         .filter(Boolean)
         .map(toSellerProduct)
-        .filter((p) => p.status === "published")
+        .filter((p) => p.status === "published" && !p.hidden)
     ),
   })
 }

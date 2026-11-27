@@ -4,6 +4,7 @@ import { z } from "@medusajs/framework/zod"
 import { SELLER_COUNTRIES } from "../../modules/seller/currency"
 import { StoreDesignSchema } from "../../modules/seller/design"
 import { productOptionFields } from "../../lib/product-options"
+import { BookingEmailSchema, BookingSettingsSchema } from "../../lib/bookings"
 import { PickupSchema } from "../../modules/seller/pickup"
 import { ShippingSchema } from "../../modules/seller/shipping"
 
@@ -21,6 +22,8 @@ export const CreateSellerSchema = z.object({
   category: z.string().trim().min(1).max(60).optional(),
   country_code: z.enum(SELLER_COUNTRIES).optional(),
   sells_abroad: z.boolean().optional(),
+  /** The web address of the seller who invited them (from an invite link). Ignored if unknown. */
+  referral: z.string().trim().max(40).optional(),
 })
 export type CreateSellerBody = z.infer<typeof CreateSellerSchema>
 
@@ -40,6 +43,17 @@ export const UpdateSellerSchema = z
     design: StoreDesignSchema,
     pickup: PickupSchema,
     shipping: ShippingSchema,
+    /** Collections inside the store, in display order. */
+    collections: z
+      .array(z.object({ id: z.string().regex(/^[a-z0-9-]{1,40}$/), name: z.string().trim().min(1, "Name the collection").max(30) }).strict())
+      .max(20, "A store can have up to 20 collections.")
+      .refine((c) => new Set(c.map((x) => x.id)).size === c.length, "Two collections have the same id.")
+      .refine((c) => new Set(c.map((x) => x.name.toLowerCase())).size === c.length, "Two collections have the same name.")
+      .nullable(),
+    /** Bookings: on/off, opening hours, address, notice and cancellation rules (see lib/bookings.ts). */
+    booking_settings: BookingSettingsSchema,
+    /** The "Appointment booked" email in the provider's words (null = AQUENORA's default). */
+    booking_email: BookingEmailSchema.nullable(),
   })
   .partial()
   .strict()
@@ -64,6 +78,7 @@ export const CreateSellerProductSchema = z.object({
   options: productOptionFields.options.optional(),
   made_to_order_days: productOptionFields.made_to_order_days.optional(),
   note_prompt: productOptionFields.note_prompt.optional(),
+  collections: z.array(z.string().regex(/^[a-z0-9-]{1,40}$/)).max(20).optional(),
 })
 
 export const UpdateSellerProductSchema = z
@@ -74,6 +89,8 @@ export const UpdateSellerProductSchema = z
     cost_price: money.nullable(),
     images: productImages,
     description: z.string().trim().max(2000),
+    /** Ids of the store's collections this product is in. */
+    collections: z.array(z.string().regex(/^[a-z0-9-]{1,40}$/)).max(20),
     ...productOptionFields,
   })
   .partial()
@@ -130,6 +147,9 @@ export const BillingSettingsSchema = z
     free_commission_percent: z.number().min(0).max(30),
     pro_commission_percent: z.number().min(0).max(30),
     trial_days: z.number().int().min(0).max(90),
+    booking_fee_percent: z.number().min(0).max(30),
+    free_emails_per_month: z.number().int().min(0).max(100000),
+    extra_email_price_ngn: z.number().min(0).max(10000),
   })
   .partial()
   .strict()
@@ -292,3 +312,187 @@ export type ReviewVerificationBody = z.infer<typeof ReviewVerificationSchema>
 
 export const StoreVisitSchema = z.object({ source: z.enum(["whatsapp", "instagram", "facebook", "tiktok", "google", "aquenora", "direct", "other"]) }).strict()
 export type StoreVisitBody = z.infer<typeof StoreVisitSchema>
+
+// ---- disputes (a buyer's problem with an order) and moderation ----
+
+const disputeFiles = z
+  .array(z.object({ mime_type: z.enum(["image/jpeg", "image/png", "image/webp"]), data: z.string().max(2_100_000) }).strict())
+  .max(3, "Add up to 3 photos.")
+  .optional()
+
+export const OpenDisputeSchema = z
+  .object({
+    reason: z.enum(["not_arrived", "wrong_item", "damaged", "not_as_described", "other"]),
+    message: z.string().trim().min(3, "Tell the shop what happened.").max(1000),
+    files: disputeFiles,
+  })
+  .strict()
+export type OpenDisputeBody = z.infer<typeof OpenDisputeSchema>
+
+export const BuyerDisputeActionSchema = z
+  .object({ action: z.enum(["message", "confirm", "escalate"]), text: z.string().trim().max(1000).optional(), files: disputeFiles })
+  .strict()
+export type BuyerDisputeActionBody = z.infer<typeof BuyerDisputeActionSchema>
+
+export const SellerDisputeActionSchema = z
+  .object({
+    action: z.enum(["message", "refunded"]),
+    text: z.string().trim().max(1000).optional(),
+    amount: z.number().min(0).max(1_000_000_000).optional(),
+    files: disputeFiles,
+  })
+  .strict()
+export type SellerDisputeActionBody = z.infer<typeof SellerDisputeActionSchema>
+
+export const AdminDisputeActionSchema = z
+  .object({
+    action: z.enum(["decide", "message", "confirm"]),
+    outcome: z.enum(["refund_required", "seller"]).optional(),
+    text: z.string().trim().max(1000).optional(),
+    amount: z.number().min(0).max(1_000_000_000).optional(),
+  })
+  .strict()
+export type AdminDisputeActionBody = z.infer<typeof AdminDisputeActionSchema>
+
+export const ReportProductSchema = z
+  .object({ reason: z.enum(["counterfeit", "prohibited", "misleading", "offensive", "scam", "other"]), note: z.string().trim().max(500).optional() })
+  .strict()
+export type ReportProductBody = z.infer<typeof ReportProductSchema>
+
+export const ReviewReportSchema = z.object({ action: z.enum(["hide", "dismiss"]), reason: z.string().trim().max(300).optional() }).strict()
+export type ReviewReportBody = z.infer<typeof ReviewReportSchema>
+
+export const SuspendSellerSchema = z
+  .object({ suspend: z.boolean(), reason: z.string().trim().max(500).optional() })
+  .strict()
+  .refine((b) => !b.suspend || !!b.reason, { message: "Write the reason (the seller is emailed it).", path: ["reason"] })
+export type SuspendSellerBody = z.infer<typeof SuspendSellerSchema>
+
+export const StockAlertSchema = z.object({ email: z.string().trim().email("Enter a valid email address").max(200), choice: z.string().trim().max(40).optional() }).strict()
+export type StockAlertBody = z.infer<typeof StockAlertSchema>
+
+/** Many products at once, from a spreadsheet (CSV) the seller filled in. Photos are added afterwards. */
+export const ImportProductsSchema = z
+  .object({ products: z.array(CreateSellerProductSchema.omit({ images: true }).strict()).min(1, "The file has no products.").max(200, "Up to 200 products at a time.") })
+  .strict()
+export type ImportProductsBody = z.infer<typeof ImportProductsSchema>
+
+export const DeviceCodeSchema = z.object({ device_name: z.string().trim().max(60).optional() }).strict()
+export type DeviceCodeBody = z.infer<typeof DeviceCodeSchema>
+export const VerifyDeviceCodeSchema = z.object({ code: z.string().trim().regex(/^\d{6}$/, "Enter the 6-digit code from the email.") }).strict()
+export type VerifyDeviceCodeBody = z.infer<typeof VerifyDeviceCodeSchema>
+
+/** An iPhone's APNs device token (64 hex characters today; allow some room). */
+export const PushTokenSchema = z.object({ token: z.string().regex(/^[a-fA-F0-9]{32,200}$/, "Not a valid device token") }).strict()
+export type PushTokenBody = z.infer<typeof PushTokenSchema>
+
+// ---- bookings (service providers) ----
+
+const addonSchema = z
+  .object({
+    /** Kept when editing; new add-ons get one. */
+    id: z.string().max(40).optional(),
+    name: z.string().trim().min(1, "Name the add-on").max(60),
+    price: z.number().min(0).max(1_000_000_000),
+    /** Extra time it adds (0 if none). */
+    duration_min: z.number().int().min(0).max(480),
+  })
+  .strict()
+
+const serviceFields = {
+  name: z.string().trim().min(1, "Name the service").max(80),
+  description: z.string().trim().max(600).nullable(),
+  duration_min: z.number().int().min(5, "At least 5 minutes").max(720, "At most 12 hours"),
+  price: z.number().min(0).max(1_000_000_000),
+  /** "contact": shown on the booking page, but customers get in touch to book. */
+  payment: z.enum(["deposit", "full", "none", "contact"]),
+  addons: z.array(addonSchema).max(15, "Up to 15 add-ons"),
+  deposit_type: z.enum(["fixed", "percent"]),
+  deposit_value: z.number().min(0).max(1_000_000_000),
+  active: z.boolean(),
+  sort: z.number().int().min(0).max(1000),
+}
+const depositOk = (s: { payment?: string; deposit_type?: string; deposit_value?: number }) =>
+  s.payment !== "deposit" || s.deposit_value === undefined || s.deposit_value > 0
+const percentOk = (s: { deposit_type?: string; deposit_value?: number }) => s.deposit_type !== "percent" || (s.deposit_value ?? 0) <= 100
+export const CreateServiceSchema = z
+  .object(serviceFields)
+  .partial({ description: true, deposit_type: true, deposit_value: true, active: true, sort: true, addons: true })
+  .strict()
+  .refine((s) => s.payment !== "deposit" || (s.deposit_value ?? 0) > 0, { message: "Set the deposit amount", path: ["deposit_value"] })
+  .refine(percentOk, { message: "A deposit can't be more than 100%", path: ["deposit_value"] })
+export type CreateServiceBody = z.infer<typeof CreateServiceSchema>
+export const UpdateServiceSchema = z.object(serviceFields).partial().strict().refine(depositOk, { message: "Set the deposit amount", path: ["deposit_value"] }).refine(percentOk, { message: "A deposit can't be more than 100%", path: ["deposit_value"] })
+export type UpdateServiceBody = z.infer<typeof UpdateServiceSchema>
+
+const returnUrl = z.string().url().max(500).refine((u) => /^https?:\/\//.test(u), "Invalid return address")
+export const StartBookingSchema = z
+  .object({
+    service_id: z.string().min(1).max(60),
+    starts_at: z.string().datetime({ offset: true }),
+    name: z.string().trim().min(2, "Enter your name").max(80),
+    email: z.string().trim().email("Enter a valid email address").max(200),
+    phone: z.string().trim().min(7, "Enter your phone number").max(30),
+    note: z.string().trim().max(500).optional(),
+    pay: z.enum(["deposit", "full", "later"]),
+    return_url: returnUrl,
+    /** "Send me news and offers from this shop". */
+    marketing_opt_in: z.boolean().optional(),
+    addon_ids: z.array(z.string().max(40)).max(15).optional(),
+    /** A chosen team member; leave out for "anyone available". */
+    staff_id: z.string().max(40).nullable().optional(),
+  })
+  .strict()
+export type StartBookingBody = z.infer<typeof StartBookingSchema>
+
+export const CustomerBookingActionSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("cancel") }).strict(),
+  z.object({ action: z.literal("reschedule"), starts_at: z.string().datetime({ offset: true }) }).strict(),
+  z.object({ action: z.literal("pay_balance"), return_url: returnUrl }).strict(),
+  z.object({ action: z.literal("tip"), amount: z.number().min(100, "The smallest tip is 100").max(10_000_000), return_url: returnUrl }).strict(),
+])
+export type CustomerBookingActionBody = z.infer<typeof CustomerBookingActionSchema>
+
+export const SellerBookingActionSchema = z
+  .object({ action: z.enum(["complete", "no_show", "refunded", "cancel"]), reason: z.string().trim().max(300).optional() })
+  .strict()
+export type SellerBookingActionBody = z.infer<typeof SellerBookingActionSchema>
+
+// ---- email blasts ----
+
+export const BuyEmailsSchema = z
+  .object({ count: z.number().int().min(50, "Buy at least 50 emails").max(100000), return_url: z.string().url().max(500).refine((u) => /^https?:\/\//.test(u), "Invalid return address") })
+  .strict()
+export type BuyEmailsBody = z.infer<typeof BuyEmailsSchema>
+
+/** A blast that repeats every week or month, starting at first_send_at. */
+export const CreateScheduleSchema = z
+  .object({
+    subject: z.string().trim().min(1, "Add a subject").max(120),
+    message: z.string().trim().min(1, "Write a message").max(5000),
+    audience: z.enum(["all", "repeat", "lapsed"]),
+    every: z.enum(["week", "month"]),
+    first_send_at: z.string().datetime({ offset: true }),
+  })
+  .strict()
+export type CreateScheduleBody = z.infer<typeof CreateScheduleSchema>
+export const UpdateScheduleSchema = z.object({ active: z.boolean() }).strict()
+export type UpdateScheduleBody = z.infer<typeof UpdateScheduleSchema>
+
+export const ManualBookingSchema = z
+  .object({
+    service_id: z.string().min(1).max(60),
+    starts_at: z.string().datetime({ offset: true }),
+    name: z.string().trim().min(1, "Enter the customer's name").max(80),
+    phone: z.string().trim().max(30).optional(),
+    email: z.union([z.string().trim().email("Enter a valid email address").max(200), z.literal("")]).optional(),
+    note: z.string().trim().max(500).optional(),
+    /** Already paid (cash, transfer). */
+    paid: z.number().min(0).max(1_000_000_000).optional(),
+    addon_ids: z.array(z.string().max(40)).max(15).optional(),
+    /** The price agreed with the customer, if not the list price. */
+    price: z.number().min(0).max(1_000_000_000).optional(),
+    staff_id: z.string().max(40).nullable().optional(),
+  })
+  .strict()
+export type ManualBookingBody = z.infer<typeof ManualBookingSchema>

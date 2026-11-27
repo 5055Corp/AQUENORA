@@ -33,6 +33,10 @@ medusaIntegrationTestRunner({
 
       const saved = (await api.post("/sellers/me", { design }, { headers })).data.seller.design
       expect(saved).toEqual({ ...design, social: { instagram: "adire.house", whatsapp: "2348012345678" } })
+
+      // A separate text colour for products (cards, product window, bag and checkout).
+      const withCardText = { ...design, colors: { ...design.colors, card_text: "#1c1a17" } }
+      expect((await api.post("/sellers/me", { design: withCardText }, { headers })).data.seller.design.colors.card_text).toBe("#1c1a17")
     })
 
     it("rejects designs with bad values or unknown settings", async () => {
@@ -41,6 +45,7 @@ medusaIntegrationTestRunner({
 
       expect(await bad({ ...design, colors: { ...design.colors, accent: "red" } })).toEqual(400)
       expect(await bad({ ...design, colors: { ...design.colors, accent: "#fff; background:url(x)" } })).toEqual(400)
+      expect(await bad({ ...design, colors: { ...design.colors, card_text: "blue" } })).toEqual(400)
       expect(await bad({ ...design, fonts: { heading: "comic-sans", body: "poppins" } })).toEqual(400)
       expect(await bad({ ...design, products: { columns: 6, show_stock: true } })).toEqual(400)
       expect(await bad({ ...design, css: "body{}" })).toEqual(400)

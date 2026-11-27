@@ -1,7 +1,7 @@
 import { ImageCropper } from './ImageCropper';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { ImageKind } from '../images';
-import { contrast, FONT_KEYS, loadFonts, PRESETS, readableOn, STORE_FONTS, SWATCHES, type FontKey, type StoreDesign } from '../design';
+import { cardTextOf, contrast, FONT_KEYS, loadFonts, PRESETS, readableOn, STORE_FONTS, SWATCHES, type FontKey, type StoreDesign } from '../design';
 import { useStore } from '../store';
 import { StoreView } from '../storefront/StoreView';
 
@@ -9,10 +9,11 @@ type ColorKey = keyof StoreDesign['colors'];
 
 const COLOR_ROWS: { key: ColorKey; label: string; hint: string }[] = [
   { key: 'background', label: 'Background', hint: 'The page behind everything' },
-  { key: 'text', label: 'Text', hint: 'Your shop name, prices and words' },
+  { key: 'text', label: 'Text on background', hint: 'Shop name, headline, About us and other words on the page' },
   { key: 'accent', label: 'Buttons & highlights', hint: 'Buttons and the announcement bar' },
   { key: 'accent_text', label: 'Button text', hint: 'Words on your buttons' },
   { key: 'card', label: 'Product cards', hint: 'The box around each product' },
+  { key: 'card_text', label: 'Text on products', hint: 'Product names, prices and words in the product window, bag and checkout' },
 ];
 
 /** Upload, change or remove the logo or banner photo. */
@@ -98,8 +99,9 @@ export function ThemeEditor() {
   const warnings: { text: string; fix: () => void }[] = [];
   if (contrast(d.colors.text, d.colors.background) < 4.5) {
     warnings.push({ text: 'Your text is hard to read on this background.', fix: () => setColor('text', readableOn(d.colors.background)) });
-  } else if (contrast(d.colors.text, d.colors.card) < 4.5) {
-    warnings.push({ text: 'Product names are hard to read on the product cards.', fix: () => setColor('card', d.colors.background) });
+  }
+  if (contrast(cardTextOf(d), d.colors.card) < 4.5) {
+    warnings.push({ text: 'Product names are hard to read on the product cards.', fix: () => setColor('card_text', readableOn(d.colors.card)) });
   }
   if (contrast(d.colors.accent_text, d.colors.accent) < 3) {
     warnings.push({ text: 'Button text is hard to read on the button colour.', fix: () => setColor('accent_text', readableOn(d.colors.accent)) });
@@ -107,6 +109,7 @@ export function ThemeEditor() {
 
   return (
     <>
+      <button type="button" className="biz-back" onClick={() => set({ tab: 'business' })}>‹ Business</button>
       <div className="de-head">
         <h1 className="h1" style={{ fontSize: h1Size }}>Your store's look</h1>
         <button type="button" className="publish" disabled={s.busy} onClick={() => publishDesign()}>
@@ -149,15 +152,15 @@ export function ThemeEditor() {
           </Section>
 
           <Section title="3. Colours" open>
-            {COLOR_ROWS.map(row => (
+            {COLOR_ROWS.map(row => { const value = row.key === 'card_text' ? cardTextOf(d) : d.colors[row.key]!; return (
               <div className="color-row" key={row.key}>
                 <label className="color-main">
-                  <input type="color" value={d.colors[row.key]} onChange={e => setColor(row.key, e.target.value)} aria-label={`${row.label} colour`} />
+                  <input type="color" value={value} onChange={e => setColor(row.key, e.target.value)} aria-label={`${row.label} colour`} />
                   <span>
                     <b>{row.label}</b>
                     <small>{row.hint}</small>
                   </span>
-                  <code>{d.colors[row.key]}</code>
+                  <code>{value}</code>
                 </label>
                 <div className="swatch-row" role="group" aria-label={`Suggested ${row.label.toLowerCase()} colours`}>
                   {SWATCHES.map(c => (
@@ -167,14 +170,14 @@ export function ThemeEditor() {
                       className="mini-swatch"
                       title={c}
                       aria-label={c}
-                      aria-pressed={d.colors[row.key] === c}
-                      style={{ background: c, outline: d.colors[row.key] === c ? '2px solid var(--ink)' : undefined }}
+                      aria-pressed={value === c}
+                      style={{ background: c, outline: value === c ? '2px solid var(--ink)' : undefined }}
                       onClick={() => setColor(row.key, c)}
                     />
                   ))}
                 </div>
               </div>
-            ))}
+            ); })}
             {warnings.map(w => (
               <div className="notice" key={w.text} role="status">
                 <span>{w.text}</span>
