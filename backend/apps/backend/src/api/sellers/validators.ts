@@ -4,6 +4,7 @@ import { z } from "@medusajs/framework/zod"
 import { SELLER_COUNTRIES } from "../../modules/seller/currency"
 import { StoreDesignSchema } from "../../modules/seller/design"
 import { productOptionFields } from "../../lib/product-options"
+import { BookingEmailSchema, BookingSettingsSchema } from "../../lib/bookings"
 import { PickupSchema } from "../../modules/seller/pickup"
 import { ShippingSchema } from "../../modules/seller/shipping"
 
@@ -49,6 +50,10 @@ export const UpdateSellerSchema = z
       .refine((c) => new Set(c.map((x) => x.id)).size === c.length, "Two collections have the same id.")
       .refine((c) => new Set(c.map((x) => x.name.toLowerCase())).size === c.length, "Two collections have the same name.")
       .nullable(),
+    /** Bookings: on/off, opening hours, address, notice and cancellation rules (see lib/bookings.ts). */
+    booking_settings: BookingSettingsSchema,
+    /** The "Appointment booked" email in the provider's words (null = AQUENORA's default). */
+    booking_email: BookingEmailSchema.nullable(),
   })
   .partial()
   .strict()
@@ -142,6 +147,9 @@ export const BillingSettingsSchema = z
     free_commission_percent: z.number().min(0).max(30),
     pro_commission_percent: z.number().min(0).max(30),
     trial_days: z.number().int().min(0).max(90),
+    booking_fee_percent: z.number().min(0).max(30),
+    free_emails_per_month: z.number().int().min(0).max(100000),
+    extra_email_price_ngn: z.number().min(0).max(10000),
   })
   .partial()
   .strict()
@@ -377,3 +385,57 @@ export type VerifyDeviceCodeBody = z.infer<typeof VerifyDeviceCodeSchema>
 /** An iPhone's APNs device token (64 hex characters today; allow some room). */
 export const PushTokenSchema = z.object({ token: z.string().regex(/^[a-fA-F0-9]{32,200}$/, "Not a valid device token") }).strict()
 export type PushTokenBody = z.infer<typeof PushTokenSchema>
+
+// ---- bookings (service providers) ----
+
+const serviceFields = {
+  name: z.string().trim().min(1, "Name the service").max(80),
+  description: z.string().trim().max(600).nullable(),
+  duration_min: z.number().int().min(5, "At least 5 minutes").max(720, "At most 12 hours"),
+  price: z.number().min(0).max(1_000_000_000),
+  payment: z.enum(["deposit", "full", "none"]),
+  deposit_type: z.enum(["fixed", "percent"]),
+  deposit_value: z.number().min(0).max(1_000_000_000),
+  active: z.boolean(),
+  sort: z.number().int().min(0).max(1000),
+}
+const depositOk = (s: { payment?: string; deposit_type?: string; deposit_value?: number }) =>
+  s.payment !== "deposit" || s.deposit_value === undefined || s.deposit_value > 0
+const percentOk = (s: { deposit_type?: string; deposit_value?: number }) => s.deposit_type !== "percent" || (s.deposit_value ?? 0) <= 100
+export const CreateServiceSchema = z
+  .object(serviceFields)
+  .partial({ description: true, deposit_type: true, deposit_value: true, active: true, sort: true })
+  .strict()
+  .refine((s) => s.payment !== "deposit" || (s.deposit_value ?? 0) > 0, { message: "Set the deposit amount", path: ["deposit_value"] })
+  .refine(percentOk, { message: "A deposit can't be more than 100%", path: ["deposit_value"] })
+export type CreateServiceBody = z.infer<typeof CreateServiceSchema>
+export const UpdateServiceSchema = z.object(serviceFields).partial().strict().refine(depositOk, { message: "Set the deposit amount", path: ["deposit_value"] }).refine(percentOk, { message: "A deposit can't be more than 100%", path: ["deposit_value"] })
+export type UpdateServiceBody = z.infer<typeof UpdateServiceSchema>
+
+const returnUrl = z.string().url().max(500).refine((u) => /^https?:\/\//.test(u), "Invalid return address")
+export const StartBookingSchema = z
+  .object({
+    service_id: z.string().min(1).max(60),
+    starts_at: z.string().datetime({ offset: true }),
+    name: z.string().trim().min(2, "Enter your name").max(80),
+    email: z.string().trim().email("Enter a valid email address").max(200),
+    phone: z.string().trim().min(7, "Enter your phone number").max(30),
+    note: z.string().trim().max(500).optional(),
+    pay: z.enum(["deposit", "full", "later"]),
+    return_url: returnUrl,
+  })
+  .strict()
+export type StartBookingBody = z.infer<typeof StartBookingSchema>
+
+export const CustomerBookingActionSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("cancel") }).strict(),
+  z.object({ action: z.literal("reschedule"), starts_at: z.string().datetime({ offset: true }) }).strict(),
+  z.object({ action: z.literal("pay_balance"), return_url: returnUrl }).strict(),
+  z.object({ action: z.literal("tip"), amount: z.number().min(100, "The smallest tip is 100").max(10_000_000), return_url: returnUrl }).strict(),
+])
+export type CustomerBookingActionBody = z.infer<typeof CustomerBookingActionSchema>
+
+export const SellerBookingActionSchema = z
+  .object({ action: z.enum(["complete", "no_show", "refunded", "cancel"]), reason: z.string().trim().max(300).optional() })
+  .strict()
+export type SellerBookingActionBody = z.infer<typeof SellerBookingActionSchema>

@@ -8,14 +8,14 @@ import { createHmac, timingSafeEqual } from "node:crypto"
 import { MedusaError } from "@medusajs/framework/utils"
 import { shopUrl } from "./campaign-email"
 
-function secret(): string {
+export function signingSecret(): string {
   const s = process.env.ORDER_TRACKING_SECRET || process.env.JWT_SECRET || process.env.COOKIE_SECRET
   if (s) return s
   if (process.env.NODE_ENV === "production") throw new MedusaError(MedusaError.Types.UNEXPECTED_STATE, "Set JWT_SECRET (used to sign order tracking links).")
   return "dev-order-tracking-secret"
 }
 
-const sign = (orderId: string) => createHmac("sha256", secret()).update(`track:${orderId}`).digest("base64url").slice(0, 24)
+const sign = (orderId: string) => createHmac("sha256", signingSecret()).update(`track:${orderId}`).digest("base64url").slice(0, 24)
 
 /** "<order id>.<signature>" */
 export function trackToken(orderId: string): string {

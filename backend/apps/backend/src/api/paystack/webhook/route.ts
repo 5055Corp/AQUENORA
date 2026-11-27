@@ -3,6 +3,7 @@ import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import { confirmPayment } from "../../../lib/checkout"
 import { validWebhookSignature } from "../../../lib/paystack"
 import { confirmProPayment } from "../../../lib/pro-billing"
+import { confirmBookingPaymentWorkflow } from "../../../workflows/bookings"
 
 /**
  * POST /paystack/webhook
@@ -17,10 +18,12 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   }
   const event = req.body as { event?: string; data?: { reference?: string } }
   const ref = event.data?.reference ?? ""
-  if (event.event === "charge.success" && /^aq[pr]?_/.test(ref)) {
+  if (event.event === "charge.success" && /^aq[prb]?_/.test(ref)) {
     try {
-      // aq_ = a buyer's order; aqp_ / aqr_ = a seller paying for Pro (first payment / renewal).
-      await (ref.startsWith("aq_") ? confirmPayment(req.scope, ref) : confirmProPayment(req.scope, ref))
+      // aq_ = a buyer's order; aqb_ = a booking payment (deposit, full, the rest, tip);
+      // aqp_ / aqr_ = a seller paying for Pro (first payment / renewal).
+      if (ref.startsWith("aqb_")) await confirmBookingPaymentWorkflow(req.scope).run({ input: { reference: ref } })
+      else await (ref.startsWith("aq_") ? confirmPayment(req.scope, ref) : confirmProPayment(req.scope, ref))
     } catch (e) {
       // A 500 makes Paystack retry later.
       req.scope.resolve(ContainerRegistrationKeys.LOGGER).error(`Paystack webhook ${ref}: ${(e as Error).message}`)

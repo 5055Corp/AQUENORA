@@ -116,12 +116,17 @@ export type InitializeInput = {
   /** AQUENORA's commission, subunits. */
   transaction_charge: number
   metadata: Record<string, unknown>
+  /**
+   * Who pays Paystack's fee: "subaccount" (the seller's share; product sales and tips) or
+   * "account" (AQUENORA's share; bookings, where AQUENORA's fee is added on top for the customer).
+   */
+  bearer?: "subaccount" | "account"
 }
 
 export async function initializeTransaction(input: InitializeInput) {
   return call<{ authorization_url: string; access_code: string; reference: string }>("POST", "/transaction/initialize", {
     ...input,
-    bearer: "subaccount",
+    bearer: input.bearer ?? "subaccount",
   })
 }
 
@@ -196,3 +201,5 @@ export function validWebhookSignature(rawBody: Buffer | string, signature: strin
 }
 
 export const newReference = () => "aq_" + crypto.randomBytes(12).toString("hex")
+/** Booking payments (deposit, full, the rest, tips). */
+export const newBookingReference = () => "aqb_" + crypto.randomBytes(12).toString("hex")

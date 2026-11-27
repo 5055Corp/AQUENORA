@@ -44,6 +44,11 @@ import {
   DeviceCodeSchema,
   VerifyDeviceCodeSchema,
   PushTokenSchema,
+  CreateServiceSchema,
+  UpdateServiceSchema,
+  StartBookingSchema,
+  CustomerBookingActionSchema,
+  SellerBookingActionSchema,
   UpdateSellerSchema,
 } from "./sellers/validators"
 
@@ -82,6 +87,47 @@ export default defineMiddlewares({
       // Sign-in safety: new devices confirm with an emailed code (see api/device-guard.ts).
       matcher: "/sellers/me*",
       middlewares: [deviceGuard],
+    },
+    // ---- bookings (service providers) ----
+    {
+      methods: ["POST"],
+      matcher: "/sellers/me/services",
+      middlewares: [sellerAuth, validateAndTransformBody(CreateServiceSchema)],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/sellers/me/services/:id",
+      middlewares: [sellerAuth, validateAndTransformBody(UpdateServiceSchema)],
+    },
+    {
+      methods: ["DELETE"],
+      matcher: "/sellers/me/services/:id",
+      middlewares: [sellerAuth],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/sellers/me/bookings/:id",
+      middlewares: [sellerAuth, validateAndTransformBody(SellerBookingActionSchema)],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/sellers/me/booking-calendar",
+      middlewares: [sellerAuth],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/store/sellers/:handle/booking",
+      middlewares: [validateAndTransformBody(StartBookingSchema)],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/store/bookings/:token",
+      middlewares: [validateAndTransformBody(CustomerBookingActionSchema)],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/store/booking-payments/verify",
+      middlewares: [validateAndTransformBody(VerifyPaymentSchema)],
     },
     {
       methods: ["POST", "DELETE"],

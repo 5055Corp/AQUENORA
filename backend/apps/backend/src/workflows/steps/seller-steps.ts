@@ -30,6 +30,8 @@ export type UpdateSellerData = Partial<Omit<CreateSellerData, "email">> & {
   design?: Record<string, unknown> | null
   pickup?: Record<string, unknown> | null
   referral_rewarded_at?: Date | null
+  booking_settings?: Record<string, unknown> | null
+  booking_email?: { subject: string; message: string } | null
   // Set only by the plan and domain routes (never from the seller's own settings body).
   trial_ends_at?: Date | null
   pro_paid_until?: Date | null

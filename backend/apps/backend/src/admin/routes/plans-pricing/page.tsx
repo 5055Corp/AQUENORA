@@ -4,7 +4,7 @@ import { Badge, Button, Container, Heading, Input, Label, Table, Text, toast } f
 import { useCallback, useEffect, useState } from "react"
 
 type Price = { country_code: string; currency_code: string; monthly_price: number; is_default: boolean }
-type Settings = { free_commission_percent: number; pro_commission_percent: number; trial_days: number }
+type Settings = { free_commission_percent: number; pro_commission_percent: number; trial_days: number; booking_fee_percent: number; free_emails_per_month: number; extra_email_price_ngn: number }
 type SellerRow = {
   id: string
   name: string
@@ -67,6 +67,9 @@ const PlansPricingPage = () => {
         free_commission_percent: String(s.settings.free_commission_percent),
         pro_commission_percent: String(s.settings.pro_commission_percent),
         trial_days: String(s.settings.trial_days),
+        booking_fee_percent: String(s.settings.booking_fee_percent),
+        free_emails_per_month: String(s.settings.free_emails_per_month),
+        extra_email_price_ngn: String(s.settings.extra_email_price_ngn),
       })
       setSellers(f.sellers)
     } catch (e) {
@@ -104,6 +107,9 @@ const PlansPricingPage = () => {
         free_commission_percent: Number(settings.free_commission_percent),
         pro_commission_percent: Number(settings.pro_commission_percent),
         trial_days: Number(settings.trial_days),
+        booking_fee_percent: Number(settings.booking_fee_percent),
+        free_emails_per_month: Number(settings.free_emails_per_month),
+        extra_email_price_ngn: Number(settings.extra_email_price_ngn),
       })
       toast.success("Saved. New rates apply to new orders only.")
       load()
@@ -182,11 +188,14 @@ const PlansPricingPage = () => {
                 ["free_commission_percent", "Free plan: % per sale"],
                 ["pro_commission_percent", "Pro plan: % per sale"],
                 ["trial_days", "Free trial length (days)"],
+                ["booking_fee_percent", "Bookings: % added on top for customers"],
+                ["free_emails_per_month", "Free emails per month (blasts)"],
+                ["extra_email_price_ngn", "Price per extra email (₦)"],
               ] as [keyof Settings, string][]
             ).map(([key, label]) => (
               <div key={key} className="flex flex-col gap-y-1">
                 <Label htmlFor={key} size="small" weight="plus">{label}</Label>
-                <Input id={key} type="number" min={0} step={key === "trial_days" ? 1 : 0.1} value={settings[key]} onChange={(e) => setSettings({ ...settings, [key]: e.target.value })} />
+                <Input id={key} type="number" min={0} step={key === "trial_days" || key === "free_emails_per_month" ? 1 : 0.1} value={settings[key]} onChange={(e) => setSettings({ ...settings, [key]: e.target.value })} />
               </div>
             ))}
           </div>

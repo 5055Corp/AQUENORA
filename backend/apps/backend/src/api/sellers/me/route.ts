@@ -4,6 +4,8 @@ import { removeCustomHostname } from "../../../lib/cloudflare"
 import { deleteSellerAccountWorkflow } from "../../../workflows/delete-seller-account"
 import { updateSellerWorkflow } from "../../../workflows/update-seller"
 import { SELLER_FIELDS } from "../fields"
+import { SELLER_MODULE } from "../../../modules/seller"
+import type SellerModuleService from "../../../modules/seller/service"
 import type { UpdateSellerBody } from "../validators"
 
 /** GET /sellers/me: the signed-in seller's store details. */
@@ -22,8 +24,15 @@ export async function GET(req: AuthenticatedMedusaRequest, res: MedusaResponse) 
 
 /** POST /sellers/me: update shop details, onboarding progress or store design. */
 export async function POST(req: AuthenticatedMedusaRequest<UpdateSellerBody>, res: MedusaResponse) {
+  const changes: Record<string, unknown> = { ...req.validatedBody }
+  if (req.validatedBody.booking_settings) {
+    // Keep the private calendar link (it isn't part of what the app sends).
+    const current = (await req.scope.resolve<SellerModuleService>(SELLER_MODULE).retrieveSeller(req.auth_context.actor_id)) as unknown as { booking_settings?: { calendar_key?: string } | null }
+    const key = current.booking_settings?.calendar_key
+    changes.booking_settings = { ...req.validatedBody.booking_settings, ...(key ? { calendar_key: key } : {}) }
+  }
   await updateSellerWorkflow(req.scope).run({
-    input: { id: req.auth_context.actor_id, data: req.validatedBody },
+    input: { id: req.auth_context.actor_id, data: changes },
   })
 
   const query = req.scope.resolve(ContainerRegistrationKeys.QUERY)

@@ -63,6 +63,16 @@ const Seller = model.define("seller", {
   device_code: model.json().nullable(),
   // iPhones to send push notifications to: [{ token, at }] (newest last, at most 5).
   push_tokens: model.json().nullable(),
+  // ---- bookings (service providers) ----
+  // { enabled, timezone, address, hours: { mon: [{ from: "09:00", to: "18:00" }], ... }, buffer_min,
+  //   min_notice_min, days_ahead, cancel_hours, calendar_key } (see lib/bookings.ts)
+  booking_settings: model.json().nullable(),
+  // The "Appointment booked" email the seller can edit: { subject, message } with {placeholders}.
+  booking_email: model.json().nullable(),
+  // ---- email blasts: free allowance per month, then paid extras ----
+  // { month: "2026-11", sent: 40 }
+  email_usage: model.json().nullable(),
+  email_credits: model.number().default(0),
   // ---- referrals ----
   // The seller who invited this one (their id), and when both got their free Pro month.
   referred_by: model.text().nullable(),
