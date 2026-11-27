@@ -49,6 +49,7 @@ import {
   StartBookingSchema,
   CustomerBookingActionSchema,
   SellerBookingActionSchema,
+  ManualBookingSchema,
   BuyEmailsSchema,
   CreateScheduleSchema,
   UpdateScheduleSchema,
@@ -132,6 +133,11 @@ export default defineMiddlewares({
       methods: ["DELETE"],
       matcher: "/sellers/me/services/:id",
       middlewares: [sellerAuth],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/sellers/me/bookings",
+      middlewares: [sellerAuth, validateAndTransformBody(ManualBookingSchema)],
     },
     {
       methods: ["POST"],

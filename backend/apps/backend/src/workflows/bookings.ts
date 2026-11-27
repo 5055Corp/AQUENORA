@@ -3,8 +3,8 @@ import { randomBytes } from "node:crypto"
 import { MedusaError } from "@medusajs/framework/utils"
 import { createStep, createWorkflow, StepResponse, WorkflowResponse } from "@medusajs/framework/workflows-sdk"
 import {
-  confirmBookingPayment, customerAction, sellerAction, startBooking,
-  type CustomerAction, type SellerAction, type StartBookingInput,
+  addManualBooking, confirmBookingPayment, customerAction, sellerAction, startBooking,
+  type CustomerAction, type ManualBookingInput, type SellerAction, type StartBookingInput,
 } from "../lib/booking-flow"
 import { bookingSettingsOf, sellerView, serviceView, type BookingRow, type ServiceRow } from "../lib/bookings"
 import { SELLER_MODULE } from "../modules/seller"
@@ -92,6 +92,16 @@ const sellerBookingActionStep = createStep("seller-booking-action", async (input
 })
 export const sellerBookingActionWorkflow = createWorkflow("seller-booking-action", function (input: { seller_id: string; booking_id: string; data: SellerAction }) {
   return new WorkflowResponse(sellerBookingActionStep(input))
+})
+
+const addManualBookingStep = createStep("add-manual-booking", async (input: { seller_id: string; data: ManualBookingInput }, { container }) => {
+  const b = await addManualBooking(container, input.seller_id, input.data)
+  return new StepResponse(sellerView(b), b.id)
+}, async (id, { container }) => {
+  if (id) await container.resolve<SellerModuleService>(SELLER_MODULE).deleteBookings(id)
+})
+export const addManualBookingWorkflow = createWorkflow("add-manual-booking", function (input: { seller_id: string; data: ManualBookingInput }) {
+  return new WorkflowResponse(addManualBookingStep(input))
 })
 
 /** The provider's private calendar feed address (made once; "new link" makes a new one). */

@@ -213,6 +213,11 @@ medusaIntegrationTestRunner({
       expect(await sendBookingReminders(getContainer(), start - 2 * 3600000)).toEqual({ day: 0, hour: 1 })
       expect((await mails("aquenora-booking-reminder")).map((m) => m.data.subject)).toEqual([expect.stringContaining("Reminder: Haircut with Glow by Ada tomorrow"), expect.stringContaining("See you soon")])
 
+      // A walk-in added by hand: no payment online, a clash is refused, an email gets the confirmation.
+      const walkIn = (await api.post("/sellers/me/bookings", { service_id: cut.id, starts_at: new Date(new Date(slot).getTime() + 3 * 3600000).toISOString(), name: "Tunde", phone: "0802", paid: 6000 }, { headers })).data.booking
+      expect(walkIn).toMatchObject({ status: "confirmed", paid: 6000, owed: 0, customer_name: "Tunde" })
+      expect((await err(api.post("/sellers/me/bookings", { service_id: cut.id, starts_at: slot, name: "Clash" }, { headers }))).data.message).toContain("overlaps Chioma Eze's Haircut")
+
       // The spreadsheet is part of Pro.
       expect((await err(api.get("/sellers/me/bookings/export", { headers }))).status).toBe(400)
       await sellerModule().updateSellers({ id: sellerId, pro_paid_until: new Date(Date.now() + 30 * 86400000) })

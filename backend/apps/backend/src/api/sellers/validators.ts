@@ -462,3 +462,17 @@ export const CreateScheduleSchema = z
 export type CreateScheduleBody = z.infer<typeof CreateScheduleSchema>
 export const UpdateScheduleSchema = z.object({ active: z.boolean() }).strict()
 export type UpdateScheduleBody = z.infer<typeof UpdateScheduleSchema>
+
+export const ManualBookingSchema = z
+  .object({
+    service_id: z.string().min(1).max(60),
+    starts_at: z.string().datetime({ offset: true }),
+    name: z.string().trim().min(1, "Enter the customer's name").max(80),
+    phone: z.string().trim().max(30).optional(),
+    email: z.union([z.string().trim().email("Enter a valid email address").max(200), z.literal("")]).optional(),
+    note: z.string().trim().max(500).optional(),
+    /** Already paid (cash, transfer). */
+    paid: z.number().min(0).max(1_000_000_000).optional(),
+  })
+  .strict()
+export type ManualBookingBody = z.infer<typeof ManualBookingSchema>

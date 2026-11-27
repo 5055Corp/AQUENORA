@@ -1,5 +1,7 @@
 import type { AuthenticatedMedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { sellerBookings } from "../../../../lib/booking-flow"
+import { addManualBookingWorkflow } from "../../../../workflows/bookings"
+import type { ManualBookingBody } from "../../validators"
 import { bookingSettingsOf, localDate, sellerView } from "../../../../lib/bookings"
 import { SELLER_MODULE } from "../../../../modules/seller"
 import type SellerModuleService from "../../../../modules/seller/service"
@@ -35,4 +37,10 @@ export async function GET(req: AuthenticatedMedusaRequest, res: MedusaResponse) 
     },
     timezone: settings.timezone,
   })
+}
+
+/** POST /sellers/me/bookings: add a walk-in, phone or WhatsApp booking by hand. */
+export async function POST(req: AuthenticatedMedusaRequest<ManualBookingBody>, res: MedusaResponse) {
+  const { result } = await addManualBookingWorkflow(req.scope).run({ input: { seller_id: req.auth_context.actor_id, data: req.validatedBody } })
+  res.status(201).json({ booking: result })
 }

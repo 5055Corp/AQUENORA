@@ -665,6 +665,8 @@ export const api = {
       `/sellers/me/bookings${from ? `?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to ?? '')}` : ''}`, { token }),
   bookingAction: (token: string, id: string, body: { action: 'complete' | 'no_show' | 'refunded' | 'cancel'; reason?: string }) =>
     request<{ booking: SellerBooking }>(`/sellers/me/bookings/${encodeURIComponent(id)}`, { token, body }),
+  addBooking: (token: string, body: { service_id: string; starts_at: string; name: string; phone?: string; email?: string; note?: string; paid?: number }) =>
+    request<{ booking: SellerBooking }>('/sellers/me/bookings', { token, body }),
   calendarLink: (token: string, renew = false) => request<{ url: string; webcal: string }>('/sellers/me/booking-calendar', { token, body: { renew } }),
   // ---- email blasts ----
   emailAllowance: (token: string) => request<{ allowance: EmailAllowance }>('/sellers/me/email-allowance', { token }),

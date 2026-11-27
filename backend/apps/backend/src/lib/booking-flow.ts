@@ -6,7 +6,7 @@ import type { MedusaContainer } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys, MedusaError, Modules } from "@medusajs/framework/utils"
 import { supportEmail } from "./account-email"
 import {
-  bookingConfirmedEmail, bookingSettingsOf, bookingToken, bookingUpdateEmail, canChange, customerView, depositFor, feeOn,
+  blocksTime, bookingConfirmedEmail, bookingSettingsOf, bookingToken, bookingUpdateEmail, canChange, customerView, depositFor, feeOn,
   formatWhen, freeSlots, localDate, owedOf, payChoices, sellerBookingEmail, serviceView,
   type BookingRow, type BookingSettings, type PayChoice, type ServiceRow,
 } from "./bookings"
@@ -358,3 +358,30 @@ export async function sellerBookings(c: MedusaContainer, sellerId: string, from:
   return rows
 }
 
+
+// ---------------- the provider adds a booking by hand (walk-in, phone, WhatsApp) ----------------
+
+export type ManualBookingInput = { service_id: string; starts_at: string; name: string; phone?: string; email?: string; note?: string; paid?: number }
+
+export async function addManualBooking(c: MedusaContainer, sellerId: string, input: ManualBookingInput) {
+  const sellers = sellersOf(c)
+  const seller = (await sellers.retrieveSeller(sellerId)) as unknown as BookingSeller
+  const settings = bookingSettingsOf(seller)
+  const [svc] = (await sellers.listBookingServices({ id: input.service_id, seller_id: sellerId }, { take: 1 })) as unknown as ServiceRow[]
+  if (!svc) throw new MedusaError(MedusaError.Types.NOT_FOUND, "That service isn't available.")
+  const start = new Date(input.starts_at)
+  if (Number.isNaN(start.getTime())) throw new MedusaError(MedusaError.Types.INVALID_DATA, "Pick a time.")
+  const end = new Date(start.getTime() + svc.duration_min * 60000)
+  // The provider can book outside opening hours (it's their diary), but not on top of another booking.
+  const clash = (await busyFor(c, sellerId, start)).find((b) => blocksTime(b, Date.now()) && start < new Date(b.ends_at) && end > new Date(b.starts_at))
+  if (clash) throw new MedusaError(MedusaError.Types.NOT_ALLOWED, `That time overlaps ${clash.customer_name}'s ${clash.service_name}.`)
+  const price = Number(svc.price)
+  const booking = (await sellers.createBookings({
+    seller_id: sellerId, service_id: svc.id, service_name: svc.name, duration_min: svc.duration_min, starts_at: start, ends_at: end,
+    status: "confirmed", customer_name: input.name.trim(), email: (input.email ?? "").trim().toLowerCase(), phone: (input.phone ?? "").trim(),
+    note: input.note?.trim() || null, currency_code: seller.currency_code, price, deposit: 0, paid: Math.min(price, Math.max(0, input.paid ?? 0)), tips: 0, refund_due: 0,
+  } as never)) as unknown as BookingRow
+  // With an email, the customer gets the confirmation (and reminders) like an online booking.
+  if (booking.email) await send(c, [bookingConfirmedEmail(booking, seller, settings, seller.booking_email)], "aquenora-booking")
+  return booking
+}

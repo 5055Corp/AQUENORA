@@ -6,16 +6,38 @@ import { useStore } from '../store';
 import { PickupSettings } from './PickupSettings';
 import { ShippingSettings } from './ShippingSettings';
 import { OrderProblem } from './OrderProblem';
+import { Bookings } from './Bookings';
 
 export function Orders() {
   const { s, set, fmt, fromUsd, advanceOrder, h1Size } = useStore();
   const shown = s.orders.filter(o => matchesFilter(o, s.filter));
   const [sheet, setSheet] = useState<Order | null>(null);
   const closeSheet = useCallback(() => setSheet(null), []);
+  // Service providers: Orders | Bookings. Everyone else just sees their orders, as before.
+  const bookingsOn = !!s.bookings?.enabled;
+  const [view, setView] = useState<'orders' | 'bookings'>(() => (bookingsOn && s.orders.length === 0 ? 'bookings' : 'orders'));
+  const newOrders = s.orders.filter(o => o.status === 'new').length;
+
+  const switcher = bookingsOn && (
+    <div className="bk-switch" role="tablist" aria-label="Orders or bookings">
+      <button type="button" role="tab" aria-selected={view === 'orders'} className={view === 'orders' ? 'on' : ''} onClick={() => setView('orders')}>Orders{newOrders > 0 && <i>{newOrders}</i>}</button>
+      <button type="button" role="tab" aria-selected={view === 'bookings'} className={view === 'bookings' ? 'on' : ''} onClick={() => setView('bookings')}>Bookings</button>
+    </div>
+  );
+  if (bookingsOn && view === 'bookings') {
+    return (
+      <>
+        <h1 className="h1" style={{ fontSize: h1Size }}>Orders</h1>
+        {switcher}
+        <Bookings />
+      </>
+    );
+  }
 
   return (
     <>
       <h1 className="h1" style={{ fontSize: h1Size }}>Orders</h1>
+      {switcher}
       <ShippingSettings />
       <PickupSettings />
       <div className="filters" role="group" aria-label="Filter orders">
