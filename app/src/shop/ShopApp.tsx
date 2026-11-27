@@ -16,13 +16,14 @@ import './shop.css';
 
 type Tab = 'home' | 'search' | 'basket' | 'orders' | 'account';
 
-const CATEGORY_LOOK: Record<string, { icon: string; short: string }> = {
-  'Fashion & clothing': { icon: '👗', short: 'Fashion' },
-  'Beauty & hair': { icon: '💄', short: 'Beauty' },
-  'Food & drinks': { icon: '🍲', short: 'Food' },
-  'Home & decor': { icon: '🏺', short: 'Home' },
-  'Art & crafts': { icon: '🎨', short: 'Art' },
-  'Digital products': { icon: '💻', short: 'Digital' },
+/** Short names for the category pills on Home. */
+const CATEGORY_LOOK: Record<string, { short: string }> = {
+  'Fashion & clothing': { short: 'Fashion' },
+  'Beauty & hair': { short: 'Beauty' },
+  'Food & drinks': { short: 'Food' },
+  'Home & decor': { short: 'Home' },
+  'Art & crafts': { short: 'Art' },
+  'Digital products': { short: 'Digital' },
 };
 
 /** Prices in the store's own money (₦45,000; GH₵300). */
@@ -197,13 +198,14 @@ function Home({ onSearch, onCategory, onStore, onSell }: {
         <SearchBox readOnly onClick={onSearch} />
       </header>
       <div className="sh-body">
-        <div className="sh-cats" role="list">
+        <nav className="sh-cats" aria-label="Shop by category">
+          <button type="button" className="sh-cat on" aria-current="true">All</button>
           {CATEGORIES.map(c => (
-            <button type="button" key={c} role="listitem" className="sh-cat" onClick={() => onCategory(c)}>
-              <i aria-hidden="true">{CATEGORY_LOOK[c]?.icon ?? '🛍'}</i>{CATEGORY_LOOK[c]?.short ?? c}
+            <button type="button" key={c} className="sh-cat" onClick={() => onCategory(c)}>
+              {CATEGORY_LOOK[c]?.short ?? c}
             </button>
           ))}
-        </div>
+        </nav>
 
         {error && <Problem message={error} onRetry={load} />}
         {!data && !error && <p className="sh-loading" role="status">Loading…</p>}
