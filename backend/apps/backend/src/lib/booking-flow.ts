@@ -299,6 +299,15 @@ async function byId(c: MedusaContainer, id: string) {
   return { b, seller, settings: bookingSettingsOf(seller) }
 }
 
+/** Free times to move a booking to: its own length (with add-ons) and the same team member. */
+export async function rescheduleSlots(c: MedusaContainer, id: string, date: string) {
+  const { b, seller, settings } = await byId(c, id)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new MedusaError(MedusaError.Types.INVALID_DATA, "Pick a day.")
+  const keep = b.staff_id && teamFor(settings, b.service_id).some((m) => m.id === b.staff_id) ? b.staff_id : null
+  const free = await freeByStaff(c, seller, settings, { id: b.service_id, duration_min: b.duration_min }, date, keep, b.id)
+  return [...free.keys()].sort()
+}
+
 export async function customerBooking(c: MedusaContainer, id: string) {
   const sellers = sellersOf(c)
   const b = (await sellers.retrieveBooking(id).catch(() => null)) as unknown as BookingRow | null

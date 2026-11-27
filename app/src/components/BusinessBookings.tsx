@@ -1,10 +1,9 @@
 // Business → booking tools: services and opening hours, calendar sync, and the "Appointment booked" email.
 import { useEffect, useState } from 'react';
-import { api, type BookingEmail, type BookingSettings, type Day, type Service, type ServiceInput } from '../api';
+import { api, type BookingEmail, type BookingSettings, type Service, type ServiceInput } from '../api';
 import { useStore } from '../store';
 import { defaultBookingSettings } from './Business';
 
-const DAYS: [Day, string][] = [['mon', 'Mon'], ['tue', 'Tue'], ['wed', 'Wed'], ['thu', 'Thu'], ['fri', 'Fri'], ['sat', 'Sat'], ['sun', 'Sun']];
 
 const DEMO_SERVICES: Service[] = [
   { id: 'd1', name: 'Silk press', description: 'Wash, blow-dry and silk press. Bring your hair clean.', duration_min: 75, price: 20000, payment: 'deposit', deposit_type: 'fixed', deposit_value: 5000, deposit: 5000, active: true, sort: 0,
@@ -33,11 +32,6 @@ export function ServicesAndHours() {
     const err = await saveBookings(next);
     if (err) flash(err);
   };
-  const setDay = (d: Day, open: boolean) => save({ hours: { ...draft.hours, [d]: open ? [{ from: '09:00', to: '18:00' }] : [] } });
-  const setTime = (d: Day, which: 'from' | 'to', v: string) => {
-    const iv = draft.hours[d][0] ?? { from: '09:00', to: '18:00' };
-    setDraft({ ...draft, hours: { ...draft.hours, [d]: [{ ...iv, [which]: v }] } });
-  };
   const getCalendar = async () => {
     if (!live) return setCalendar('webcal://api.aquenora.com/bookings-calendar/demo.ics');
     try { setCalendar((await api.calendarLink(s.token)).webcal); } catch (e) { flash(e instanceof Error ? e.message : 'Could not make the link.'); }
@@ -50,7 +44,7 @@ export function ServicesAndHours() {
 
   return (
     <div className="biz">
-      <h1 className="h1" style={{ fontSize: h1Size }}>Services & hours</h1>
+      <h1 className="h1" style={{ fontSize: h1Size }}>Services</h1>
       <label className="set-switch biz-switch">
         <span><b>Take bookings</b><small>Customers can book from your store and your booking link.</small></span>
         <input type="checkbox" role="switch" checked={draft.enabled} onChange={e => save({ enabled: e.target.checked })} />
@@ -73,26 +67,6 @@ export function ServicesAndHours() {
         ))}
       </div>
       <button type="button" className="btn-dark biz-wide" onClick={() => setEditing('new')}>+ Add a service</button>
-
-      <h2 className="biz-sec">Opening hours</h2>
-      <div className="card biz-card">
-        {DAYS.map(([d, label]) => {
-          const iv = draft.hours[d][0];
-          return (
-            <div className="biz-hours" key={d}>
-              <span className="biz-day">{label}</span>
-              {iv ? (
-                <span className="biz-times">
-                  <input type="time" className="field" value={iv.from} aria-label={`${label} opens`} onChange={e => setTime(d, 'from', e.target.value)} onBlur={() => save({})} />
-                  <span>–</span>
-                  <input type="time" className="field" value={iv.to} aria-label={`${label} closes`} onChange={e => setTime(d, 'to', e.target.value)} onBlur={() => save({})} />
-                </span>
-              ) : <span className="biz-closed">Closed</span>}
-              <input type="checkbox" role="switch" className="biz-mini" checked={!!iv} aria-label={`Open on ${label}`} onChange={e => setDay(d, e.target.checked)} />
-            </div>
-          );
-        })}
-      </div>
 
       <h2 className="biz-sec">Where and rules</h2>
       <div className="card biz-card">
@@ -175,15 +149,20 @@ function ServiceForm({ service, onDone, onDelete }: { service: Service | null; o
 
   return (
     <div className="biz">
-      <button type="button" className="biz-back" onClick={() => onDone(null)}>‹ Services & hours</button>
+      <button type="button" className="biz-back" onClick={() => onDone(null)}>‹ Services</button>
       <h1 className="h1" style={{ fontSize: h1Size }}>{service ? 'Edit service' : 'New service'}</h1>
       <div className="card biz-card">
         <label className="biz-field"><span>Name</span><input className="field" value={f.name ?? ''} maxLength={80} placeholder="e.g. Knotless braids" onChange={e => set({ name: e.target.value })} /></label>
         <label className="biz-field"><span>Short description</span><textarea className="field" rows={2} maxLength={600} value={f.description ?? ''} placeholder="e.g. Mid-back length, hair included. Come with clean hair." onChange={e => set({ description: e.target.value })} /></label>
         <span className="biz-field"><span>How long it takes</span></span>
         <div className="biz-two">
-          <label className="biz-field biz-unit"><input className="field" inputMode="numeric" aria-label="Hours" value={Math.floor((f.duration_min ?? 0) / 60) || ''} placeholder="0"
-            onChange={e => set({ duration_min: Math.min(12, Number(e.target.value.replace(/[^0-9]/g, '')) || 0) * 60 + (f.duration_min ?? 0) % 60 })} /><span>hours</span></label>
+          <label className="biz-field biz-unit"><input className="field" inputMode="decimal" aria-label="Hours" value={Math.floor((f.duration_min ?? 0) / 60) || ''} placeholder="0"
+            onChange={e => {
+              // "2.5" or "2,5" means 2 hours 30; a whole number keeps the minutes.
+              const v = e.target.value.replace(',', '.').replace(/[^0-9.]/g, '');
+              const h = Math.min(12, Number(v) || 0);
+              set({ duration_min: v.includes('.') ? Math.round(h * 60) : h * 60 + (f.duration_min ?? 0) % 60 });
+            }} /><span>hours</span></label>
           <label className="biz-field biz-unit"><input className="field" inputMode="numeric" aria-label="Minutes" value={(f.duration_min ?? 0) % 60 || ''} placeholder="0"
             onChange={e => set({ duration_min: Math.floor((f.duration_min ?? 0) / 60) * 60 + Math.min(59, Number(e.target.value.replace(/[^0-9]/g, '')) || 0) })} /><span>min</span></label>
         </div>
@@ -205,7 +184,7 @@ function ServiceForm({ service, onDone, onDelete }: { service: Service | null; o
           </div>
         )}
         {f.payment === 'contact' ? (
-          <p className="biz-note">For services you plan with the customer first, like bridal hair & makeup or events. Customers see it on your booking page with buttons to WhatsApp, call or email you{s.bookings?.phone || s.bookings?.contact_email ? '' : ' (add your booking contact in Services & hours)'}. When you've agreed, add it to your diary from Bookings → Add booking.</p>
+          <p className="biz-note">For services you plan with the customer first, like bridal hair & makeup or events. Customers see it on your booking page with buttons to WhatsApp, call or email you{s.bookings?.phone || s.bookings?.contact_email ? '' : ' (add your booking contact at the bottom of Services)'}. When you've agreed, add it to your diary from Bookings → Add booking.</p>
         ) : (
           <p className="biz-note">{f.payment === 'none' ? 'Customers can still choose to pay in full online.' : f.payment === 'deposit' ? 'Customers can pay the rest online before the visit, or at the appointment.' : 'Customers pay everything when they book.'} AQUENORA's 3% fee is added on top for the customer; you get your full price.</p>
         )}

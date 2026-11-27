@@ -299,10 +299,14 @@ medusaIntegrationTestRunner({
       // 12:00: Tolu by name, then "anyone" gets Ada, then nobody is left.
       const one = (await api.post("/store/sellers/glowbyada/booking", { ...customer(svc.id, at("12:00"), "later"), staff_id: "st_tolu" }, store)).data.booking
       expect(one.staff_name).toBe("Tolu")
-      const two = (await api.post("/store/sellers/glowbyada/booking", { ...customer(svc.id, at("12:00"), "later"), email: "b@example.com" }, store)).data.booking
+      const twoRes = (await api.post("/store/sellers/glowbyada/booking", { ...customer(svc.id, at("12:00"), "later"), email: "b@example.com" }, store)).data
+      const two = twoRes.booking
       expect(two.staff_name).toBe("Ada")
       expect((await err(api.post("/store/sellers/glowbyada/booking", { ...customer(svc.id, at("12:00"), "later"), email: "c@example.com" }, store))).status).toBe(400)
       expect(await slots()).not.toContain(at("12:00"))
+      // Moving Ada's booking only offers Ada's free times.
+      const move: string[] = (await api.get(`/store/bookings/${encodeURIComponent(twoRes.token)}/slots?date=${date}`, store)).data.slots
+      expect(move).toEqual([at("12:00"), at("12:30"), at("13:00"), at("13:30"), at("14:00")])
 
       // The provider sees who each booking is with, and books a walk-in for Tolu.
       const list = (await api.get(`/sellers/me/bookings?from=${date}&to=${inDays(4)}`, { headers })).data.bookings

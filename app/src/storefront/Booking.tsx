@@ -15,6 +15,7 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 const DEMO_PAGE = (name: string, handle: string): BookingPage => ({
   shop: { name, handle, address: '14 Admiralty Way, Lekki, Lagos', timezone: 'Africa/Lagos', cancel_hours: 24, days_ahead: 60, currency_code: 'ngn', phone: '+234 801 234 5678', email: 'hello@example.com' },
   fee_percent: 3,
+  staff: [{ id: 'st1', name: 'Tolu', title: 'Senior stylist', service_ids: null }, { id: 'st2', name: 'Ada', title: 'Braids & locs', service_ids: ['d1', 'd2'] }],
   services: [
     { id: 'd1', name: 'Silk press', description: 'Wash, blow-dry and silk press. Bring your hair clean.', duration_min: 75, price: 20000, payment: 'deposit', deposit_type: 'fixed', deposit_value: 5000, deposit: 5000, active: true, sort: 0, pay_choices: ['deposit', 'full'],
       addons: [{ id: 'a1', name: 'Hollywood waves', price: 10000, duration_min: 45 }, { id: 'a2', name: 'Trim', price: 3000, duration_min: 15 }, { id: 'a3', name: 'Deep conditioning', price: 5000, duration_min: 20 }] },
@@ -54,6 +55,7 @@ export function BookingFlow({ handle, shopName, design, fmt, onBack }: Props) {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<CustomerBooking | null>(null);
   const [extras, setExtras] = useState<string[]>([]);
+  const [person, setPerson] = useState('');
 
   useEffect(() => {
     if (LIVE) bookingApi.page(handle).then(setPage).catch(e => setError(e instanceof Error ? e.message : 'Could not load.'));
@@ -61,15 +63,17 @@ export function BookingFlow({ handle, shopName, design, fmt, onBack }: Props) {
   const svc = page?.services.find(s => s.id === svcId) ?? page?.services[0];
   const contact = svc?.payment === 'contact';
   useEffect(() => { if (svc && svc.pay_choices.length && !svc.pay_choices.includes(pay)) setPay(svc.pay_choices[0]); }, [svc, pay]);
-  useEffect(() => { setExtras([]); }, [svc?.id]);
+  useEffect(() => { setExtras([]); setPerson(''); }, [svc?.id]);
+  // Team members who do this service (salons with more than one stylist).
+  const team = (page?.staff ?? []).filter(m => svc && (!m.service_ids || m.service_ids.includes(svc.id)));
   const extrasKey = extras.join(',');
   useEffect(() => {
     if (!svc || svc.payment === 'contact') return;
     setSlots(null);
     setSlot('');
     if (!LIVE) { setSlots(demoSlots(date)); return; }
-    bookingApi.slots(handle, svc.id, date, extrasKey ? extrasKey.split(',') : []).then(r => setSlots(r.slots)).catch(() => setSlots([]));
-  }, [handle, svc, date, extrasKey]);
+    bookingApi.slots(handle, svc.id, date, extrasKey ? extrasKey.split(',') : [], person || null).then(r => setSlots(r.slots)).catch(() => setSlots([]));
+  }, [handle, svc, date, extrasKey, person]);
 
   if (error) return <Shell c={c} title={shopName} onBack={onBack}><p className="bf-empty">{error}</p></Shell>;
   if (!page || !svc) return <Shell c={c} title={shopName} onBack={onBack}><p className="bf-empty">{page ? 'No services to book yet.' : 'Loading…'}</p></Shell>;
@@ -82,7 +86,9 @@ export function BookingFlow({ handle, shopName, design, fmt, onBack }: Props) {
   const deposit = svc.payment === 'full' ? total : svc.payment === 'deposit' ? round2(Math.min(total, svc.deposit_type === 'percent' ? total * svc.deposit_value / 100 : svc.deposit_value)) : 0;
   const fullName = [svc.name, ...chosen.map(a => a.name)].join(' + ');
   const payNow = pay === 'full' ? total : pay === 'deposit' ? deposit : 0;
-  const n = (k: number) => k + ((svc.addons ?? []).length ? 1 : 0);
+  const pickPerson = team.length > 1;
+  const n = (k: number) => k + ((svc.addons ?? []).length ? 1 : 0) + (pickPerson ? 1 : 0);
+  const personName = team.find(m => m.id === person)?.name;
   const fee = round2(payNow * page.fee_percent / 100);
   const tz = page.shop.timezone;
 
@@ -95,10 +101,10 @@ export function BookingFlow({ handle, shopName, design, fmt, onBack }: Props) {
     try {
       if (!LIVE) {
         const paid = payNow;
-        setDone({ id: 'demo', service_name: fullName, duration_min: duration, starts_at: slot, ends_at: new Date(new Date(slot).getTime() + duration * 60000).toISOString(), status: 'confirmed', customer_name: who.name, currency_code: 'ngn', price: total, paid, owed: total - paid, tips: 0, refund_due: 0, refunded: false, can_change: true, cancel_hours: page.shop.cancel_hours, timezone: tz, shop: { name: shopName, handle, address: page.shop.address } });
+        setDone({ id: 'demo', service_name: fullName, staff_name: personName ?? team[0]?.name ?? null, duration_min: duration, starts_at: slot, ends_at: new Date(new Date(slot).getTime() + duration * 60000).toISOString(), status: 'confirmed', customer_name: who.name, currency_code: 'ngn', price: total, paid, owed: total - paid, tips: 0, refund_due: 0, refunded: false, can_change: true, cancel_hours: page.shop.cancel_hours, timezone: tz, shop: { name: shopName, handle, address: page.shop.address } });
         return;
       }
-      const r = await bookingApi.book(handle, { service_id: svc.id, starts_at: slot, name: who.name.trim(), email: who.email.trim(), phone: who.phone.trim(), note: who.note.trim() || undefined, pay, return_url: window.location.href.split('?')[0], marketing_opt_in: who.news, ...(extras.length ? { addon_ids: extras } : {}) });
+      const r = await bookingApi.book(handle, { service_id: svc.id, starts_at: slot, name: who.name.trim(), email: who.email.trim(), phone: who.phone.trim(), note: who.note.trim() || undefined, pay, return_url: window.location.href.split('?')[0], marketing_opt_in: who.news, ...(extras.length ? { addon_ids: extras } : {}), ...(person ? { staff_id: person } : {}) });
       if (r.payment_url) window.location.href = r.payment_url;
       else setDone(r.booking);
     } catch (e) {
@@ -140,6 +146,22 @@ export function BookingFlow({ handle, shopName, design, fmt, onBack }: Props) {
               <p className="bf-total">Total <b>{fmt(total)}</b> · {mins(duration)}</p>
             </>
           )}
+          {pickPerson && (
+            <>
+              <div className="bf-step">{n(2) - 1} · Who would you like?</div>
+              <div className="bf-people">
+                {[{ id: '', name: 'Anyone available', title: 'The most free times' }, ...team].map(m => {
+                  const on = person === m.id;
+                  return (
+                    <button type="button" key={m.id || 'any'} className={'bf-person' + (on ? ' on' : '')} style={on ? { borderColor: c.accent, background: tint(c.accent) } : undefined} onClick={() => setPerson(m.id)}>
+                      <span className="bf-avatar" style={{ background: on ? c.accent : undefined, color: on ? c.onAccent : undefined }} aria-hidden="true">{m.id ? m.name.trim().slice(0, 1).toUpperCase() : '★'}</span>
+                      <b>{m.name}</b>{m.title && <small>{m.title}</small>}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
           <div className="bf-step">{n(2)} · Pick a day</div>
           <div className="bf-days">
             {days.map(d => {
@@ -170,7 +192,7 @@ export function BookingFlow({ handle, shopName, design, fmt, onBack }: Props) {
             <div><span>{svc.name}</span><b>{fmt(svc.price)}</b></div>
             {chosen.map(a => <div key={a.id}><span>+ {a.name}</span><span>{fmt(a.price)}</span></div>)}
             {chosen.length > 0 && <div className="tot"><span>Total</span><b>{fmt(total)}</b></div>}
-            <div className="mute"><span>{longDate(slot, tz)}, {hm(slot, tz)} · {mins(duration)}</span></div>
+            <div className="mute"><span>{longDate(slot, tz)}, {hm(slot, tz)} · {mins(duration)}{personName ? ` · with ${personName}` : ''}</span></div>
             {page.shop.address && <div className="mute"><span>{page.shop.address}</span></div>}
           </div>
           {svc.pay_choices.length > 1 && (
@@ -313,6 +335,7 @@ export function ManageBooking({ token, reference, design, fmt, onBack }: { token
       {msg && <p className="bf-msg">{msg}</p>}
       <span className={'bf-status ' + b.status}>{b.status === 'confirmed' ? '✓ Booked' : b.status === 'cancelled' ? 'Cancelled' : b.status === 'completed' ? 'Done' : b.status === 'pending' ? 'Waiting for payment' : 'Missed'}</span>
       <h2 className="bf-h" style={{ fontFamily: c.heading }}>{b.service_name}</h2>
+      {b.staff_name && <p className="bf-with">with {b.staff_name}</p>}
       <p className="bf-mute">{longDate(b.starts_at, b.timezone)} · {hm(b.starts_at, b.timezone)} – {hm(b.ends_at, b.timezone)}{b.shop.address ? ` · ${b.shop.address}` : ''}</p>
       <div className="bf-sum">
         <div><span>Total</span><span>{fmt(b.price)}</span></div>
@@ -353,22 +376,20 @@ export function ManageBooking({ token, reference, design, fmt, onBack }: { token
         </div>
       )}
       {b.status === 'confirmed' && !b.can_change && <p className="bf-fine">Changes online are possible up to {b.cancel_hours} hours before. Please contact {b.shop.name}.</p>}
-      {changing && <Reschedule b={b} c={c} busy={busy} onPick={t => go({ action: 'reschedule', starts_at: t })} />}
+      {changing && <Reschedule token={token} b={b} c={c} busy={busy} onPick={t => go({ action: 'reschedule', starts_at: t })} />}
     </Shell>
   );
 }
 
-function Reschedule({ b, c, busy, onPick }: { b: CustomerBooking; c: Colours; busy: boolean; onPick: (iso: string) => void }) {
-  const [page, setPage] = useState<BookingPage | null>(null);
+function Reschedule({ token, b, c, busy, onPick }: { token: string; b: CustomerBooking; c: Colours; busy: boolean; onPick: (iso: string) => void }) {
   const [date, setDate] = useState(() => ymd(new Date(b.starts_at)));
   const [slots, setSlots] = useState<string[] | null>(null);
-  useEffect(() => { if (LIVE) bookingApi.page(b.shop.handle).then(setPage).catch(() => {}); }, [b.shop.handle]);
-  const svc = page?.services.find(s => s.name === b.service_name);
   useEffect(() => {
     setSlots(null);
     if (!LIVE) { setSlots(demoSlots(date)); return; }
-    if (svc) bookingApi.slots(b.shop.handle, svc.id, date).then(r => setSlots(r.slots)).catch(() => setSlots([]));
-  }, [b.shop.handle, svc, date]);
+    // The booking's own length (with add-ons) and the same team member.
+    bookingApi.moveSlots(token, date).then(r => setSlots(r.slots)).catch(() => setSlots([]));
+  }, [token, date]);
   const days = Array.from({ length: 21 }, (_, i) => new Date(Date.now() + i * DAY));
   return (
     <div className="bf-resched">

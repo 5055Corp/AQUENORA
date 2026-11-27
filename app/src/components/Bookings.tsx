@@ -1,7 +1,8 @@
 // Orders tab → Bookings (service providers only): the week, the day's appointments, and adding one by hand.
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { api, type SellerBooking, type Service } from '../api';
+import { api, type SellerBooking, type Service, type TimeBlock } from '../api';
 import { useStore } from '../store';
+import { BlockTimeSheet, blocksOnDay } from './BusinessTeam';
 
 const DAY = 86400000;
 const dayKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -29,6 +30,9 @@ export function Bookings() {
   const [day, setDay] = useState(() => dayKey(new Date()));
   const [open, setOpen] = useState<SellerBooking | null>(null);
   const [adding, setAdding] = useState(false);
+  const [blocking, setBlocking] = useState<TimeBlock | 'new' | null>(null);
+  const team = (s.bookings?.staff ?? []).filter(m => m.active);
+  const [who, setWho] = useState('');
 
   const load = useCallback(() => {
     if (!live) return;
@@ -38,7 +42,14 @@ export function Bookings() {
 
   const week = useMemo(() => Array.from({ length: 14 }, (_, i) => new Date(Date.now() + i * DAY)), []);
   const live7 = (list ?? []).filter(b => b.status !== 'cancelled');
-  const onDay = (list ?? []).filter(b => dayKey(new Date(b.starts_at)) === day).sort((a, b) => a.starts_at.localeCompare(b.starts_at));
+  const onDay = (list ?? []).filter(b => dayKey(new Date(b.starts_at)) === day && (!who || b.staff_id === who)).sort((a, b) => a.starts_at.localeCompare(b.starts_at));
+  // Breaks and time off on this day, in time order with the bookings.
+  const blocks = blocksOnDay(s.bookings, day, who || null);
+  const rows: { at: string; block?: TimeBlock; booking?: SellerBooking }[] = [
+    ...blocks.map(b => ({ at: b.all_day ? '00:00' : b.from, block: b })),
+    ...onDay.map(b => ({ at: time(b.starts_at), booking: b })),
+  ].sort((a, b) => a.at.localeCompare(b.at));
+  const staffName = (id?: string | null) => team.find(m => m.id === id)?.name;
   const refunds = (list ?? []).filter(b => b.refund_due > 0 && !b.refunded_at);
 
   const act = async (b: SellerBooking, action: 'complete' | 'no_show' | 'refunded' | 'cancel') => {
@@ -88,25 +99,41 @@ export function Bookings() {
         })}
       </div>
 
+      {team.length > 0 && (
+        <div className="bk-staff-chips biz-chips" role="group" aria-label="Team member">
+          <button type="button" aria-pressed={!who} className={'biz-chip' + (!who ? ' on' : '')} onClick={() => setWho('')}>Everyone</button>
+          {team.map(m => <button type="button" key={m.id} aria-pressed={who === m.id} className={'biz-chip' + (who === m.id ? ' on' : '')} onClick={() => setWho(m.id)}>{m.name}</button>)}
+        </div>
+      )}
+
       <div className="card bk-list">
         {list === null && <p className="bk-empty">Loading…</p>}
-        {list && onDay.length === 0 && <p className="bk-empty">No bookings on this day.</p>}
-        {onDay.map(b => (
+        {list && rows.length === 0 && <p className="bk-empty">No bookings on this day.</p>}
+        {rows.map(row => row.block ? (
+          <button type="button" key={row.block.id} className="bk-block" onClick={() => setBlocking(row.block!)}>
+            <span className="bk-time">{row.block.all_day ? 'All day' : row.block.from}<small>{row.block.all_day ? '' : `to ${row.block.to}`}</small></span>
+            <span><b>{row.block.label}</b><small>{row.block.staff_id ? staffName(row.block.staff_id) ?? 'Team member' : 'Blocked'}{row.block.days ? ' · repeats' : ''}</small></span>
+          </button>
+        ) : row.booking && ((b) => (
           <button type="button" key={b.id} className={'bk-appt' + (b.status === 'cancelled' ? ' gone' : '')} onClick={() => setOpen(b)}>
             <span className="bk-time">{time(b.starts_at)}<small>{mins(b.duration_min)}</small></span>
             <span className="bk-bar" style={{ background: b.status === 'cancelled' ? '#c9c0b2' : b.owed === 0 ? '#1e6b34' : b.paid > 0 ? '#5B21B6' : '#c45a37' }} />
             <span className="bk-who">
-              <b>{b.customer_name}</b><span>{b.service_name}</span>
+              <b>{b.customer_name}</b><span>{b.service_name}{b.staff_name && !who ? ` · ${b.staff_name}` : ''}</span>
               <span className={'bk-pill ' + (b.status !== 'confirmed' ? 'grey' : b.owed === 0 ? 'ok' : b.paid > 0 ? 'mid' : 'due')}>
                 {b.status === 'cancelled' ? 'Cancelled' : b.status === 'completed' ? 'Done' : b.status === 'no_show' ? "Didn't come" : b.owed === 0 ? 'Paid in full' : b.paid > 0 ? `Deposit paid · ${fmt(b.owed)} at the shop` : `${fmt(b.owed)} at the shop`}
               </span>
             </span>
           </button>
-        ))}
+        ))(row.booking))}
       </div>
-      <button type="button" className="btn-dark bk-add" onClick={() => setAdding(true)}>+ Add a booking</button>
+      <div className="bk-buttons">
+        <button type="button" className="btn-dark bk-add" onClick={() => setAdding(true)}>+ Add a booking</button>
+        <button type="button" className="btn-sm pickup-edit bk-blockbtn" onClick={() => setBlocking('new')}>Block time</button>
+      </div>
 
       {open && <BookingSheet b={open} onClose={() => setOpen(null)} onAct={a => act(open, a)} />}
+      {blocking && <BlockTimeSheet block={blocking === 'new' ? null : blocking} day={day} onClose={() => setBlocking(null)} />}
       {adding && <AddBooking day={day} onClose={() => setAdding(false)} onAdded={b => { setList(l => [...(l ?? []), b]); setDay(dayKey(new Date(b.starts_at))); setAdding(false); }} />}
     </div>
   );
@@ -119,7 +146,7 @@ function BookingSheet({ b, onClose, onAct }: { b: SellerBooking; onClose: () => 
     <div className="sheet-overlay vf-overlay" role="dialog" aria-modal="true" aria-label={b.customer_name} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="vf-card bk-sheet">
         <div className="vf-head"><h2>{b.customer_name}</h2><button type="button" className="vf-x" aria-label="Close" onClick={onClose}>×</button></div>
-        <p className="bk-sub">{b.service_name} · {new Date(b.starts_at).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}, {time(b.starts_at)} – {time(b.ends_at)}</p>
+        <p className="bk-sub">{b.service_name}{b.staff_name ? ` with ${b.staff_name}` : ''} · {new Date(b.starts_at).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}, {time(b.starts_at)} – {time(b.ends_at)}</p>
         <div className="bk-money">
           <div><span>Price</span><b>{fmt(b.price)}</b></div>
           <div><span>Paid online</span><b>{fmt(b.paid)}</b></div>
@@ -153,7 +180,8 @@ function AddBooking({ day, onClose, onAdded }: { day: string; onClose: () => voi
     { id: 'd1', name: 'Silk press', description: null, duration_min: 75, price: 20000, payment: 'deposit', deposit_type: 'fixed', deposit_value: 5000, deposit: 5000, active: true, sort: 0, addons: [{ id: 'a1', name: 'Hollywood waves', price: 10000, duration_min: 45 }, { id: 'a2', name: 'Trim', price: 3000, duration_min: 15 }] },
     { id: 'd3', name: 'Bridal hair & makeup', description: null, duration_min: 240, price: 250000, payment: 'contact', deposit_type: 'fixed', deposit_value: 0, deposit: 0, active: true, sort: 2, addons: [] },
   ]);
-  const [f, setF] = useState({ service_id: '', date: day, time: '10:00', name: '', phone: '', email: '', paid: '', price: '' });
+  const [f, setF] = useState({ service_id: '', date: day, time: '10:00', name: '', phone: '', email: '', paid: '', price: '', staff_id: '' });
+  const team = (s.bookings?.staff ?? []).filter(m => m.active);
   const [extras, setExtras] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -173,9 +201,9 @@ function AddBooking({ day, onClose, onAdded }: { day: string; onClose: () => voi
     const starts = new Date(`${f.date}T${f.time}:00`).toISOString();
     try {
       const body = { service_id: svc.id, starts_at: starts, name: f.name.trim(), phone: f.phone.trim() || undefined, email: f.email.trim() || undefined, paid: Number(f.paid) || 0,
-        ...(extras.length ? { addon_ids: extras } : {}), ...(f.price ? { price: Number(f.price) } : {}) };
+        ...(extras.length ? { addon_ids: extras } : {}), ...(f.price ? { price: Number(f.price) } : {}), ...(f.staff_id ? { staff_id: f.staff_id } : {}) };
       const b = live ? (await api.addBooking(s.token, body)).booking : {
-        id: 'd' + Date.now(), service_id: svc.id, service_name: [svc.name, ...chosen.map(a => a.name)].join(' + '), duration_min: duration, starts_at: starts, ends_at: new Date(new Date(starts).getTime() + duration * 60000).toISOString(),
+        id: 'd' + Date.now(), service_id: svc.id, service_name: [svc.name, ...chosen.map(a => a.name)].join(' + '), staff_id: f.staff_id || null, staff_name: team.find(m => m.id === f.staff_id)?.name ?? null, duration_min: duration, starts_at: starts, ends_at: new Date(new Date(starts).getTime() + duration * 60000).toISOString(),
         status: 'confirmed', customer_name: body.name, email: body.email ?? '', phone: body.phone ?? '', note: null, currency_code: 'ngn', price, deposit: 0, paid: body.paid, owed: price - body.paid, tips: 0, refund_due: 0, refunded_at: null, cancelled_by: null,
       } as SellerBooking;
       flash('Booking added');
@@ -203,6 +231,14 @@ function AddBooking({ day, onClose, onAdded }: { day: string; onClose: () => voi
                 <span>{a.name}</span><small>+{fmt(a.price)}{a.duration_min ? ` · +${a.duration_min} min` : ''}</small></label>
             ))}
           </div>
+        )}
+        {team.length > 0 && (
+          <label className="biz-field"><span>With</span>
+            <select className="field" value={f.staff_id} onChange={e => setF({ ...f, staff_id: e.target.value })}>
+              <option value="">Not assigned</option>
+              {team.filter(m => !svc || !m.service_ids || m.service_ids.includes(svc.id)).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+            </select>
+          </label>
         )}
         <label className="biz-field"><span>Price agreed{svc?.payment === 'contact' ? '' : ' (if different)'}</span>
           <input className="field" inputMode="numeric" placeholder={listPrice ? String(listPrice) : 'e.g. 350000'} value={f.price} onChange={e => setF({ ...f, price: e.target.value.replace(/[^0-9]/g, '') })} />

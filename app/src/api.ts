@@ -109,8 +109,15 @@ export interface BookingSettings {
   /** Shown for "Contact to book" services. */
   phone?: string;
   contact_email?: string;
+  /** Blocked-off time: breaks, days off, holidays (once or repeating). */
+  blocks?: TimeBlock[];
+  /** Team members customers can book (salons with more than one stylist). */
+  staff?: Staff[];
   calendar_key?: string;
 }
+/** Once: `date` (to `end_date`). Repeating: on `days`, from `date` (until `end_date`). Wall-clock times. */
+export interface TimeBlock { id: string; label: string; all_day: boolean; from: string; to: string; date: string; end_date?: string | null; days?: Day[]; staff_id?: string | null }
+export interface Staff { id: string; name: string; title?: string; service_ids: string[] | null; hours: Record<Day, { from: string; to: string }[]> | null; active: boolean }
 export interface BookingEmail { subject: string; message: string }
 export interface Service {
   id: string;
@@ -134,6 +141,8 @@ export interface SellerBooking {
   id: string;
   service_id: string;
   service_name: string;
+  staff_id?: string | null;
+  staff_name?: string | null;
   duration_min: number;
   starts_at: string;
   ends_at: string;
@@ -487,10 +496,11 @@ export type PayChoice = 'deposit' | 'full' | 'later';
 export interface BookingPage {
   shop: { name: string; handle: string; address: string; timezone: string; cancel_hours: number; days_ahead: number; currency_code: string; phone?: string | null; email?: string | null };
   fee_percent: number;
+  staff?: { id: string; name: string; title: string | null; service_ids: string[] | null }[];
   services: (Service & { pay_choices: PayChoice[] })[];
 }
 export interface CustomerBooking {
-  id: string; service_name: string; duration_min: number; starts_at: string; ends_at: string;
+  id: string; service_id?: string; service_name: string; staff_id?: string | null; staff_name?: string | null; duration_min: number; starts_at: string; ends_at: string;
   status: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'no_show'; customer_name: string; currency_code: string;
   price: number; paid: number; owed: number; tips: number; refund_due: number; refunded: boolean; can_change: boolean; cancel_hours: number; timezone: string;
   shop: { name: string; handle: string; address: string };
@@ -508,14 +518,16 @@ async function storeGet<T>(path: string): Promise<T> {
 }
 export const bookingApi = {
   page: (handle: string) => storeGet<BookingPage>(`/store/sellers/${encodeURIComponent(handle)}/booking`),
-  slots: (handle: string, serviceId: string, date: string, addons: string[] = []) =>
-    storeGet<{ slots: string[] }>(`/store/sellers/${encodeURIComponent(handle)}/booking/slots?service_id=${encodeURIComponent(serviceId)}&date=${date}${addons.length ? `&addons=${addons.map(encodeURIComponent).join(',')}` : ''}`),
-  book: (handle: string, body: { service_id: string; starts_at: string; name: string; email: string; phone: string; note?: string; pay: PayChoice; return_url: string; marketing_opt_in?: boolean; addon_ids?: string[] }) =>
+  slots: (handle: string, serviceId: string, date: string, addons: string[] = [], staff?: string | null) =>
+    storeGet<{ slots: string[] }>(`/store/sellers/${encodeURIComponent(handle)}/booking/slots?service_id=${encodeURIComponent(serviceId)}&date=${date}${addons.length ? `&addons=${addons.map(encodeURIComponent).join(',')}` : ''}${staff ? `&staff=${encodeURIComponent(staff)}` : ''}`),
+  book: (handle: string, body: { service_id: string; starts_at: string; name: string; email: string; phone: string; note?: string; pay: PayChoice; return_url: string; marketing_opt_in?: boolean; addon_ids?: string[]; staff_id?: string | null }) =>
     storeSend<{ booking: CustomerBooking; token: string; payment_url: string | null }>(`/store/sellers/${encodeURIComponent(handle)}/booking`, 'POST', body),
   verify: (reference: string) => storeSend<{ status: 'paid' | 'pending' | 'failed'; kind: string; booking: CustomerBooking; token: string }>('/store/booking-payments/verify', 'POST', { reference }),
   get: (token: string) => storeGet<{ booking: CustomerBooking; online: boolean; fee_percent: number }>(`/store/bookings/${encodeURIComponent(token)}`),
   act: (token: string, body: { action: 'cancel' } | { action: 'reschedule'; starts_at: string } | { action: 'pay_balance'; return_url: string } | { action: 'tip'; amount: number; return_url: string }) =>
     storeSend<{ booking?: CustomerBooking; payment_url?: string }>(`/store/bookings/${encodeURIComponent(token)}`, 'POST', body),
+  /** Free times to move this booking to (its own length and team member). */
+  moveSlots: (token: string, date: string) => storeGet<{ slots: string[] }>(`/store/bookings/${encodeURIComponent(token)}/slots?date=${date}`),
   calendarFile: (token: string) => `${storeApi()}/bookings/${encodeURIComponent(token)}/calendar`,
 };
 
@@ -709,7 +721,7 @@ export const api = {
       `/sellers/me/bookings${from ? `?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to ?? '')}` : ''}`, { token }),
   bookingAction: (token: string, id: string, body: { action: 'complete' | 'no_show' | 'refunded' | 'cancel'; reason?: string }) =>
     request<{ booking: SellerBooking }>(`/sellers/me/bookings/${encodeURIComponent(id)}`, { token, body }),
-  addBooking: (token: string, body: { service_id: string; starts_at: string; name: string; phone?: string; email?: string; note?: string; paid?: number; addon_ids?: string[]; price?: number }) =>
+  addBooking: (token: string, body: { service_id: string; starts_at: string; name: string; phone?: string; email?: string; note?: string; paid?: number; addon_ids?: string[]; price?: number; staff_id?: string | null }) =>
     request<{ booking: SellerBooking }>('/sellers/me/bookings', { token, body }),
   calendarLink: (token: string, renew = false) => request<{ url: string; webcal: string }>('/sellers/me/booking-calendar', { token, body: { renew } }),
   // ---- email blasts ----

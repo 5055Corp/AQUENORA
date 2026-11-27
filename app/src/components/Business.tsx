@@ -6,8 +6,9 @@ import { IOS_APP, SELL_PRO_HERE, shareLink } from '../native';
 import { useStore } from '../store';
 import { InviteCard } from './InviteCard';
 import { BookingEmailEditor, ServicesAndHours } from './BusinessBookings';
+import { Team, WorkingHours } from './BusinessTeam';
 
-type View = 'hub' | 'blasts' | 'auto' | 'share' | 'services' | 'invite';
+type View = 'hub' | 'blasts' | 'auto' | 'share' | 'services' | 'hours' | 'team' | 'invite';
 
 /** The booking page: <shop>/book, or ?shop=x&book=1 before the shop has its own address. */
 export const bookingUrl = (storeUrl: string) => (storeUrl.includes('?') ? `${storeUrl}&book=1` : `${storeUrl.replace(/\/$/, '')}/book`);
@@ -17,6 +18,8 @@ export { defaultBookingSettings };
 
 /** Thin line icons, the same style as the menu. */
 export const ICON: Record<string, ReactNode> = {
+  clock: <><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3 2" /></>,
+  team: <><circle cx="9" cy="8" r="3" /><path d="M3.5 19a5.5 5.5 0 0111 0" /><circle cx="17" cy="9" r="2.4" /><path d="M15.5 14.2a4.5 4.5 0 015 4.8" /></>,
   bookings: <><rect x="3.5" y="3.5" width="17" height="17" rx="3" /><path d="M3.5 9.2h17M3.5 14.8h17M9.2 3.5v17M14.8 3.5v17" /></>,
   link: <><path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1" /><path d="M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1" /></>,
   cal: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4M9 15l2 2 4-4" /></>,
@@ -55,6 +58,8 @@ export function Business() {
   if (view === 'blasts') return <>{back}<EmailBlasts allowance={allowance} /></>;
   if (view === 'auto') return <>{back}<BookingEmailEditor /></>;
   if (view === 'services') return <>{back}<ServicesAndHours /></>;
+  if (view === 'hours') return <>{back}<WorkingHours /></>;
+  if (view === 'team') return <>{back}<Team /></>;
   if (view === 'share') return <>{back}<ShareStore /></>;
   if (view === 'invite') return <>{back}<h1 className="h1" style={{ fontSize: h1Size }}>Invite a seller</h1><InviteCard /></>;
 
@@ -89,7 +94,9 @@ export function Business() {
         <>
           <h2 className="biz-sec">Bookings</h2>
           <div className="biz-list">
-            <Row icon="bookings" title="Services & hours" sub="What customers can book, and when" onClick={() => setView('services')} />
+            <Row icon="bookings" title="Services" sub="What customers can book, prices and add-ons" onClick={() => setView('services')} />
+            <Row icon="clock" title="Working hours & time off" sub="Opening hours, breaks, days off" onClick={() => setView('hours')} />
+            <Row icon="team" title="Team" sub={s.bookings?.staff?.length ? `${s.bookings.staff.length} ${s.bookings.staff.length === 1 ? 'person' : 'people'} customers can book` : 'Add stylists customers can book'} onClick={() => setView('team')} />
             <Row icon="link" title="Booking link" sub={bookLink} onClick={() => setView('share')} />
           </div>
         </>

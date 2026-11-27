@@ -1007,17 +1007,18 @@ button.ob-photo { width: 100%; cursor: pointer; font: inherit; font-family: var(
 .biz-chip.word { background: #f1ebfd; border-color: #f1ebfd; color: #3b1680; padding: 6px 10px; font-size: 12.5px; }
 .biz-cost { margin: 0; font-size: 13.5px; background: #f7f3ec; border-radius: 12px; padding: 10px 12px; }
 .biz-wide { width: 100%; min-height: 48px; border-radius: 999px; text-align: center; display: grid; place-items: center; text-decoration: none; }
+.biz > .biz-list + .biz-wide { margin-top: 12px; }
 .biz-more { align-self: center; margin-top: 12px; }
 .biz-link { background: #f1ebfd; color: #3b1680; border-radius: 12px; padding: 10px 12px; font-weight: 700; font-size: 14px; word-break: break-all; }
 .biz-link.small { display: block; font-size: 12px; margin-top: 4px; }
 .biz-btns { display: flex; gap: 8px; flex-wrap: wrap; } .biz-btns .btn-dark { border-radius: 999px; padding: 10px 18px; }
 .biz-switch { margin-bottom: 4px; }
 .biz-hours { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
-.biz-day { width: 40px; font-weight: 700; }
-.biz-times { flex: 1; display: flex; align-items: center; gap: 6px; }
-.biz-times .field { flex: 1; min-width: 0; border-radius: 10px; padding: 7px 8px; font: inherit; font-size: 14px; }
+.biz-day { width: 40px; flex: none; font-weight: 700; }
+.biz-times { flex: 1; min-width: 0; display: flex; align-items: center; gap: 4px; }
+.biz-times .field { flex: 1; min-width: 0; width: 0; border-radius: 10px; padding: 7px 6px; font: inherit; font-size: 13.5px; }
 .biz-closed { flex: 1; color: var(--muted); }
-.biz-mini { width: 20px; height: 20px; accent-color: #1e6b34; }
+.biz-mini { flex: none; width: 20px; height: 20px; accent-color: #1e6b34; }
 .biz-two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .biz-unit { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--muted); }
 .biz-unit .field { flex: 1; min-width: 0; width: 100%; box-sizing: border-box; border-radius: 12px; padding: 11px 12px; font: inherit; font-weight: 500; color: var(--ink); }
@@ -1060,6 +1061,9 @@ button.ob-photo { width: 100%; cursor: pointer; font: inherit; font-family: var(
 .bk-pill.ok { background: #e6f4ea; color: #1e6b34 !important; } .bk-pill.mid { background: #f1ebfd; color: #3b1680 !important; }
 .bk-pill.due { background: #fff4e5; color: #7a4300 !important; } .bk-pill.grey { background: #efe9df; color: #6f6759 !important; }
 .bk-add { min-height: 48px; border-radius: 999px; }
+.bk-buttons { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.bk-blockbtn { min-height: 48px; border-radius: 999px; padding: 0 18px; }
+.bk-block .bk-time { color: var(--muted); }
 .bk-sheet { display: flex; flex-direction: column; gap: 12px; }
 .bk-sub { color: var(--muted); margin: -6px 0 0; font-size: 14px; }
 .bk-money { background: #f7f2ea; border-radius: 14px; padding: 10px 12px; display: grid; gap: 4px; font-size: 14px; }
@@ -1072,3 +1076,11 @@ button.ob-photo { width: 100%; cursor: pointer; font: inherit; font-family: var(
 .bk-addons { display: grid; gap: 6px; }
 .bk-addon { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; font-size: 14px; font-weight: 600; background: var(--tile); border-radius: 12px; padding: 10px 12px; }
 .bk-addon small { color: var(--muted); font-weight: 600; }
+.biz-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.biz-wd { border: 1.5px solid var(--line); background: var(--tile); border-radius: 10px; padding: 9px 0; font: inherit; font-weight: 700; font-size: 13px; color: var(--ink); cursor: pointer; }
+.biz-wd.on { background: var(--ink); border-color: var(--ink); color: #fff; }
+.biz-avatar { width: 38px; height: 38px; flex: none; border-radius: 50%; display: grid; place-items: center; background: #efe9ff; color: #4b2a9e; font-weight: 800; }
+.bk-block { display: flex; align-items: center; gap: 10px; border: 1.5px dashed var(--dash, #ccc); border-radius: 14px; padding: 10px 12px; background: transparent; color: var(--muted); font: inherit; text-align: left; width: 100%; cursor: pointer; }
+.bk-block b { color: var(--ink); font-size: 14px; }
+.bk-block small { display: block; font-size: 12.5px; }
+.bk-staff-chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
