@@ -23,6 +23,9 @@ const DEMO_PAGE = (name: string, handle: string): BookingPage => ({
 });
 const demoSlots = (date: string) => ['09:00', '10:30', '11:30', '13:00', '14:30', '16:00'].filter((_, i) => (date.charCodeAt(9) + i) % 3 !== 0).map(t => new Date(`${date}T${t}:00`).toISOString());
 
+/** A faint wash of the store's brand colour, for selected cards. */
+const tint = (hex: string) => /^#[0-9a-f]{6}$/i.test(hex) ? hex + '14' : 'rgba(0,0,0,.04)';
+
 function useColours(d: StoreDesign) {
   return { bg: d.colors.background, ink: d.colors.text, card: d.colors.card, cardInk: cardTextOf(d), accent: d.colors.accent, onAccent: d.colors.accent_text, heading: STORE_FONTS[d.fonts.heading].family, body: STORE_FONTS[d.fonts.body].family };
 }
@@ -90,7 +93,7 @@ export function BookingFlow({ handle, shopName, design, fmt, onBack }: Props) {
         <>
           <div className="bf-step">1 · Choose a service</div>
           {page.services.map(s => (
-            <button type="button" key={s.id} className={'bf-opt' + (s.id === svc.id ? ' on' : '')} style={s.id === svc.id ? { borderColor: c.accent } : undefined} onClick={() => setSvcId(s.id)}>
+            <button type="button" key={s.id} className={'bf-opt' + (s.id === svc.id ? ' on' : '')} style={s.id === svc.id ? { borderColor: c.accent, background: tint(c.accent) } : undefined} onClick={() => setSvcId(s.id)}>
               <span><b>{s.name}</b><small>{mins(s.duration_min)}{s.description ? ` · ${s.description}` : ''}</small></span>
               <b>{s.payment === 'deposit' && s.deposit < s.price ? '' : ''}{fmt(s.price)}</b>
             </button>
@@ -129,7 +132,7 @@ export function BookingFlow({ handle, shopName, design, fmt, onBack }: Props) {
             <>
               <div className="bf-step">How would you like to pay?</div>
               {svc.pay_choices.map(p => (
-                <button type="button" key={p} className={'bf-opt' + (p === pay ? ' on' : '')} style={p === pay ? { borderColor: c.accent } : undefined} onClick={() => setPay(p)}>
+                <button type="button" key={p} className={'bf-opt' + (p === pay ? ' on' : '')} style={p === pay ? { borderColor: c.accent, background: tint(c.accent) } : undefined} onClick={() => setPay(p)}>
                   <span><b>{p === 'deposit' ? `Pay the deposit now (${fmt(svc.deposit)})` : p === 'full' ? 'Pay in full now' : 'Pay at the appointment'}</b>
                     <small>{p === 'deposit' ? `${fmt(svc.price - svc.deposit)} at the appointment` : p === 'full' ? 'Nothing to pay on the day' : 'Nothing to pay now'}</small></span>
                 </button>
