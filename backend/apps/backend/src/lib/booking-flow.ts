@@ -1,6 +1,7 @@
 // What happens when a customer books, pays, changes, cancels or tips, and what the provider can do.
 // Called from workflows (workflows/bookings.ts) and the Paystack webhook. See lib/bookings.ts for the rules.
 
+import { randomBytes } from "node:crypto"
 import type { MedusaContainer } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys, MedusaError, Modules } from "@medusajs/framework/utils"
 import { supportEmail } from "./account-email"
@@ -15,6 +16,8 @@ import { initializeTransaction, newBookingReference, PAYSTACK_CURRENCY, paystack
 import { pushToSeller } from "./push"
 import { BILLING_MODULE } from "../modules/billing"
 import type BillingModuleService from "../modules/billing/service"
+import { MARKETING_MODULE } from "../modules/marketing"
+import type MarketingModuleService from "../modules/marketing/service"
 import { SELLER_MODULE } from "../modules/seller"
 import type SellerModuleService from "../modules/seller/service"
 
@@ -106,6 +109,17 @@ async function announceConfirmed(c: MedusaContainer, b: BookingRow, seller: Book
 
 // ---------------- booking ----------------
 
+/** Adds the customer to the shop's list; only a "yes" subscribes them to emails (never un-subscribes). */
+async function rememberCustomer(c: MedusaContainer, sellerId: string, email: string, name: string, optIn: boolean) {
+  const marketing = c.resolve<MarketingModuleService>(MARKETING_MODULE)
+  const [existing] = await marketing.listMarketingContacts({ seller_id: sellerId, email }, { take: 1 })
+  if (!existing) {
+    await marketing.createMarketingContacts({ seller_id: sellerId, email, name, subscribed: optIn, consented_at: optIn ? new Date() : null, unsubscribe_token: randomBytes(24).toString("base64url") })
+  } else if (optIn && !existing.subscribed) {
+    await marketing.updateMarketingContacts({ id: existing.id, subscribed: true, consented_at: new Date(), unsubscribed_at: null })
+  }
+}
+
 export type StartBookingInput = {
   service_id: string
   starts_at: string
@@ -115,6 +129,7 @@ export type StartBookingInput = {
   note?: string
   pay: PayChoice
   return_url: string
+  marketing_opt_in?: boolean
 }
 
 /** Creates the booking. Paying online: a Paystack page for the deposit or full price + AQUENORA's fee. */
@@ -156,6 +171,7 @@ export async function startBooking(c: MedusaContainer, handle: string, input: St
       refund_due: 0,
     } as never)) as unknown as BookingRow
 
+    await rememberCustomer(c, seller.id, booking.email, booking.customer_name, !!input.marketing_opt_in)
     if (payNow === 0) {
       await announceConfirmed(c, booking, seller, settings)
       return { booking: customerView(booking, seller, settings), token: bookingToken(booking.id), payment_url: null as string | null }

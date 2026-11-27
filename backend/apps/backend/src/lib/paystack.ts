@@ -203,3 +203,5 @@ export function validWebhookSignature(rawBody: Buffer | string, signature: strin
 export const newReference = () => "aq_" + crypto.randomBytes(12).toString("hex")
 /** Booking payments (deposit, full, the rest, tips). */
 export const newBookingReference = () => "aqb_" + crypto.randomBytes(12).toString("hex")
+/** A seller buying extra emails. */
+export const newEmailReference = () => "aqe_" + crypto.randomBytes(12).toString("hex")

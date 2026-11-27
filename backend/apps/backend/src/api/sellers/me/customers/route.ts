@@ -1,6 +1,8 @@
 import type { AuthenticatedMedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
-import { audienceCounts, pastCustomers } from "../../../../lib/customers"
+import { audienceCounts, bookingsAsOrders, pastCustomers } from "../../../../lib/customers"
+import { SELLER_MODULE } from "../../../../modules/seller"
+import type SellerModuleService from "../../../../modules/seller/service"
 import { MARKETING_MODULE } from "../../../../modules/marketing"
 import type MarketingModuleService from "../../../../modules/marketing/service"
 
@@ -24,6 +26,8 @@ export async function GET(req: AuthenticatedMedusaRequest, res: MedusaResponse) 
   const marketing: MarketingModuleService = req.scope.resolve(MARKETING_MODULE)
   const contacts = await marketing.listMarketingContacts({ seller_id: req.auth_context.actor_id })
   const orders = ((data[0] as unknown as { orders?: unknown[] | null }).orders ?? []).filter(Boolean)
-  const customers = pastCustomers(orders, contacts)
+  // People who booked a service are customers too.
+  const bookings = await req.scope.resolve<SellerModuleService>(SELLER_MODULE).listBookings({ seller_id: req.auth_context.actor_id, status: ["confirmed", "completed"] } as never, { take: 20000, select: ["status", "email", "customer_name", "starts_at", "price"] })
+  const customers = pastCustomers([...orders, ...bookingsAsOrders(bookings as never)], contacts)
   res.json({ customers, count: customers.length, audiences: audienceCounts(customers) })
 }

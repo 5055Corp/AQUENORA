@@ -2,6 +2,7 @@ import { MedusaService } from "@medusajs/framework/utils"
 import BillingSettings from "./models/billing-settings"
 import PlanPrice from "./models/plan-price"
 import ProPayment from "./models/pro-payment"
+import EmailPurchase from "./models/email-purchase"
 
 export type Settings = {
   free_commission_percent: number
@@ -34,7 +35,7 @@ export const DEFAULT_PRICES: Record<string, { currency_code: string; monthly_pri
   DI: { currency_code: "usd", monthly_price: 25 },
 }
 
-class BillingModuleService extends MedusaService({ PlanPrice, BillingSettings, ProPayment }) {
+class BillingModuleService extends MedusaService({ PlanPrice, BillingSettings, ProPayment, EmailPurchase }) {
   async getSettings(): Promise<Settings> {
     const [row] = await this.listBillingSettings({}, { take: 1 })
     if (!row) {

@@ -1,7 +1,11 @@
 import { randomBytes } from "node:crypto"
 import { MedusaError } from "@medusajs/framework/utils"
 import { createStep, StepResponse } from "@medusajs/framework/workflows-sdk"
-import { audienceCounts, inAudience, pastCustomers, type Audience } from "../../lib/customers"
+import { audienceCounts, bookingsAsOrders, inAudience, pastCustomers, type Audience } from "../../lib/customers"
+import { emailAllowance, monthKey, splitSend, type EmailUsage } from "../../lib/email-allowance"
+import { money } from "../../lib/order-email"
+import { SELLER_MODULE } from "../../modules/seller"
+import type SellerModuleService from "../../modules/seller/service"
 import { resolvePlan, type PlanSeller } from "../../lib/plans"
 import { MARKETING_MODULE } from "../../modules/marketing"
 import type MarketingModuleService from "../../modules/marketing/service"
@@ -84,13 +88,27 @@ export const prepareCampaignRecipientsStep = createStep(
     }
 
     const contacts = await marketing.listMarketingContacts({ seller_id: input.seller_id })
-    const customers = inAudience(pastCustomers(input.orders, contacts), input.audience)
+    // Customers who booked count too.
+    const sellers = container.resolve<SellerModuleService>(SELLER_MODULE)
+    const bookings = (await sellers.listBookings({ seller_id: input.seller_id, status: ["confirmed", "completed"] } as never, { take: 20000, select: ["status", "email", "customer_name", "starts_at", "price"] })) as never
+    const orders = [...input.orders, ...bookingsAsOrders(bookings)]
+    const customers = inAudience(pastCustomers(orders, contacts), input.audience)
     if (!customers.length) {
       throw new MedusaError(MedusaError.Types.INVALID_DATA, "No customers in this group have agreed to get emails yet.")
     }
+    // Free emails this month first, then bought ones.
+    const seller = await sellers.retrieveSeller(input.seller_id)
+    const allowance = await emailAllowance(container, seller as never)
+    if (!splitSend(customers.length, allowance)) {
+      const short = customers.length - allowance.free_left - allowance.credits
+      throw new MedusaError(
+        MedusaError.Types.NOT_ALLOWED,
+        `This email goes to ${customers.length} customers, but you have ${allowance.free_left} free emails left this month${allowance.credits ? ` and ${allowance.credits} bought` : ""}. Buy ${short} more (${money(allowance.price_per_email, allowance.currency_code)} each) on app.aquenora.com, or choose a smaller group.`
+      )
+    }
     const tokens = new Map(contacts.map((c) => [c.email, c.unsubscribe_token]))
     const recipients: CampaignRecipient[] = customers.map((c) => ({ email: c.email, name: c.name, unsubscribe_token: tokens.get(c.email)! }))
-    return new StepResponse({ recipients, counts: audienceCounts(pastCustomers(input.orders, contacts)) })
+    return new StepResponse({ recipients, counts: audienceCounts(pastCustomers(orders, contacts)) })
   }
 )
 
@@ -121,5 +139,27 @@ export const recordCampaignResultStep = createStep(
       failed_count: failed,
     })
     return new StepResponse(campaign)
+  }
+)
+
+/** Counts the emails against this month's free ones, then bought ones. Undone if sending fails. */
+export const chargeEmailsStep = createStep(
+  "charge-emails",
+  async (input: { seller_id: string; count: number }, { container }) => {
+    const sellers = container.resolve<SellerModuleService>(SELLER_MODULE)
+    const seller = (await sellers.retrieveSeller(input.seller_id)) as unknown as { id: string; email_usage: EmailUsage; email_credits: number; currency_code: string }
+    const allowance = await emailAllowance(container, seller)
+    const split = splitSend(input.count, allowance)
+    if (!split) throw new MedusaError(MedusaError.Types.NOT_ALLOWED, "Not enough emails left. Buy more on app.aquenora.com.")
+    const before = { id: seller.id, email_usage: seller.email_usage, email_credits: seller.email_credits }
+    await sellers.updateSellers({
+      id: seller.id,
+      email_usage: { month: monthKey(), sent: allowance.used_this_month + input.count },
+      email_credits: allowance.credits - split.paid,
+    } as never)
+    return new StepResponse(split, before)
+  },
+  async (before, { container }) => {
+    if (before) await container.resolve<SellerModuleService>(SELLER_MODULE).updateSellers(before as never)
   }
 )

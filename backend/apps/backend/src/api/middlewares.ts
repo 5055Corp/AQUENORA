@@ -49,6 +49,9 @@ import {
   StartBookingSchema,
   CustomerBookingActionSchema,
   SellerBookingActionSchema,
+  BuyEmailsSchema,
+  CreateScheduleSchema,
+  UpdateScheduleSchema,
   UpdateSellerSchema,
 } from "./sellers/validators"
 
@@ -87,6 +90,32 @@ export default defineMiddlewares({
       // Sign-in safety: new devices confirm with an emailed code (see api/device-guard.ts).
       matcher: "/sellers/me*",
       middlewares: [deviceGuard],
+    },
+    // ---- email blasts: buying extra emails ----
+    {
+      methods: ["POST"],
+      matcher: "/sellers/me/email-credits",
+      middlewares: [sellerAuth, validateAndTransformBody(BuyEmailsSchema)],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/sellers/me/email-credits/verify",
+      middlewares: [sellerAuth, validateAndTransformBody(VerifyPaymentSchema)],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/sellers/me/campaign-schedules",
+      middlewares: [sellerAuth, validateAndTransformBody(CreateScheduleSchema)],
+    },
+    {
+      methods: ["POST"],
+      matcher: "/sellers/me/campaign-schedules/:id",
+      middlewares: [sellerAuth, validateAndTransformBody(UpdateScheduleSchema)],
+    },
+    {
+      methods: ["DELETE"],
+      matcher: "/sellers/me/campaign-schedules/:id",
+      middlewares: [sellerAuth],
     },
     // ---- bookings (service providers) ----
     {

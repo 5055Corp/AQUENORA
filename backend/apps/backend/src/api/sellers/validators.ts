@@ -423,6 +423,8 @@ export const StartBookingSchema = z
     note: z.string().trim().max(500).optional(),
     pay: z.enum(["deposit", "full", "later"]),
     return_url: returnUrl,
+    /** "Send me news and offers from this shop". */
+    marketing_opt_in: z.boolean().optional(),
   })
   .strict()
 export type StartBookingBody = z.infer<typeof StartBookingSchema>
@@ -439,3 +441,24 @@ export const SellerBookingActionSchema = z
   .object({ action: z.enum(["complete", "no_show", "refunded", "cancel"]), reason: z.string().trim().max(300).optional() })
   .strict()
 export type SellerBookingActionBody = z.infer<typeof SellerBookingActionSchema>
+
+// ---- email blasts ----
+
+export const BuyEmailsSchema = z
+  .object({ count: z.number().int().min(50, "Buy at least 50 emails").max(100000), return_url: z.string().url().max(500).refine((u) => /^https?:\/\//.test(u), "Invalid return address") })
+  .strict()
+export type BuyEmailsBody = z.infer<typeof BuyEmailsSchema>
+
+/** A blast that repeats every week or month, starting at first_send_at. */
+export const CreateScheduleSchema = z
+  .object({
+    subject: z.string().trim().min(1, "Add a subject").max(120),
+    message: z.string().trim().min(1, "Write a message").max(5000),
+    audience: z.enum(["all", "repeat", "lapsed"]),
+    every: z.enum(["week", "month"]),
+    first_send_at: z.string().datetime({ offset: true }),
+  })
+  .strict()
+export type CreateScheduleBody = z.infer<typeof CreateScheduleSchema>
+export const UpdateScheduleSchema = z.object({ active: z.boolean() }).strict()
+export type UpdateScheduleBody = z.infer<typeof UpdateScheduleSchema>
