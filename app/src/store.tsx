@@ -63,6 +63,8 @@ function fromSeller(se: ApiSeller): Partial<State> {
     verification: se.verification_status ?? 'verified',
     suspended: se.suspended_at ? se.suspend_reason || 'Contact AQUENORA support.' : '',
     collections: se.collections ?? [],
+    bookings: se.booking_settings ?? null,
+    bookingEmail: se.booking_email ?? null,
   };
 }
 
@@ -208,6 +210,36 @@ function useStoreValue(settings: Settings) {
       return '';
     } catch (e) {
       set({ collections: before });
+      return e instanceof Error ? e.message : 'Could not save. Please try again.';
+    }
+  };
+
+  /** Bookings on/off, hours and rules. Returns an error message, or '' when saved. */
+  const saveBookings = async (bookings: import('./api').BookingSettings): Promise<string> => {
+    const before = s.bookings;
+    set({ bookings });
+    if (!LIVE) return '';
+    try {
+      const { calendar_key: _k, ...body } = bookings;
+      void _k;
+      await api.updateMe(s.token, { booking_settings: body });
+      return '';
+    } catch (e) {
+      set({ bookings: before });
+      return e instanceof Error ? e.message : 'Could not save. Please try again.';
+    }
+  };
+
+  /** The "Appointment booked" email (null = AQUENORA's default). */
+  const saveBookingEmail = async (bookingEmail: import('./api').BookingEmail | null): Promise<string> => {
+    const before = s.bookingEmail;
+    set({ bookingEmail });
+    if (!LIVE) return '';
+    try {
+      await api.updateMe(s.token, { booking_email: bookingEmail });
+      return '';
+    } catch (e) {
+      set({ bookingEmail: before });
       return e instanceof Error ? e.message : 'Could not save. Please try again.';
     }
   };
@@ -831,7 +863,7 @@ function useStoreValue(settings: Settings) {
     pickup, savePickup, savePayout,
     s, set, settings, toast, flash, isMobile, framed, country, fmt, fromUsd, slug, shopNameShown, storeUrl,
     products, toggleHelp, advanceOrder, copyLink, shareWhatsApp, startOver,
-    design, setDesign, planInfo, refreshPlan, startTrial, requestUpgrade, setAutoRenew, connectDomain, checkDomain, removeDomain, live: LIVE, submitAuth, confirmDevice, resendDeviceCode, finishOnboarding, addProduct, importProducts, setProductCost, publishDesign, logOut, deleteAccount, setListed, retryLoad, submitVerification, disputeAction, setCollections,
+    design, setDesign, planInfo, refreshPlan, startTrial, requestUpgrade, setAutoRenew, connectDomain, checkDomain, removeDomain, live: LIVE, submitAuth, confirmDevice, resendDeviceCode, finishOnboarding, addProduct, importProducts, setProductCost, publishDesign, logOut, deleteAccount, setListed, retryLoad, submitVerification, disputeAction, setCollections, saveBookings, saveBookingEmail,
     showHints: settings.showHelpHints,
     h1Size: isMobile ? '30px' : '40px',
   };

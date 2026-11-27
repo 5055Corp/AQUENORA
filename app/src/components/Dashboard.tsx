@@ -5,6 +5,7 @@ import { TAGLINE } from '../brand';
 import { Home } from './Home';
 import { Orders } from './Orders';
 import { Products } from './Products';
+import { Business } from './Business';
 import { ThemeEditor } from './ThemeEditor';
 import { Money } from './Money';
 import { Customers } from './Customers';
@@ -21,7 +22,11 @@ const TAB_ICONS: Record<string, ReactNode> = {
   money: <><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></>,
   customers: <><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20c.8-3.6 3.5-5.5 6.5-5.5s5.7 1.9 6.5 5.5" /><path d="M16 4.5a3.5 3.5 0 010 7M18.5 14.8c1.6.8 2.6 2.5 3 5.2" /></>,
   design: <><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18M9 9v12" /></>,
+  // Business keeps the Store design icon (Store design now lives inside Business).
+  business: <><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18M9 9v12" /></>,
 };
+/** Pages opened from Business (Store design) keep Business highlighted in the menu. */
+const tabOf = (t: Tab): Tab => (t === 'design' ? 'business' : t);
 
 export function Dashboard() {
   const { s, set, isMobile, framed, shopNameShown, slug } = useStore();
@@ -42,7 +47,7 @@ export function Dashboard() {
           </div>
           <nav className="sb-nav" aria-label="Main">
             {NAV.filter(n => SELL_PRO_HERE || n.key !== 'plan').map(n => {
-              const active = s.tab === n.key;
+              const active = tabOf(s.tab) === n.key;
               return (
                 <button
                   type="button"
@@ -101,6 +106,7 @@ export function Dashboard() {
           {s.tab === 'products' && <Products />}
           {s.tab === 'money' && <Money />}
           {s.tab === 'customers' && <Customers />}
+          {s.tab === 'business' && <Business />}
           {s.tab === 'design' && <ThemeEditor />}
           {s.tab === 'plan' && SELL_PRO_HERE && <Plan />}
           {s.tab === 'settings' && <Settings />}
@@ -109,7 +115,7 @@ export function Dashboard() {
         {isMobile && (
           <nav className={'tabbar' + (framed ? '' : ' tabbar-fixed')} aria-label="Main">
             {NAV.filter(n => n.phone !== false).map(n => {
-              const active = s.tab === n.key;
+              const active = tabOf(s.tab) === n.key;
               return (
                 <button
                   type="button"

@@ -67,6 +67,9 @@ export interface State {
   verifyReason: string;
   /** Collections inside the store ("Wigs", "Bundles"...), in display order. */
   collections: import('./api').StoreCollection[];
+  /** Bookings (service providers only): null = never set up. */
+  bookings: import('./api').BookingSettings | null;
+  bookingEmail: import('./api').BookingEmail | null;
   /** Paused by AQUENORA: the reason ('' = not paused). */
   suspended: string;
   password: string;
@@ -148,6 +151,8 @@ export function initialState(settings: Settings): State {
     verification: 'verified',
     verifyReason: '',
     suspended: '',
+    bookings: null,
+    bookingEmail: null,
     collections: [],
     password: '',
     deviceSentTo: settings.startScreen === 'device' ? 'a******@gmail.com' : '',

@@ -3,7 +3,6 @@ import { useStore } from '../store';
 import { DeleteAccount } from './DeleteAccount';
 import { VerifyStatus } from './Verify';
 import { goToSide } from '../side';
-import { InviteCard } from './InviteCard';
 
 const SITE = 'https://app.aquenora.com';
 
@@ -53,8 +52,6 @@ export function Settings() {
           <button type="button" className="set-link-btn" onClick={() => goToSide('shop')}>Switch to shopping<span>›</span></button>
         </nav>
       </section>
-
-      <InviteCard />
 
       <section className="card money-card" aria-labelledby="set-help">
         <h2 id="set-help" className="card-title">Help</h2>

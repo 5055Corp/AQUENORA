@@ -147,7 +147,7 @@ export function matchesFilter(o: Order, f: OrderFilter): boolean {
   return o.status === f;
 }
 
-export type Tab = 'home' | 'orders' | 'products' | 'money' | 'customers' | 'design' | 'plan' | 'settings';
+export type Tab = 'home' | 'orders' | 'products' | 'money' | 'customers' | 'business' | 'design' | 'plan' | 'settings';
 
 /** Sidebar items; `phone: false` keeps an item out of the phone tab bar (reached from Home instead). */
 export const NAV: { key: Tab; label: string; short: string; phone?: boolean }[] = [
@@ -156,7 +156,7 @@ export const NAV: { key: Tab; label: string; short: string; phone?: boolean }[] 
   { key: 'products', label: 'Products', short: 'Products' },
   { key: 'money', label: 'Financials', short: 'Financials' },
   { key: 'customers', label: 'Customers', short: 'Buyers' },
-  { key: 'design', label: 'Store design', short: 'Store design' },
+  { key: 'business', label: 'Business', short: 'Business' },
   { key: 'plan', label: 'Plan & domain', short: 'Plan', phone: false },
   { key: 'settings', label: 'Settings', short: 'Settings', phone: false },
 ];

@@ -89,6 +89,81 @@ export interface ApiSeller {
   shipping: unknown;
   /** The bank account sales are paid into (set once Paystack is connected). */
   payout: Payout | null;
+  /** Bookings (service providers only). null = never set up. */
+  booking_settings?: BookingSettings | null;
+  /** The "Appointment booked" email in the provider's words (null = AQUENORA's default). */
+  booking_email?: BookingEmail | null;
+}
+
+// ---- bookings (service providers) ----
+export type Day = 'sun' | 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat';
+export interface BookingSettings {
+  enabled: boolean;
+  timezone: string;
+  address: string;
+  hours: Record<Day, { from: string; to: string }[]>;
+  buffer_min: number;
+  min_notice_min: number;
+  days_ahead: number;
+  cancel_hours: number;
+  calendar_key?: string;
+}
+export interface BookingEmail { subject: string; message: string }
+export interface Service {
+  id: string;
+  name: string;
+  description: string | null;
+  duration_min: number;
+  price: number;
+  payment: 'deposit' | 'full' | 'none';
+  deposit_type: 'fixed' | 'percent';
+  deposit_value: number;
+  deposit: number;
+  active: boolean;
+  sort: number;
+}
+export type ServiceInput = Partial<Pick<Service, 'name' | 'description' | 'duration_min' | 'price' | 'payment' | 'deposit_type' | 'deposit_value' | 'active'>>;
+export interface SellerBooking {
+  id: string;
+  service_id: string;
+  service_name: string;
+  duration_min: number;
+  starts_at: string;
+  ends_at: string;
+  status: 'confirmed' | 'cancelled' | 'completed' | 'no_show';
+  customer_name: string;
+  email: string;
+  phone: string;
+  note: string | null;
+  currency_code: string;
+  price: number;
+  deposit: number;
+  paid: number;
+  owed: number;
+  tips: number;
+  refund_due: number;
+  refunded_at: string | null;
+  cancelled_by: 'customer' | 'seller' | null;
+}
+export interface EmailAllowance {
+  free_per_month: number;
+  used_this_month: number;
+  free_left: number;
+  credits: number;
+  price_per_email: number;
+  currency_code: string;
+  resets_at: string;
+}
+export interface CampaignSchedule {
+  id: string;
+  subject: string;
+  message: string;
+  audience: Audience;
+  every: 'week' | 'month';
+  next_run_at: string;
+  active: boolean;
+  last_sent_at: string | null;
+  last_error: string | null;
 }
 
 export interface Payout {
@@ -580,6 +655,27 @@ export const api = {
   setPayout: (token: string, body: { bank_code: string; account_number: string }) =>
     request<{ seller: ApiSeller }>('/sellers/me/payouts', { body, token }),
 
+  // ---- bookings ----
+  services: (token: string) => request<{ services: Service[] }>('/sellers/me/services', { token }),
+  addService: (token: string, body: ServiceInput) => request<{ service: Service }>('/sellers/me/services', { token, body }),
+  updateService: (token: string, id: string, body: ServiceInput) => request<{ service: Service }>(`/sellers/me/services/${encodeURIComponent(id)}`, { token, body }),
+  deleteService: (token: string, id: string) => request<{ deleted: boolean }>(`/sellers/me/services/${encodeURIComponent(id)}`, { token, method: 'DELETE' }),
+  bookings: (token: string, from?: string, to?: string) =>
+    request<{ bookings: SellerBooking[]; stats: { today: number; next_7_days: number; paid_online: number; tips: number; refunds_due: number }; timezone: string }>(
+      `/sellers/me/bookings${from ? `?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to ?? '')}` : ''}`, { token }),
+  bookingAction: (token: string, id: string, body: { action: 'complete' | 'no_show' | 'refunded' | 'cancel'; reason?: string }) =>
+    request<{ booking: SellerBooking }>(`/sellers/me/bookings/${encodeURIComponent(id)}`, { token, body }),
+  calendarLink: (token: string, renew = false) => request<{ url: string; webcal: string }>('/sellers/me/booking-calendar', { token, body: { renew } }),
+  // ---- email blasts ----
+  emailAllowance: (token: string) => request<{ allowance: EmailAllowance }>('/sellers/me/email-allowance', { token }),
+  buyEmails: (token: string, count: number, return_url: string) =>
+    request<{ payment_url: string; amount: number; currency_code: string }>('/sellers/me/email-credits', { token, body: { count, return_url } }),
+  confirmEmails: (token: string, reference: string) => request<{ status: string; count: number; credits: number | null }>('/sellers/me/email-credits/verify', { token, body: { reference } }),
+  schedules: (token: string) => request<{ schedules: CampaignSchedule[] }>('/sellers/me/campaign-schedules', { token }),
+  addSchedule: (token: string, body: { subject: string; message: string; audience: Audience; every: 'week' | 'month'; first_send_at: string }) =>
+    request<{ schedule: CampaignSchedule }>('/sellers/me/campaign-schedules', { token, body }),
+  setSchedule: (token: string, id: string, active: boolean) => request<{ schedule: CampaignSchedule }>(`/sellers/me/campaign-schedules/${encodeURIComponent(id)}`, { token, body: { active } }),
+  deleteSchedule: (token: string, id: string) => request<{ deleted: boolean }>(`/sellers/me/campaign-schedules/${encodeURIComponent(id)}`, { token, method: 'DELETE' }),
   sendCampaign: (token: string, body: { audience: Audience; subject: string; message: string }) =>
     request<{ campaign: Campaign }>('/sellers/me/campaigns', { body, token }),
 };

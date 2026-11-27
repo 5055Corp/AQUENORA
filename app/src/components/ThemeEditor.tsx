@@ -109,6 +109,7 @@ export function ThemeEditor() {
 
   return (
     <>
+      <button type="button" className="biz-back" onClick={() => set({ tab: 'business' })}>‹ Business</button>
       <div className="de-head">
         <h1 className="h1" style={{ fontSize: h1Size }}>Your store's look</h1>
         <button type="button" className="publish" disabled={s.busy} onClick={() => publishDesign()}>
