@@ -225,5 +225,19 @@ medusaIntegrationTestRunner({
       expect(csv.headers["content-type"]).toContain("text/csv")
       expect(csv.data).toContain('"Haircut","Chioma Eze"')
     })
+    it("shows the store's booking button only with bookings on and a service to book", async () => {
+      const { headers, store } = await setup()
+      const flag = async () => (await api.get("/store/sellers/glowbyada", store)).data.store.bookings
+      expect(await flag()).toBe(false)
+      await api.post("/sellers/me", { booking_settings: settings }, { headers })
+      expect(await flag()).toBe(false) // nothing to book yet
+      const svc = (await api.post("/sellers/me/services", { name: "Lash refill", duration_min: 30, price: 8000, payment: "none" }, { headers })).data.service
+      expect(await flag()).toBe(true)
+      await api.post(`/sellers/me/services/${svc.id}`, { active: false }, { headers })
+      expect(await flag()).toBe(false)
+      await api.post(`/sellers/me/services/${svc.id}`, { active: true }, { headers })
+      await api.post("/sellers/me", { booking_settings: { ...settings, enabled: false } }, { headers })
+      expect(await flag()).toBe(false)
+    })
   },
 })

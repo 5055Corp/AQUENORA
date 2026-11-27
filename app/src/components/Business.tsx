@@ -262,7 +262,7 @@ function EmailBlasts({ allowance }: { allowance: EmailAllowance | null }) {
         {short > 0 && repeat === 'now' ? (
           SELL_PRO_HERE
             ? <button type="button" className="btn-dark biz-wide" onClick={buy}>Buy {Math.max(50, short)} emails to send this</button>
-            : <p className="biz-note">You need {short} more emails. Buy them on app.aquenora.com, or choose a smaller group.</p>
+            : <p className="biz-note">You need {short} more emails than you have left. Choose a smaller group, or send when your free emails reset next month.</p>
         ) : (
           <button type="button" className="btn-dark biz-wide" disabled={busy || !subject.trim() || !message.trim() || !reach} onClick={send}>
             {busy ? 'Sending…' : repeat === 'now' ? `Send to ${reach} customers` : `Send every ${repeat}`}

@@ -103,7 +103,7 @@ export const prepareCampaignRecipientsStep = createStep(
       const short = customers.length - allowance.free_left - allowance.credits
       throw new MedusaError(
         MedusaError.Types.NOT_ALLOWED,
-        `This email goes to ${customers.length} customers, but you have ${allowance.free_left} free emails left this month${allowance.credits ? ` and ${allowance.credits} bought` : ""}. Buy ${short} more (${money(allowance.price_per_email, allowance.currency_code)} each) on app.aquenora.com, or choose a smaller group.`
+        `This email goes to ${customers.length} customers, but you have ${allowance.free_left} free ${allowance.free_left === 1 ? "email" : "emails"} left this month${allowance.credits ? ` and ${allowance.credits} bought` : ""}. You need ${short} more (${money(allowance.price_per_email, allowance.currency_code)} each), or choose a smaller group.`
       )
     }
     const tokens = new Map(contacts.map((c) => [c.email, c.unsubscribe_token]))
@@ -150,7 +150,7 @@ export const chargeEmailsStep = createStep(
     const seller = (await sellers.retrieveSeller(input.seller_id)) as unknown as { id: string; email_usage: EmailUsage; email_credits: number; currency_code: string }
     const allowance = await emailAllowance(container, seller)
     const split = splitSend(input.count, allowance)
-    if (!split) throw new MedusaError(MedusaError.Types.NOT_ALLOWED, "Not enough emails left. Buy more on app.aquenora.com.")
+    if (!split) throw new MedusaError(MedusaError.Types.NOT_ALLOWED, "Not enough emails left. Choose a smaller group.")
     const before = { id: seller.id, email_usage: seller.email_usage, email_credits: seller.email_credits }
     await sellers.updateSellers({
       id: seller.id,
