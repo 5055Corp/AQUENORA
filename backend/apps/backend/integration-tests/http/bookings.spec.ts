@@ -275,5 +275,40 @@ medusaIntegrationTestRunner({
       const manual = (await api.post("/sellers/me/bookings", { service_id: bridal.id, starts_at: `${day}T06:00:00.000Z`, name: "Amaka", phone: "0803", price: 350000, paid: 100000 }, { headers })).data.booking
       expect(manual).toMatchObject({ service_name: "Bridal hair & makeup", price: 350000, owed: 250000 })
     })
+    it("a team: two stylists can be booked at the same time, by name or 'anyone', each with their own hours and time off", async () => {
+      const { headers, store } = await setup()
+      const svc = (await api.post("/sellers/me/services", { name: "Wash & set", duration_min: 60, price: 10000, payment: "none" }, { headers })).data.service
+      const date = inDays(3)
+      const team = [
+        { id: "st_tolu", name: "Tolu", title: "Senior stylist", service_ids: null, hours: null, active: true },
+        // Ada works only 12:00–15:00, every day.
+        { id: "st_ada", name: "Ada", service_ids: [svc.id], hours: Object.fromEntries(["sun", "mon", "tue", "wed", "thu", "fri", "sat"].map((d) => [d, [{ from: "12:00", to: "15:00" }]])), active: true },
+      ]
+      // Tolu's lunch, 13:00–14:00 that day.
+      const blocks = [{ id: "b1", label: "Lunch", all_day: false, from: "13:00", to: "14:00", date, staff_id: "st_tolu" }]
+      await api.post("/sellers/me", { booking_settings: { ...settings, staff: team, blocks } }, { headers })
+
+      const page = (await api.get("/store/sellers/glowbyada/booking", store)).data
+      expect(page.staff.map((m: { name: string }) => m.name)).toEqual(["Tolu", "Ada"])
+      const slots = async (staff = "") => (await api.get(`/store/sellers/glowbyada/booking/slots?service_id=${svc.id}&date=${date}${staff ? `&staff=${staff}` : ""}`, store)).data.slots as string[]
+      const at = (hhmm: string) => `${date}T${String(Number(hhmm.slice(0, 2)) - 1).padStart(2, "0")}:${hhmm.slice(3)}:00.000Z` // Lagos = UTC+1
+      expect(await slots("st_ada")).toEqual([at("12:00"), at("12:30"), at("13:00"), at("13:30"), at("14:00")])
+      expect(await slots("st_tolu")).not.toContain(at("13:00")) // lunch
+      expect(await slots()).toContain(at("13:00")) // Ada is free then
+
+      // 12:00: Tolu by name, then "anyone" gets Ada, then nobody is left.
+      const one = (await api.post("/store/sellers/glowbyada/booking", { ...customer(svc.id, at("12:00"), "later"), staff_id: "st_tolu" }, store)).data.booking
+      expect(one.staff_name).toBe("Tolu")
+      const two = (await api.post("/store/sellers/glowbyada/booking", { ...customer(svc.id, at("12:00"), "later"), email: "b@example.com" }, store)).data.booking
+      expect(two.staff_name).toBe("Ada")
+      expect((await err(api.post("/store/sellers/glowbyada/booking", { ...customer(svc.id, at("12:00"), "later"), email: "c@example.com" }, store))).status).toBe(400)
+      expect(await slots()).not.toContain(at("12:00"))
+
+      // The provider sees who each booking is with, and books a walk-in for Tolu.
+      const list = (await api.get(`/sellers/me/bookings?from=${date}&to=${inDays(4)}`, { headers })).data.bookings
+      expect(list.map((b: { staff_name: string }) => b.staff_name).sort()).toEqual(["Ada", "Tolu"])
+      expect((await err(api.post("/sellers/me/bookings", { service_id: svc.id, starts_at: at("12:30"), name: "Walk-in", staff_id: "st_tolu" }, { headers }))).status).toBe(400) // overlaps Tolu's 12:00
+      expect((await api.post("/sellers/me/bookings", { service_id: svc.id, starts_at: at("15:00"), name: "Walk-in", staff_id: "st_tolu" }, { headers })).data.booking.staff_name).toBe("Tolu")
+    })
   },
 })

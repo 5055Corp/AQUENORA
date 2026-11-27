@@ -439,6 +439,8 @@ export const StartBookingSchema = z
     /** "Send me news and offers from this shop". */
     marketing_opt_in: z.boolean().optional(),
     addon_ids: z.array(z.string().max(40)).max(15).optional(),
+    /** A chosen team member; leave out for "anyone available". */
+    staff_id: z.string().max(40).nullable().optional(),
   })
   .strict()
 export type StartBookingBody = z.infer<typeof StartBookingSchema>
@@ -490,6 +492,7 @@ export const ManualBookingSchema = z
     addon_ids: z.array(z.string().max(40)).max(15).optional(),
     /** The price agreed with the customer, if not the list price. */
     price: z.number().min(0).max(1_000_000_000).optional(),
+    staff_id: z.string().max(40).nullable().optional(),
   })
   .strict()
 export type ManualBookingBody = z.infer<typeof ManualBookingSchema>

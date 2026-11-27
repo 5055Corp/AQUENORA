@@ -19,6 +19,63 @@ export const DAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const
 export type Day = (typeof DAYS)[number]
 const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use a time like 09:00")
 const interval = z.object({ from: hhmm, to: hhmm }).strict().refine((i) => i.from < i.to, "Opening time must be before closing time")
+const ymd = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use a date like 2026-12-24")
+
+/**
+ * Time the provider blocks off (lunch, school run, a holiday). Customers can't book it.
+ * Just once: `date` (to `end_date` for several days). Repeating: `days` of the week, from `date`
+ * (until `end_date`, if set). Times are wall-clock in the provider's time zone.
+ */
+export const TimeBlockSchema = z
+  .object({
+    id: z.string().min(1).max(40),
+    label: z.string().trim().min(1, "Name it, e.g. Lunch").max(60),
+    all_day: z.boolean(),
+    from: hhmm,
+    to: hhmm,
+    date: ymd,
+    end_date: ymd.nullable().optional(),
+    /** Set for repeating blocks: the days of the week it repeats on. */
+    days: z.array(z.enum(DAYS)).min(1).max(7).optional(),
+    /** One team member's time off; empty for the whole shop. */
+    staff_id: z.string().max(40).nullable().optional(),
+  })
+  .strict()
+  .refine((b) => b.all_day || b.from < b.to, { message: "The start must be before the end", path: ["to"] })
+  .refine((b) => !b.end_date || b.end_date >= b.date, { message: "The end date must be after the start", path: ["end_date"] })
+export type TimeBlock = z.infer<typeof TimeBlockSchema>
+
+const hoursSchema = z.object(Object.fromEntries(DAYS.map((d) => [d, z.array(interval).max(4)])) as Record<Day, z.ZodArray<typeof interval>>).strict()
+
+/**
+ * A team member customers can book (for salons with more than one stylist). Profiles under the shop's
+ * one account. Each has their own hours (or the shop's) and does all services or a chosen few.
+ */
+export const StaffSchema = z
+  .object({
+    id: z.string().min(1).max(40),
+    name: z.string().trim().min(1, "Add their name").max(60),
+    /** e.g. "Senior stylist". */
+    title: z.string().trim().max(60).optional(),
+    /** Null: does every service. */
+    service_ids: z.array(z.string().max(60)).max(100).nullable(),
+    /** Null: the shop's opening hours. */
+    hours: hoursSchema.nullable(),
+    active: z.boolean(),
+  })
+  .strict()
+export type Staff = z.infer<typeof StaffSchema>
+
+/** Active team members who do this service. Empty: a one-person business (no team set up). */
+export const teamFor = (s: { staff?: Staff[] }, serviceId: string) =>
+  (s.staff ?? []).filter((m) => m.active && (!m.service_ids || m.service_ids.includes(serviceId)))
+
+/** Does this block apply on this local date (YYYY-MM-DD), whose weekday is `day`? */
+export function blockOn(b: TimeBlock, date: string, day: Day): boolean {
+  if (date < b.date || (b.end_date && date > b.end_date)) return false
+  if (b.days) return b.days.includes(day)
+  return date <= (b.end_date ?? b.date)
+}
 
 export const BookingSettingsSchema = z
   .object({
@@ -32,7 +89,7 @@ export const BookingSettingsSchema = z
       }
     }, "Unknown time zone"),
     address: z.string().trim().max(300),
-    hours: z.object(Object.fromEntries(DAYS.map((d) => [d, z.array(interval).max(4)])) as Record<Day, z.ZodArray<typeof interval>>).strict(),
+    hours: hoursSchema,
     /** Minutes kept free after each appointment. */
     buffer_min: z.number().int().min(0).max(240),
     /** How soon customers can book (minutes from now). */
@@ -44,6 +101,10 @@ export const BookingSettingsSchema = z
     /** Shown for "Contact to book" services: a phone/WhatsApp number and an email. */
     phone: z.string().trim().max(30).optional(),
     contact_email: z.union([z.string().trim().email("Enter a valid email address").max(200), z.literal("")]).optional(),
+    /** Blocked-off time: breaks, days off, holidays (once or repeating). */
+    blocks: z.array(TimeBlockSchema).max(100, "Up to 100 blocked times").optional(),
+    /** The team (optional). */
+    staff: z.array(StaffSchema).max(30, "Up to 30 team members").optional(),
   })
   .strict()
 export type BookingSettings = z.infer<typeof BookingSettingsSchema> & { calendar_key?: string }
@@ -118,8 +179,10 @@ export const blocksTime = (b: BusyBooking, now: number) =>
   b.status === "confirmed" || b.status === "completed" || (b.status === "pending" && now - new Date(b.created_at ?? 0).getTime() < HOLD_MS)
 
 /** Start times (UTC ISO) a service can be booked on a local date. */
-export function freeSlots(input: { settings: BookingSettings; duration_min: number; date: string; busy: BusyBooking[]; now?: number }): string[] {
+export function freeSlots(input: { settings: BookingSettings; duration_min: number; date: string; busy: BusyBooking[]; now?: number; staff?: Staff | null }): string[] {
   const { settings: s, duration_min, date } = input
+  const staffId = input.staff?.id ?? null
+  const hours = input.staff?.hours ?? s.hours
   const now = input.now ?? Date.now()
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return []
   const noon = zonedToUtc(date, "12:00", s.timezone)
@@ -130,14 +193,20 @@ export function freeSlots(input: { settings: BookingSettings; duration_min: numb
   const earliest = now + s.min_notice_min * 60000
   const latest = now + s.days_ahead * 86400000
   const taken = input.busy.filter((b) => blocksTime(b, now)).map((b) => [new Date(b.starts_at).getTime(), new Date(b.ends_at).getTime() + buffer])
+  // Blocked-off time (lunch, days off): no appointment may overlap it.
+  const blocked = (s.blocks ?? []).filter((b) => (!b.staff_id || b.staff_id === staffId) && blockOn(b, date, day)).map((b) => [
+    zonedToUtc(date, b.all_day ? "00:00" : b.from, s.timezone).getTime(),
+    b.all_day ? zonedToUtc(date, "23:59", s.timezone).getTime() + 60000 : zonedToUtc(date, b.to, s.timezone).getTime(),
+  ])
   const out: string[] = []
-  for (const iv of s.hours[day] ?? []) {
+  for (const iv of hours[day] ?? []) {
     const open = zonedToUtc(date, iv.from, s.timezone).getTime()
     const close = zonedToUtc(date, iv.to, s.timezone).getTime()
     for (let t = open; t + dur <= close; t += step) {
       if (t < earliest || t > latest) continue
       const end = t + dur + buffer
       if (taken.some(([a, b]) => t < b && end > a)) continue
+      if (blocked.some(([a, b]) => t < b && t + dur > a)) continue
       out.push(new Date(t).toISOString())
     }
   }
@@ -234,6 +303,8 @@ export type BookingRow = {
   seller_id: string
   service_id: string
   service_name: string
+  staff_id?: string | null
+  staff_name?: string | null
   duration_min: number
   starts_at: Date | string
   ends_at: Date | string
@@ -264,7 +335,10 @@ export function canChange(b: BookingRow, s: BookingSettings, now = Date.now()) {
 export function customerView(b: BookingRow, shop: { name: string; handle: string }, s: BookingSettings, now = Date.now()) {
   return {
     id: b.id,
+    service_id: b.service_id,
     service_name: b.service_name,
+    staff_id: b.staff_id ?? null,
+    staff_name: b.staff_name ?? null,
     duration_min: b.duration_min,
     starts_at: new Date(b.starts_at).toISOString(),
     ends_at: new Date(b.ends_at).toISOString(),
@@ -290,6 +364,8 @@ export function sellerView(b: BookingRow) {
     id: b.id,
     service_id: b.service_id,
     service_name: b.service_name,
+    staff_id: b.staff_id ?? null,
+    staff_name: b.staff_name ?? null,
     duration_min: b.duration_min,
     starts_at: new Date(b.starts_at).toISOString(),
     ends_at: new Date(b.ends_at).toISOString(),
@@ -391,6 +467,7 @@ function details(b: BookingRow, s: BookingSettings) {
     },
     rows: [
       ["What", b.service_name],
+      ...(b.staff_name ? [["With", b.staff_name]] : []),
       ["When", `${when.date}, ${when.time} – ${end.time}`],
       ...(s.address ? [["Where", s.address]] : []),
       ["Total", money(Number(b.price), b.currency_code)],

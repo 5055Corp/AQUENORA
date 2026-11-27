@@ -7,8 +7,8 @@ import { ContainerRegistrationKeys, MedusaError, Modules } from "@medusajs/frame
 import { supportEmail } from "./account-email"
 import {
   blocksTime, bookingConfirmedEmail, bookingSettingsOf, bookingToken, bookingUpdateEmail, canChange, customerView, depositFor, feeOn,
-  formatWhen, freeSlots, localDate, owedOf, payChoices, sellerBookingEmail, serviceView, withAddons,
-  type BookingRow, type BookingSettings, type PayChoice, type ServiceRow,
+  formatWhen, freeSlots, localDate, owedOf, payChoices, sellerBookingEmail, serviceView, teamFor, withAddons,
+  type BookingRow, type BookingSettings, type PayChoice, type ServiceRow, type Staff,
 } from "./bookings"
 import { paymentsBlocker } from "./checkout"
 import { money } from "./order-email"
@@ -62,14 +62,34 @@ async function busyFor(c: MedusaContainer, sellerId: string, around: Date, excep
 
 const CONTACT_ONLY = "Please contact the shop to book this."
 
+/** Bookings that take a team member's time: theirs, plus any not given to anyone. */
+const busyOf = (rows: BookingRow[], staff: Staff | null) => (staff ? rows.filter((b) => !b.staff_id || b.staff_id === staff.id) : rows)
+
+/**
+ * Free start times on a day, and who is free at each. One-person business: everyone is `null`.
+ * With a team: for one member (staffId), or anyone who does the service.
+ */
+async function freeByStaff(c: MedusaContainer, seller: BookingSeller, settings: BookingSettings, svc: { id: string; duration_min: number }, date: string, staffId?: string | null, exceptId?: string) {
+  const team = teamFor(settings, svc.id)
+  const people: (Staff | null)[] = !team.length ? [null] : staffId ? team.filter((m) => m.id === staffId) : team
+  if (team.length && staffId && !people.length) throw new MedusaError(MedusaError.Types.INVALID_DATA, "That person doesn't do this service. Please choose someone else.")
+  const noon = new Date(`${date}T12:00:00Z`)
+  if (Number.isNaN(noon.getTime())) throw new MedusaError(MedusaError.Types.INVALID_DATA, "Pick a day.")
+  const rows = (await busyFor(c, seller.id, noon, exceptId)) as BookingRow[]
+  const who = new Map<string, Staff | null>()
+  for (const m of people) {
+    for (const t of freeSlots({ settings, duration_min: svc.duration_min, date, busy: busyOf(rows, m), staff: m })) if (!who.has(t)) who.set(t, m)
+  }
+  return who
+}
+
 /** Free start times for a service (with add-ons, which make it longer). */
-export async function slotsFor(c: MedusaContainer, handle: string, serviceId: string, date: string, addonIds: string[] = []) {
+export async function slotsFor(c: MedusaContainer, handle: string, serviceId: string, date: string, addonIds: string[] = [], staffId?: string | null) {
   const { seller, settings } = await bookingSeller(c, handle)
   const svc = await activeService(c, seller.id, serviceId)
   if (svc.payment === "contact") throw new MedusaError(MedusaError.Types.NOT_ALLOWED, CONTACT_ONLY)
-  const noon = new Date(`${date}T12:00:00Z`)
-  if (Number.isNaN(noon.getTime())) throw new MedusaError(MedusaError.Types.INVALID_DATA, "Pick a day.")
-  return freeSlots({ settings, duration_min: withAddons(svc, addonIds).duration_min, date, busy: await busyFor(c, seller.id, noon) })
+  const free = await freeByStaff(c, seller, settings, { id: svc.id, duration_min: withAddons(svc, addonIds).duration_min }, date, staffId)
+  return [...free.keys()].sort()
 }
 
 async function activeService(c: MedusaContainer, sellerId: string, id: string): Promise<ServiceRow> {
@@ -90,6 +110,8 @@ export async function bookingPage(c: MedusaContainer, handle: string) {
       phone: settings.phone || null, email: settings.contact_email || null,
     },
     fee_percent: await feePercent(c),
+    // Who customers can choose (salons with a team). Empty for a one-person business.
+    staff: (settings.staff ?? []).filter((m) => m.active).map((m) => ({ id: m.id, name: m.name, title: m.title ?? null, service_ids: m.service_ids })),
     services: services.map((s) => ({ ...serviceView(s), pay_choices: payChoices(s, online) })).filter((s) => s.payment === "contact" || s.pay_choices.length),
   }
 }
@@ -140,6 +162,8 @@ export type StartBookingInput = {
   marketing_opt_in?: boolean
   /** Add-ons the customer chose (more money and time). */
   addon_ids?: string[]
+  /** A chosen team member; empty for "anyone available". */
+  staff_id?: string | null
 }
 
 /** Creates the booking. Paying online: a Paystack page for the deposit or full price + AQUENORA's fee. */
@@ -158,8 +182,9 @@ export async function startBooking(c: MedusaContainer, handle: string, input: St
   const sellers = sellersOf(c)
   const locking = c.resolve(Modules.LOCKING)
   return locking.execute(`booking:${seller.id}`, async () => {
-    const free = freeSlots({ settings, duration_min: svc.duration_min, date: localDate(start, settings.timezone), busy: await busyFor(c, seller.id, start) })
-    if (!free.includes(start.toISOString())) throw new MedusaError(MedusaError.Types.NOT_ALLOWED, "Sorry, that time was just taken. Please pick another.")
+    const free = await freeByStaff(c, seller, settings, svc, localDate(start, settings.timezone), input.staff_id)
+    if (!free.has(start.toISOString())) throw new MedusaError(MedusaError.Types.NOT_ALLOWED, "Sorry, that time was just taken. Please pick another.")
+    const staff = free.get(start.toISOString()) ?? null
 
     const price = Number(svc.price)
     const payNow = input.pay === "full" ? price : input.pay === "deposit" ? depositFor(svc) : 0
@@ -167,6 +192,8 @@ export async function startBooking(c: MedusaContainer, handle: string, input: St
       seller_id: seller.id,
       service_id: svc.id,
       service_name: svc.name,
+      staff_id: staff?.id ?? null,
+      staff_name: staff?.name ?? null,
       addons: svc.chosen.length ? svc.chosen : null,
       duration_min: svc.duration_min,
       starts_at: start,
@@ -322,10 +349,14 @@ export async function customerAction(c: MedusaContainer, id: string, input: Cust
   const start = new Date(input.starts_at)
   if (Number.isNaN(start.getTime())) throw new MedusaError(MedusaError.Types.INVALID_DATA, "Pick a time.")
   return c.resolve(Modules.LOCKING).execute(`booking:${seller.id}`, async () => {
-    const free = freeSlots({ settings, duration_min: b.duration_min, date: localDate(start, settings.timezone), busy: await busyFor(c, seller.id, start, b.id) })
-    if (!free.includes(start.toISOString())) throw new MedusaError(MedusaError.Types.NOT_ALLOWED, "Sorry, that time isn't free. Please pick another.")
+    // Stays with the same team member (if they're still on the team; else anyone free).
+    const team = teamFor(settings, b.service_id)
+    const keep = b.staff_id && team.some((m) => m.id === b.staff_id) ? b.staff_id : null
+    const free = await freeByStaff(c, seller, settings, { id: b.service_id, duration_min: b.duration_min }, localDate(start, settings.timezone), keep, b.id)
+    if (!free.has(start.toISOString())) throw new MedusaError(MedusaError.Types.NOT_ALLOWED, "Sorry, that time isn't free. Please pick another.")
+    const staff = free.get(start.toISOString()) ?? null
     const after = (await sellers.updateBookings({
-      id: b.id, starts_at: start, ends_at: new Date(start.getTime() + b.duration_min * 60000), rescheduled: b.rescheduled + 1, reminded_day_at: null, reminded_hour_at: null,
+      id: b.id, starts_at: start, ends_at: new Date(start.getTime() + b.duration_min * 60000), ...(team.length ? { staff_id: staff?.id ?? null, staff_name: staff?.name ?? null } : {}), rescheduled: b.rescheduled + 1, reminded_day_at: null, reminded_hour_at: null,
     } as never)) as unknown as BookingRow
     await send(c, [bookingUpdateEmail(after, seller, settings, "rescheduled"), sellerBookingEmail(seller.email, after, seller, settings, "rescheduled")], "aquenora-booking")
     const when = formatWhen(start, settings.timezone)
@@ -374,7 +405,7 @@ export async function sellerBookings(c: MedusaContainer, sellerId: string, from:
 
 // ---------------- the provider adds a booking by hand (walk-in, phone, WhatsApp) ----------------
 
-export type ManualBookingInput = { service_id: string; starts_at: string; name: string; phone?: string; email?: string; note?: string; paid?: number; addon_ids?: string[]; price?: number }
+export type ManualBookingInput = { service_id: string; starts_at: string; name: string; phone?: string; email?: string; note?: string; paid?: number; addon_ids?: string[]; price?: number; staff_id?: string | null }
 
 export async function addManualBooking(c: MedusaContainer, sellerId: string, input: ManualBookingInput) {
   const sellers = sellersOf(c)
@@ -386,13 +417,16 @@ export async function addManualBooking(c: MedusaContainer, sellerId: string, inp
   const start = new Date(input.starts_at)
   if (Number.isNaN(start.getTime())) throw new MedusaError(MedusaError.Types.INVALID_DATA, "Pick a time.")
   const end = new Date(start.getTime() + svc.duration_min * 60000)
-  // The provider can book outside opening hours (it's their diary), but not on top of another booking.
-  const clash = (await busyFor(c, sellerId, start)).find((b) => blocksTime(b, Date.now()) && start < new Date(b.ends_at) && end > new Date(b.starts_at))
+  const staff = input.staff_id ? (settings.staff ?? []).find((m) => m.id === input.staff_id) ?? null : null
+  if (input.staff_id && !staff) throw new MedusaError(MedusaError.Types.INVALID_DATA, "That team member isn't on your team any more.")
+  // The provider can book outside opening hours (it's their diary), but not on top of another booking
+  // (for a team member: one of theirs, or one not given to anyone).
+  const clash = busyOf((await busyFor(c, sellerId, start)) as BookingRow[], staff).find((b) => blocksTime(b, Date.now()) && start < new Date(b.ends_at) && end > new Date(b.starts_at))
   if (clash) throw new MedusaError(MedusaError.Types.NOT_ALLOWED, `That time overlaps ${clash.customer_name}'s ${clash.service_name}.`)
   // A price agreed with the customer (e.g. a bridal quote) replaces the list price.
   const price = input.price ?? Number(svc.price)
   const booking = (await sellers.createBookings({
-    seller_id: sellerId, service_id: svc.id, service_name: svc.name, addons: svc.chosen.length ? svc.chosen : null, duration_min: svc.duration_min, starts_at: start, ends_at: end,
+    seller_id: sellerId, service_id: svc.id, service_name: svc.name, staff_id: staff?.id ?? null, staff_name: staff?.name ?? null, addons: svc.chosen.length ? svc.chosen : null, duration_min: svc.duration_min, starts_at: start, ends_at: end,
     status: "confirmed", customer_name: input.name.trim(), email: (input.email ?? "").trim().toLowerCase(), phone: (input.phone ?? "").trim(),
     note: input.note?.trim() || null, currency_code: seller.currency_code, price, deposit: 0, paid: Math.min(price, Math.max(0, input.paid ?? 0)), tips: 0, refund_due: 0,
   } as never)) as unknown as BookingRow
