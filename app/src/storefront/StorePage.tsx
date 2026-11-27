@@ -7,6 +7,7 @@ import { cardTextOf, designFromLegacy, normalizeDesign, STORE_FONTS, type StoreD
 import type { CountryId } from '../data';
 import { StoreView, type StoreItem } from './StoreView';
 import { TrackOrder } from './TrackOrder';
+import { BookingFlow, ManageBooking } from './Booking';
 import { notifyWhenBack, recordVisit, reportProduct, type VisitSource } from '../api';
 
 /** Where a visitor came from: ?from=..., or the website that sent them. */
@@ -71,6 +72,8 @@ export interface StoreData {
   /** Delivery options (DHL, local courier...) and the country the shop ships from. */
   shipping: Shipping;
   shipsFrom: string | null;
+  /** Service provider taking bookings: the store shows "Book an appointment". */
+  bookings: boolean;
 }
 
 type Load =
@@ -112,6 +115,7 @@ function demoStore(): StoreData {
     collections: s.collections ?? [],
     shipping: normalizeShipping(s.shipping),
     shipsFrom: homeCountry(s.country, normalizeShipping(s.shipping)),
+    bookings: !!s.bookings?.enabled,
   };
 }
 
@@ -148,6 +152,7 @@ export async function liveStore(handle: string): Promise<StoreData> {
     pickup: offered(store.pickup),
     acceptsPayments: store.accepts_payments === true,
     verified: store.verified === true,
+    bookings: store.bookings === true,
     collections: store.collections ?? [],
     shipping: normalizeShipping({ from: null, options: store.shipping?.options ?? [] }),
     shipsFrom: store.shipping?.ships_from ?? (store.country_code === 'DI' ? null : store.country_code),
@@ -467,7 +472,20 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
   const [showErrors, setShowErrors] = useState(false);
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState('');
-  const [paid, setPaid] = useState<Paid | null>(() => (!embedded && new URLSearchParams(window.location.search).get('reference') ? { kind: 'checking' } : null));
+  // Order payments come back with ?reference=aq_...; booking payments (aqb_) go to the booking page instead.
+  const orderReference = () => { const r = new URLSearchParams(window.location.search).get('reference'); return r && !r.startsWith('aqb_') ? r : null; };
+  const [paid, setPaid] = useState<Paid | null>(() => (!embedded && orderReference() ? { kind: 'checking' } : null));
+  // Bookings: /book (or ?book=1) opens the booking page; ?booking=<token> is a customer's own booking.
+  const [bookOpen, setBookOpen] = useState(() => !embedded && (/^\/book\/?$/.test(window.location.pathname) || new URLSearchParams(window.location.search).has('book')));
+  const [bookingToken, setBookingToken] = useState(() => (embedded ? '' : new URLSearchParams(window.location.search).get('booking') ?? ''));
+  const closeBooking = () => {
+    setBookOpen(false);
+    setBookingToken('');
+    const url = new URL(window.location.href);
+    ['book', 'booking', 'reference', 'trxref'].forEach(k => url.searchParams.delete(k));
+    if (/^\/book\/?$/.test(url.pathname)) url.pathname = '/';
+    window.history.replaceState(null, '', url.toString());
+  };
   const [query, setQuery] = useState(embedded?.query ?? '');
   const found = useMemo(() => {
     const w = words(query);
@@ -503,7 +521,7 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
       .catch(e => setPaid({ kind: 'error', message: e instanceof Error ? e.message : 'Could not check your payment.', reference }));
   }, []);
   useEffect(() => {
-    const reference = new URLSearchParams(window.location.search).get('reference');
+    const reference = orderReference();
     if (reference && LIVE) checkPayment(reference);
   }, [checkPayment]);
 
@@ -643,6 +661,13 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
   };
   const fieldError = (k: keyof Buyer) => (showErrors && errors[k] ? errors[k] : '');
 
+  if (bookingToken) {
+    const ref = new URLSearchParams(window.location.search).get('reference');
+    return <ManageBooking token={bookingToken} reference={ref?.startsWith('aqb_') ? ref : null} design={d} fmt={fmt} onBack={closeBooking} />;
+  }
+  if (bookOpen) {
+    return <BookingFlow handle={data.handle} shopName={data.name} design={d} fmt={fmt} onBack={closeBooking} />;
+  }
   if (tracking) {
     return <TrackOrder token={tracking} design={d} shopName={data.name} verified={data.verified} fmt={fmt} onBack={closeTracking} />;
   }
@@ -664,8 +689,13 @@ export function Store({ data, embedded }: { data: StoreData; embedded?: Embedded
         variant="page"
         name={data.name}
         verified={data.verified}
-        toolbar={data.items.length > 1 ? (
+        toolbar={data.items.length > 1 || data.bookings ? (
           <div className="sp-tools">
+            {data.bookings && (
+              <button type="button" className="sp-book" style={{ background: d.colors.accent, color: d.colors.accent_text }} onClick={() => setBookOpen(true)}>
+                <span>Book an appointment</span><span aria-hidden="true">›</span>
+              </button>
+            )}
             {usedCollections.length > 0 && (
               <div className="sp-tabs" role="tablist" aria-label="Collections">
                 {[{ id: 'all', name: 'All' }, ...usedCollections].map(c => (

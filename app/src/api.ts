@@ -396,7 +396,7 @@ export function sellerIdFromToken(token: string): string {
 const PUBLISHABLE_KEY: string = import.meta.env.VITE_MEDUSA_PUBLISHABLE_KEY ?? '';
 
 export interface PublicStore {
-  store: Pick<ApiSeller, 'id' | 'name' | 'handle' | 'category' | 'country_code' | 'currency_code' | 'sells_abroad' | 'theme' | 'accent' | 'font' | 'announcement' | 'design' | 'collections'> & { show_badge?: boolean; pickup?: unknown; accepts_payments?: boolean; verified?: boolean; shipping?: { ships_from: string | null; options: unknown[] } };
+  store: Pick<ApiSeller, 'id' | 'name' | 'handle' | 'category' | 'country_code' | 'currency_code' | 'sells_abroad' | 'theme' | 'accent' | 'font' | 'announcement' | 'design' | 'collections'> & { show_badge?: boolean; pickup?: unknown; accepts_payments?: boolean; verified?: boolean; bookings?: boolean; shipping?: { ships_from: string | null; options: unknown[] } };
   products: ApiProduct[];
 }
 
@@ -474,6 +474,43 @@ export const notifyWhenBack = (productId: string, body: { email: string; choice?
   storeSend<{ waiting: true }>(`/store/products/${encodeURIComponent(productId)}/notify`, 'POST', body);
 export const reportProduct = (productId: string, body: { reason: 'counterfeit' | 'prohibited' | 'misleading' | 'offensive' | 'scam' | 'other'; note?: string }) =>
   storeSend<{ reported: true }>(`/store/products/${encodeURIComponent(productId)}/report`, 'POST', body);
+
+// ---- bookings: the customer side (store page) ----
+export type PayChoice = 'deposit' | 'full' | 'later';
+export interface BookingPage {
+  shop: { name: string; handle: string; address: string; timezone: string; cancel_hours: number; days_ahead: number; currency_code: string };
+  fee_percent: number;
+  services: (Service & { pay_choices: PayChoice[] })[];
+}
+export interface CustomerBooking {
+  id: string; service_name: string; duration_min: number; starts_at: string; ends_at: string;
+  status: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'no_show'; customer_name: string; currency_code: string;
+  price: number; paid: number; owed: number; tips: number; refund_due: number; refunded: boolean; can_change: boolean; cancel_hours: number; timezone: string;
+  shop: { name: string; handle: string; address: string };
+}
+async function storeGet<T>(path: string): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(`${storeApi()}${path}`, { headers: { 'x-publishable-api-key': PUBLISHABLE_KEY } });
+  } catch {
+    throw new ApiError(0, "Can't reach the shop right now. Check your internet connection and try again.");
+  }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new ApiError(res.status, (data as { message?: string }).message ?? 'Something went wrong. Please try again.');
+  return data as T;
+}
+export const bookingApi = {
+  page: (handle: string) => storeGet<BookingPage>(`/store/sellers/${encodeURIComponent(handle)}/booking`),
+  slots: (handle: string, serviceId: string, date: string) =>
+    storeGet<{ slots: string[] }>(`/store/sellers/${encodeURIComponent(handle)}/booking/slots?service_id=${encodeURIComponent(serviceId)}&date=${date}`),
+  book: (handle: string, body: { service_id: string; starts_at: string; name: string; email: string; phone: string; note?: string; pay: PayChoice; return_url: string; marketing_opt_in?: boolean }) =>
+    storeSend<{ booking: CustomerBooking; token: string; payment_url: string | null }>(`/store/sellers/${encodeURIComponent(handle)}/booking`, 'POST', body),
+  verify: (reference: string) => storeSend<{ status: 'paid' | 'pending' | 'failed'; kind: string; booking: CustomerBooking; token: string }>('/store/booking-payments/verify', 'POST', { reference }),
+  get: (token: string) => storeGet<{ booking: CustomerBooking; online: boolean; fee_percent: number }>(`/store/bookings/${encodeURIComponent(token)}`),
+  act: (token: string, body: { action: 'cancel' } | { action: 'reschedule'; starts_at: string } | { action: 'pay_balance'; return_url: string } | { action: 'tip'; amount: number; return_url: string }) =>
+    storeSend<{ booking?: CustomerBooking; payment_url?: string }>(`/store/bookings/${encodeURIComponent(token)}`, 'POST', body),
+  calendarFile: (token: string) => `${storeApi()}/bookings/${encodeURIComponent(token)}/calendar`,
+};
 
 export async function fetchTracking(token: string): Promise<TrackedOrder> {
   let res: Response;

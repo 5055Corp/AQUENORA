@@ -230,3 +230,46 @@
 .pp-notify-row input { flex: 1; min-width: 0; border: 1px solid; border-radius: 999px; padding: 10px 14px; font: inherit; background: transparent; }
 .pp-notify-row button { border: 0; border-radius: 999px; padding: 10px 16px; font: inherit; font-weight: 700; cursor: pointer; white-space: nowrap; }
 .pp-notify-done { margin: 12px 0 4px; font-size: 14px; font-weight: 600; }
+
+/* ---- Bookings (customer side) ---- */
+.sp-book { width: 100%; display: flex; justify-content: space-between; align-items: center; border: 0; border-radius: 16px; padding: 15px 18px; font: inherit; font-weight: 800; font-size: 16px; cursor: pointer; margin-bottom: 12px; }
+.bf { min-height: 100vh; }
+.bf-head { padding: 16px 20px 18px; max-width: 640px; margin: 0 auto; }
+.bf-back { background: none; border: 0; padding: 0; font: inherit; font-weight: 700; font-size: 14px; cursor: pointer; opacity: .85; }
+.bf-title { font-size: 30px; margin-top: 10px; }
+.bf-sheet { border-radius: 24px 24px 0 0; padding: 20px 18px 40px; min-height: calc(100vh - 110px); max-width: 640px; margin: 0 auto; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; }
+.bf-step { font-size: 12px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; opacity: .65; margin: 8px 0 0; display: flex; align-items: center; gap: 8px; }
+.bf-opt { display: flex; justify-content: space-between; align-items: center; gap: 10px; border: 2px solid rgba(0,0,0,.1); background: transparent; color: inherit; border-radius: 14px; padding: 12px 14px; font: inherit; text-align: left; cursor: pointer; }
+.bf-opt span { display: grid; gap: 2px; } .bf-opt small { opacity: .65; font-size: 12.5px; }
+.bf-opt.on { background: rgba(91,33,182,.06); }
+.bf-days { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 -18px; padding: 0 18px; }
+.bf-days::-webkit-scrollbar { display: none; }
+.bf-day { min-width: 52px; border: 2px solid rgba(0,0,0,.1); background: transparent; color: inherit; border-radius: 12px; padding: 7px 0; font: inherit; font-size: 11.5px; display: flex; flex-direction: column; align-items: center; cursor: pointer; }
+.bf-day b { font-size: 17px; }
+.bf-slots, .bf-tips { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
+.bf-slot { border: 2px solid rgba(0,0,0,.1); background: transparent; color: inherit; border-radius: 10px; padding: 10px 0; font: inherit; font-weight: 700; font-size: 14px; cursor: pointer; }
+.bf-go { width: 100%; border: 0; border-radius: 999px; padding: 16px; font: inherit; font-weight: 800; font-size: 16px; cursor: pointer; margin-top: 6px; }
+.bf-go:disabled { opacity: .45; cursor: default; }
+.bf-light { font-weight: 600; opacity: .7; }
+.bf-sum { background: rgba(0,0,0,.04); border-radius: 14px; padding: 12px 14px; display: grid; gap: 4px; font-size: 14px; }
+.bf-sum div { display: flex; justify-content: space-between; gap: 10px; }
+.bf-sum .mute { opacity: .65; font-size: 13px; }
+.bf-sum .tot { border-top: 1px solid rgba(0,0,0,.1); margin-top: 4px; padding-top: 8px; font-size: 15px; }
+.bf-field { width: 100%; box-sizing: border-box; border: 2px solid rgba(0,0,0,.1); background: transparent; color: inherit; border-radius: 12px; padding: 12px 14px; font: inherit; font-size: 15px; }
+.bf-tip-other { padding: 8px 10px; text-align: center; }
+.bf-check { display: flex; gap: 8px; align-items: center; font-size: 14px; }
+.bf-fine { font-size: 12.5px; opacity: .65; text-align: center; margin: 0; line-height: 1.45; }
+.bf-err { color: #b42318; font-weight: 600; margin: 0; }
+.bf-empty { opacity: .65; text-align: center; padding: 14px 0; margin: 0; }
+.bf-msg { background: #e6f4ea; color: #1e6b34; border-radius: 12px; padding: 10px 14px; font-weight: 700; margin: 0; }
+.bf-status { align-self: flex-start; background: #e6f4ea; color: #1e6b34; border-radius: 999px; padding: 4px 11px; font-weight: 700; font-size: 12.5px; }
+.bf-status.cancelled, .bf-status.no_show { background: #fdecea; color: #8a1f17; } .bf-status.pending { background: #fff4e5; color: #7a4300; }
+.bf-h { font-size: 24px; margin: 2px 0 0; } .bf-mute { opacity: .65; margin: 0; font-size: 14px; }
+.bf-badge { border-radius: 999px; padding: 2px 8px; font-size: 10.5px; letter-spacing: .5px; }
+.bf-row { display: flex; gap: 8px; margin-top: 8px; }
+.bf-ghost { flex: 1; text-align: center; border: 2px solid; background: transparent; border-radius: 999px; padding: 11px 8px; white-space: nowrap; font: inherit; font-weight: 700; font-size: 14px; text-decoration: none; cursor: pointer; }
+.bf-done { text-align: center; display: grid; gap: 10px; }
+.bf-done h2 { margin: 0; font-size: 26px; } .bf-done p { margin: 0; opacity: .7; }
+.bf-tick { width: 72px; height: 72px; border-radius: 50%; background: #e6f4ea; color: #1e6b34; font-size: 36px; display: grid; place-items: center; margin: 8px auto 4px; }
+.bf-done .bf-sum { text-align: left; }
+.bf-resched { display: grid; gap: 10px; margin-top: 6px; }
