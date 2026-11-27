@@ -7,9 +7,10 @@ import { defaultBookingSettings } from './Business';
 const DAYS: [Day, string][] = [['mon', 'Mon'], ['tue', 'Tue'], ['wed', 'Wed'], ['thu', 'Thu'], ['fri', 'Fri'], ['sat', 'Sat'], ['sun', 'Sun']];
 
 const DEMO_SERVICES: Service[] = [
-  { id: 'd1', name: 'Bridal trial makeup', description: null, duration_min: 60, price: 45000, payment: 'deposit', deposit_type: 'fixed', deposit_value: 10000, deposit: 10000, active: true, sort: 0 },
-  { id: 'd2', name: 'Knotless braids', description: 'Mid-back length', duration_min: 180, price: 30000, payment: 'deposit', deposit_type: 'percent', deposit_value: 30, deposit: 9000, active: true, sort: 1 },
-  { id: 'd3', name: 'Lash refill', description: null, duration_min: 30, price: 8000, payment: 'none', deposit_type: 'fixed', deposit_value: 0, deposit: 0, active: true, sort: 2 },
+  { id: 'd1', name: 'Silk press', description: 'Wash, blow-dry and silk press. Bring your hair clean.', duration_min: 75, price: 20000, payment: 'deposit', deposit_type: 'fixed', deposit_value: 5000, deposit: 5000, active: true, sort: 0,
+    addons: [{ id: 'a1', name: 'Hollywood waves', price: 10000, duration_min: 45 }, { id: 'a2', name: 'Trim', price: 3000, duration_min: 15 }, { id: 'a3', name: 'Deep conditioning', price: 5000, duration_min: 20 }] },
+  { id: 'd2', name: 'Knotless braids', description: 'Mid-back length, hair included', duration_min: 180, price: 30000, payment: 'deposit', deposit_type: 'percent', deposit_value: 30, deposit: 9000, active: true, sort: 1, addons: [{ id: 'a4', name: 'Waist length', price: 8000, duration_min: 60 }] },
+  { id: 'd3', name: 'Bridal hair & makeup', description: 'Trial, wedding-morning glam and touch-ups for you and your bridal party.', duration_min: 240, price: 250000, payment: 'contact', deposit_type: 'fixed', deposit_value: 0, deposit: 0, active: true, sort: 2, addons: [] },
 ];
 
 const minutes = (m: number) => (m < 60 ? `${m} min` : m % 60 ? `${Math.floor(m / 60)} hr ${m % 60} min` : `${m / 60} hr`);
@@ -64,9 +65,10 @@ export function ServicesAndHours() {
           <button type="button" key={svc.id} className="biz-row" onClick={() => setEditing(svc)}>
             <span className="biz-row-text">
               <b>{svc.name}{svc.active ? '' : ' (hidden)'}</b>
-              <small>{minutes(svc.duration_min)} · {svc.payment === 'full' ? 'pay in full online' : svc.payment === 'none' ? 'pay at the appointment' : `deposit ${fmt(svc.deposit)}`}</small>
+              <small>{svc.payment === 'contact' ? 'Contact to book' : <>{minutes(svc.duration_min)} · {svc.payment === 'full' ? 'pay in full online' : svc.payment === 'none' ? 'pay at the appointment' : `deposit ${fmt(svc.deposit)}`}</>}
+                {svc.addons?.length ? ` · ${svc.addons.length} add-on${svc.addons.length === 1 ? '' : 's'}` : ''}</small>
             </span>
-            <b className="biz-price">{fmt(svc.price)}</b>
+            <b className="biz-price">{svc.payment === 'contact' && !svc.price ? 'Ask' : fmt(svc.price)}</b>
           </button>
         ))}
       </div>
@@ -96,6 +98,12 @@ export function ServicesAndHours() {
       <div className="card biz-card">
         <label className="biz-field"><span>Address (shown to customers who book)</span>
           <input className="field" value={draft.address} maxLength={300} placeholder="e.g. 14 Admiralty Way, Lekki, Lagos" onChange={e => setDraft({ ...draft, address: e.target.value })} onBlur={() => save({})} />
+        </label>
+        <label className="biz-field"><span>Booking phone / WhatsApp (for "Contact to book" services)</span>
+          <input className="field" type="tel" value={draft.phone ?? ''} maxLength={30} placeholder="e.g. +234 801 234 5678" onChange={e => setDraft({ ...draft, phone: e.target.value })} onBlur={() => save({})} />
+        </label>
+        <label className="biz-field"><span>Booking email (optional)</span>
+          <input className="field" type="email" value={draft.contact_email ?? ''} maxLength={200} placeholder="e.g. hello@glowbytolu.com" onChange={e => setDraft({ ...draft, contact_email: e.target.value })} onBlur={() => save({})} />
         </label>
         <div className="biz-two">
           <label className="biz-field"><span>Free changes until</span>
@@ -137,15 +145,18 @@ function ServiceForm({ service, onDone, onDelete }: { service: Service | null; o
 
   const save = async () => {
     if (!f.name?.trim()) return setError('Name the service.');
-    if (!f.price || f.price <= 0) return setError('Set the price.');
+    if (f.payment !== 'contact' && (!f.price || f.price <= 0)) return setError('Set the price.');
     if (f.payment === 'deposit' && !f.deposit_value) return setError('Set the deposit.');
+    if (!f.duration_min || f.duration_min < 5) return setError('Set how long it takes (at least 5 minutes).');
+    if (f.addons?.some(a => !a.name.trim())) return setError('Name each add-on, or remove the empty one.');
     setBusy(true);
     try {
-      const body: ServiceInput = { ...f, name: f.name.trim(), description: f.description?.trim() || null };
+      const body: ServiceInput = { ...f, name: f.name.trim(), description: f.description?.trim() || null, price: f.price || 0, addons: (f.addons ?? []).map(a => ({ ...a, name: a.name.trim() })) };
       let saved: Service;
       if (!live) {
-        const deposit = f.payment === 'full' ? f.price : f.payment === 'none' ? 0 : f.deposit_type === 'percent' ? Math.round(f.price * (f.deposit_value ?? 0) / 100) : (f.deposit_value ?? 0);
-        saved = { ...(service ?? { id: 'd' + Date.now(), sort: 99 }), ...body, deposit } as Service;
+        const price = f.price ?? 0;
+        const deposit = f.payment === 'full' ? price : f.payment === 'none' || f.payment === 'contact' ? 0 : f.deposit_type === 'percent' ? Math.round(price * (f.deposit_value ?? 0) / 100) : (f.deposit_value ?? 0);
+        saved = { ...(service ?? { id: 'd' + Date.now(), sort: 99 }), ...body, addons: (body.addons ?? []).map((a, i) => ({ ...a, id: a.id ?? `a${Date.now()}${i}` })), deposit } as Service;
       } else {
         saved = service ? (await api.updateService(s.token, service.id, body)).service : (await api.addService(s.token, body)).service;
       }
@@ -168,18 +179,18 @@ function ServiceForm({ service, onDone, onDelete }: { service: Service | null; o
       <h1 className="h1" style={{ fontSize: h1Size }}>{service ? 'Edit service' : 'New service'}</h1>
       <div className="card biz-card">
         <label className="biz-field"><span>Name</span><input className="field" value={f.name ?? ''} maxLength={80} placeholder="e.g. Knotless braids" onChange={e => set({ name: e.target.value })} /></label>
-        <label className="biz-field"><span>Details (optional)</span><textarea className="field" rows={2} maxLength={600} value={f.description ?? ''} placeholder="e.g. Mid-back length, hair included" onChange={e => set({ description: e.target.value })} /></label>
+        <label className="biz-field"><span>Short description</span><textarea className="field" rows={2} maxLength={600} value={f.description ?? ''} placeholder="e.g. Mid-back length, hair included. Come with clean hair." onChange={e => set({ description: e.target.value })} /></label>
+        <span className="biz-field"><span>How long it takes</span></span>
         <div className="biz-two">
-          <label className="biz-field"><span>How long</span>
-            <select className="field" value={f.duration_min} onChange={e => set({ duration_min: Number(e.target.value) })}>
-              {[15, 30, 45, 60, 90, 120, 150, 180, 240, 300, 360, 480].map(m => <option key={m} value={m}>{minutes(m)}</option>)}
-            </select>
-          </label>
-          <label className="biz-field"><span>Price{sym ? ` (${sym})` : ''}</span><input className="field" inputMode="numeric" value={f.price || ''} onChange={e => set({ price: Number(e.target.value.replace(/[^0-9]/g, '')) })} /></label>
+          <label className="biz-field biz-unit"><input className="field" inputMode="numeric" aria-label="Hours" value={Math.floor((f.duration_min ?? 0) / 60) || ''} placeholder="0"
+            onChange={e => set({ duration_min: Math.min(12, Number(e.target.value.replace(/[^0-9]/g, '')) || 0) * 60 + (f.duration_min ?? 0) % 60 })} /><span>hours</span></label>
+          <label className="biz-field biz-unit"><input className="field" inputMode="numeric" aria-label="Minutes" value={(f.duration_min ?? 0) % 60 || ''} placeholder="0"
+            onChange={e => set({ duration_min: Math.floor((f.duration_min ?? 0) / 60) * 60 + Math.min(59, Number(e.target.value.replace(/[^0-9]/g, '')) || 0) })} /><span>min</span></label>
         </div>
-        <span className="biz-field"><span>How customers pay</span></span>
-        <div className="biz-chips" role="group" aria-label="How customers pay">
-          {([['deposit', 'Deposit online'], ['full', 'Full price online'], ['none', 'At the appointment']] as const).map(([k, l]) => (
+        <label className="biz-field"><span>{f.payment === 'contact' ? 'Price from (optional)' : 'Price'}{sym ? ` (${sym})` : ''}</span><input className="field" inputMode="numeric" value={f.price || ''} placeholder={f.payment === 'contact' ? 'Leave empty for "Ask for a price"' : ''} onChange={e => set({ price: Number(e.target.value.replace(/[^0-9]/g, '')) })} /></label>
+        <span className="biz-field"><span>How customers book</span></span>
+        <div className="biz-chips" role="group" aria-label="How customers book and pay">
+          {([['deposit', 'Deposit online'], ['full', 'Full price online'], ['none', 'Pay at the appointment'], ['contact', 'Contact to book']] as const).map(([k, l]) => (
             <button type="button" key={k} aria-pressed={f.payment === k} className={'biz-chip' + (f.payment === k ? ' on' : '')} onClick={() => set({ payment: k })}>{l}</button>
           ))}
         </div>
@@ -193,7 +204,12 @@ function ServiceForm({ service, onDone, onDelete }: { service: Service | null; o
             </label>
           </div>
         )}
-        <p className="biz-note">{f.payment === 'none' ? 'Customers can still choose to pay in full online.' : f.payment === 'deposit' ? 'Customers can pay the rest online before the visit, or at the appointment.' : 'Customers pay everything when they book.'} AQUENORA's 3% fee is added on top for the customer; you get your full price.</p>
+        {f.payment === 'contact' ? (
+          <p className="biz-note">For services you plan with the customer first, like bridal hair & makeup or events. Customers see it on your booking page with buttons to WhatsApp, call or email you{s.bookings?.phone || s.bookings?.contact_email ? '' : ' (add your booking contact in Services & hours)'}. When you've agreed, add it to your diary from Bookings → Add booking.</p>
+        ) : (
+          <p className="biz-note">{f.payment === 'none' ? 'Customers can still choose to pay in full online.' : f.payment === 'deposit' ? 'Customers can pay the rest online before the visit, or at the appointment.' : 'Customers pay everything when they book.'} AQUENORA's 3% fee is added on top for the customer; you get your full price.</p>
+        )}
+        {f.payment !== 'contact' && <AddonsEditor addons={f.addons ?? []} sym={sym} onChange={addons => set({ addons })} />}
         <label className="set-switch biz-switch">
           <span><b>Show on my booking page</b></span>
           <input type="checkbox" role="switch" checked={f.active !== false} onChange={e => set({ active: e.target.checked })} />
@@ -203,6 +219,30 @@ function ServiceForm({ service, onDone, onDelete }: { service: Service | null; o
         <button type="button" className="btn-dark biz-wide" disabled={busy} onClick={save}>{busy ? 'Saving…' : service ? 'Save' : 'Add service'}</button>
         {service && <button type="button" className="link-btn biz-more" onClick={remove}>Delete this service</button>}
       </div>
+    </div>
+  );
+}
+
+type AddonDraft = NonNullable<ServiceInput['addons']>[number];
+
+/** Extras customers can tick: each adds to the price and the time (e.g. Hollywood waves, +₦10,000, +45 min). */
+function AddonsEditor({ addons, sym, onChange }: { addons: AddonDraft[]; sym: string; onChange: (a: AddonDraft[]) => void }) {
+  const edit = (i: number, p: Partial<AddonDraft>) => onChange(addons.map((a, j) => (j === i ? { ...a, ...p } : a)));
+  return (
+    <div className="biz-addons">
+      <span className="biz-field"><span>Add-ons (optional)</span></span>
+      <p className="biz-note biz-note-top">Extras customers can add when they book. The price and the time are added on.</p>
+      {addons.map((a, i) => (
+        <div className="biz-addon" key={a.id ?? i}>
+          <input className="field" aria-label="Add-on name" placeholder="e.g. Hollywood waves" maxLength={60} value={a.name} onChange={e => edit(i, { name: e.target.value })} />
+          <div className="biz-addon-row">
+            <label className="biz-unit"><span>+{sym}</span><input className="field" inputMode="numeric" aria-label="Extra price" placeholder="0" value={a.price || ''} onChange={e => edit(i, { price: Number(e.target.value.replace(/[^0-9]/g, '')) })} /></label>
+            <label className="biz-unit"><span>+</span><input className="field" inputMode="numeric" aria-label="Extra minutes" placeholder="0" value={a.duration_min || ''} onChange={e => edit(i, { duration_min: Math.min(480, Number(e.target.value.replace(/[^0-9]/g, '')) || 0) })} /><span>min</span></label>
+            <button type="button" className="biz-addon-x" aria-label={`Remove ${a.name || 'add-on'}`} onClick={() => onChange(addons.filter((_, j) => j !== i))}>×</button>
+          </div>
+        </div>
+      ))}
+      {addons.length < 15 && <button type="button" className="biz-add-addon" onClick={() => onChange([...addons, { name: '', price: 0, duration_min: 0 }])}>+ Add an add-on</button>}
     </div>
   );
 }

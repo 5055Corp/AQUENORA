@@ -388,12 +388,25 @@ export type PushTokenBody = z.infer<typeof PushTokenSchema>
 
 // ---- bookings (service providers) ----
 
+const addonSchema = z
+  .object({
+    /** Kept when editing; new add-ons get one. */
+    id: z.string().max(40).optional(),
+    name: z.string().trim().min(1, "Name the add-on").max(60),
+    price: z.number().min(0).max(1_000_000_000),
+    /** Extra time it adds (0 if none). */
+    duration_min: z.number().int().min(0).max(480),
+  })
+  .strict()
+
 const serviceFields = {
   name: z.string().trim().min(1, "Name the service").max(80),
   description: z.string().trim().max(600).nullable(),
   duration_min: z.number().int().min(5, "At least 5 minutes").max(720, "At most 12 hours"),
   price: z.number().min(0).max(1_000_000_000),
-  payment: z.enum(["deposit", "full", "none"]),
+  /** "contact": shown on the booking page, but customers get in touch to book. */
+  payment: z.enum(["deposit", "full", "none", "contact"]),
+  addons: z.array(addonSchema).max(15, "Up to 15 add-ons"),
   deposit_type: z.enum(["fixed", "percent"]),
   deposit_value: z.number().min(0).max(1_000_000_000),
   active: z.boolean(),
@@ -404,7 +417,7 @@ const depositOk = (s: { payment?: string; deposit_type?: string; deposit_value?:
 const percentOk = (s: { deposit_type?: string; deposit_value?: number }) => s.deposit_type !== "percent" || (s.deposit_value ?? 0) <= 100
 export const CreateServiceSchema = z
   .object(serviceFields)
-  .partial({ description: true, deposit_type: true, deposit_value: true, active: true, sort: true })
+  .partial({ description: true, deposit_type: true, deposit_value: true, active: true, sort: true, addons: true })
   .strict()
   .refine((s) => s.payment !== "deposit" || (s.deposit_value ?? 0) > 0, { message: "Set the deposit amount", path: ["deposit_value"] })
   .refine(percentOk, { message: "A deposit can't be more than 100%", path: ["deposit_value"] })
@@ -425,6 +438,7 @@ export const StartBookingSchema = z
     return_url: returnUrl,
     /** "Send me news and offers from this shop". */
     marketing_opt_in: z.boolean().optional(),
+    addon_ids: z.array(z.string().max(40)).max(15).optional(),
   })
   .strict()
 export type StartBookingBody = z.infer<typeof StartBookingSchema>
@@ -473,6 +487,9 @@ export const ManualBookingSchema = z
     note: z.string().trim().max(500).optional(),
     /** Already paid (cash, transfer). */
     paid: z.number().min(0).max(1_000_000_000).optional(),
+    addon_ids: z.array(z.string().max(40)).max(15).optional(),
+    /** The price agreed with the customer, if not the list price. */
+    price: z.number().min(0).max(1_000_000_000).optional(),
   })
   .strict()
 export type ManualBookingBody = z.infer<typeof ManualBookingSchema>

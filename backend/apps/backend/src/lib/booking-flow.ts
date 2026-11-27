@@ -7,7 +7,7 @@ import { ContainerRegistrationKeys, MedusaError, Modules } from "@medusajs/frame
 import { supportEmail } from "./account-email"
 import {
   blocksTime, bookingConfirmedEmail, bookingSettingsOf, bookingToken, bookingUpdateEmail, canChange, customerView, depositFor, feeOn,
-  formatWhen, freeSlots, localDate, owedOf, payChoices, sellerBookingEmail, serviceView,
+  formatWhen, freeSlots, localDate, owedOf, payChoices, sellerBookingEmail, serviceView, withAddons,
   type BookingRow, type BookingSettings, type PayChoice, type ServiceRow,
 } from "./bookings"
 import { paymentsBlocker } from "./checkout"
@@ -60,12 +60,16 @@ async function busyFor(c: MedusaContainer, sellerId: string, around: Date, excep
   return rows.filter((b) => b.id !== exceptId)
 }
 
-export async function slotsFor(c: MedusaContainer, handle: string, serviceId: string, date: string) {
+const CONTACT_ONLY = "Please contact the shop to book this."
+
+/** Free start times for a service (with add-ons, which make it longer). */
+export async function slotsFor(c: MedusaContainer, handle: string, serviceId: string, date: string, addonIds: string[] = []) {
   const { seller, settings } = await bookingSeller(c, handle)
   const svc = await activeService(c, seller.id, serviceId)
+  if (svc.payment === "contact") throw new MedusaError(MedusaError.Types.NOT_ALLOWED, CONTACT_ONLY)
   const noon = new Date(`${date}T12:00:00Z`)
   if (Number.isNaN(noon.getTime())) throw new MedusaError(MedusaError.Types.INVALID_DATA, "Pick a day.")
-  return freeSlots({ settings, duration_min: svc.duration_min, date, busy: await busyFor(c, seller.id, noon) })
+  return freeSlots({ settings, duration_min: withAddons(svc, addonIds).duration_min, date, busy: await busyFor(c, seller.id, noon) })
 }
 
 async function activeService(c: MedusaContainer, sellerId: string, id: string): Promise<ServiceRow> {
@@ -80,9 +84,13 @@ export async function bookingPage(c: MedusaContainer, handle: string) {
   const services = (await sellersOf(c).listBookingServices({ seller_id: seller.id, active: true }, { order: { sort: "ASC", created_at: "ASC" }, take: 100 })) as unknown as ServiceRow[]
   const online = takesPayments(seller)
   return {
-    shop: { name: seller.name, handle: seller.handle, address: settings.address, timezone: settings.timezone, cancel_hours: settings.cancel_hours, days_ahead: settings.days_ahead, currency_code: seller.currency_code },
+    shop: {
+      name: seller.name, handle: seller.handle, address: settings.address, timezone: settings.timezone, cancel_hours: settings.cancel_hours, days_ahead: settings.days_ahead, currency_code: seller.currency_code,
+      // How to reach the shop for "Contact to book" services.
+      phone: settings.phone || null, email: settings.contact_email || null,
+    },
     fee_percent: await feePercent(c),
-    services: services.map((s) => ({ ...serviceView(s), pay_choices: payChoices(s, online) })).filter((s) => s.pay_choices.length),
+    services: services.map((s) => ({ ...serviceView(s), pay_choices: payChoices(s, online) })).filter((s) => s.payment === "contact" || s.pay_choices.length),
   }
 }
 
@@ -130,12 +138,16 @@ export type StartBookingInput = {
   pay: PayChoice
   return_url: string
   marketing_opt_in?: boolean
+  /** Add-ons the customer chose (more money and time). */
+  addon_ids?: string[]
 }
 
 /** Creates the booking. Paying online: a Paystack page for the deposit or full price + AQUENORA's fee. */
 export async function startBooking(c: MedusaContainer, handle: string, input: StartBookingInput) {
   const { seller, settings } = await bookingSeller(c, handle)
-  const svc = await activeService(c, seller.id, input.service_id)
+  const base = await activeService(c, seller.id, input.service_id)
+  if (base.payment === "contact") throw new MedusaError(MedusaError.Types.NOT_ALLOWED, CONTACT_ONLY)
+  const svc = withAddons(base, input.addon_ids)
   const online = takesPayments(seller)
   if (!payChoices(svc, online).includes(input.pay)) {
     throw new MedusaError(MedusaError.Types.INVALID_DATA, online ? "Choose how you'd like to pay." : "This shop can't take bookings online right now. Please contact them.")
@@ -155,6 +167,7 @@ export async function startBooking(c: MedusaContainer, handle: string, input: St
       seller_id: seller.id,
       service_id: svc.id,
       service_name: svc.name,
+      addons: svc.chosen.length ? svc.chosen : null,
       duration_min: svc.duration_min,
       starts_at: start,
       ends_at: new Date(start.getTime() + svc.duration_min * 60000),
@@ -361,23 +374,25 @@ export async function sellerBookings(c: MedusaContainer, sellerId: string, from:
 
 // ---------------- the provider adds a booking by hand (walk-in, phone, WhatsApp) ----------------
 
-export type ManualBookingInput = { service_id: string; starts_at: string; name: string; phone?: string; email?: string; note?: string; paid?: number }
+export type ManualBookingInput = { service_id: string; starts_at: string; name: string; phone?: string; email?: string; note?: string; paid?: number; addon_ids?: string[]; price?: number }
 
 export async function addManualBooking(c: MedusaContainer, sellerId: string, input: ManualBookingInput) {
   const sellers = sellersOf(c)
   const seller = (await sellers.retrieveSeller(sellerId)) as unknown as BookingSeller
   const settings = bookingSettingsOf(seller)
-  const [svc] = (await sellers.listBookingServices({ id: input.service_id, seller_id: sellerId }, { take: 1 })) as unknown as ServiceRow[]
-  if (!svc) throw new MedusaError(MedusaError.Types.NOT_FOUND, "That service isn't available.")
+  const [base] = (await sellers.listBookingServices({ id: input.service_id, seller_id: sellerId }, { take: 1 })) as unknown as ServiceRow[]
+  if (!base) throw new MedusaError(MedusaError.Types.NOT_FOUND, "That service isn't available.")
+  const svc = withAddons(base, input.addon_ids)
   const start = new Date(input.starts_at)
   if (Number.isNaN(start.getTime())) throw new MedusaError(MedusaError.Types.INVALID_DATA, "Pick a time.")
   const end = new Date(start.getTime() + svc.duration_min * 60000)
   // The provider can book outside opening hours (it's their diary), but not on top of another booking.
   const clash = (await busyFor(c, sellerId, start)).find((b) => blocksTime(b, Date.now()) && start < new Date(b.ends_at) && end > new Date(b.starts_at))
   if (clash) throw new MedusaError(MedusaError.Types.NOT_ALLOWED, `That time overlaps ${clash.customer_name}'s ${clash.service_name}.`)
-  const price = Number(svc.price)
+  // A price agreed with the customer (e.g. a bridal quote) replaces the list price.
+  const price = input.price ?? Number(svc.price)
   const booking = (await sellers.createBookings({
-    seller_id: sellerId, service_id: svc.id, service_name: svc.name, duration_min: svc.duration_min, starts_at: start, ends_at: end,
+    seller_id: sellerId, service_id: svc.id, service_name: svc.name, addons: svc.chosen.length ? svc.chosen : null, duration_min: svc.duration_min, starts_at: start, ends_at: end,
     status: "confirmed", customer_name: input.name.trim(), email: (input.email ?? "").trim().toLowerCase(), phone: (input.phone ?? "").trim(),
     note: input.note?.trim() || null, currency_code: seller.currency_code, price, deposit: 0, paid: Math.min(price, Math.max(0, input.paid ?? 0)), tips: 0, refund_due: 0,
   } as never)) as unknown as BookingRow

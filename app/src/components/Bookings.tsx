@@ -150,16 +150,21 @@ function BookingSheet({ b, onClose, onAct }: { b: SellerBooking; onClose: () => 
 function AddBooking({ day, onClose, onAdded }: { day: string; onClose: () => void; onAdded: (b: SellerBooking) => void }) {
   const { s, live, flash, fmt } = useStore();
   const [services, setServices] = useState<Service[] | null>(live ? null : [
-    { id: 'd1', name: 'Bridal trial makeup', description: null, duration_min: 60, price: 45000, payment: 'deposit', deposit_type: 'fixed', deposit_value: 10000, deposit: 10000, active: true, sort: 0 },
-    { id: 'd3', name: 'Lash refill', description: null, duration_min: 30, price: 8000, payment: 'none', deposit_type: 'fixed', deposit_value: 0, deposit: 0, active: true, sort: 2 },
+    { id: 'd1', name: 'Silk press', description: null, duration_min: 75, price: 20000, payment: 'deposit', deposit_type: 'fixed', deposit_value: 5000, deposit: 5000, active: true, sort: 0, addons: [{ id: 'a1', name: 'Hollywood waves', price: 10000, duration_min: 45 }, { id: 'a2', name: 'Trim', price: 3000, duration_min: 15 }] },
+    { id: 'd3', name: 'Bridal hair & makeup', description: null, duration_min: 240, price: 250000, payment: 'contact', deposit_type: 'fixed', deposit_value: 0, deposit: 0, active: true, sort: 2, addons: [] },
   ]);
-  const [f, setF] = useState({ service_id: '', date: day, time: '10:00', name: '', phone: '', email: '', paid: '' });
+  const [f, setF] = useState({ service_id: '', date: day, time: '10:00', name: '', phone: '', email: '', paid: '', price: '' });
+  const [extras, setExtras] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   useEffect(() => {
     if (live) api.services(s.token).then(r => setServices(r.services)).catch(() => setServices([]));
   }, [live, s.token]);
   const svc = services?.find(x => x.id === f.service_id) ?? services?.[0];
+  const chosen = (svc?.addons ?? []).filter(a => extras.includes(a.id));
+  const listPrice = (svc?.price ?? 0) + chosen.reduce((t, a) => t + a.price, 0);
+  const duration = (svc?.duration_min ?? 0) + chosen.reduce((t, a) => t + a.duration_min, 0);
+  const price = f.price ? Number(f.price) : listPrice;
 
   const save = async () => {
     if (!svc) return setError('Add a service first (Business → Services & hours).');
@@ -167,10 +172,11 @@ function AddBooking({ day, onClose, onAdded }: { day: string; onClose: () => voi
     setBusy(true);
     const starts = new Date(`${f.date}T${f.time}:00`).toISOString();
     try {
-      const body = { service_id: svc.id, starts_at: starts, name: f.name.trim(), phone: f.phone.trim() || undefined, email: f.email.trim() || undefined, paid: Number(f.paid) || 0 };
+      const body = { service_id: svc.id, starts_at: starts, name: f.name.trim(), phone: f.phone.trim() || undefined, email: f.email.trim() || undefined, paid: Number(f.paid) || 0,
+        ...(extras.length ? { addon_ids: extras } : {}), ...(f.price ? { price: Number(f.price) } : {}) };
       const b = live ? (await api.addBooking(s.token, body)).booking : {
-        id: 'd' + Date.now(), service_id: svc.id, service_name: svc.name, duration_min: svc.duration_min, starts_at: starts, ends_at: new Date(new Date(starts).getTime() + svc.duration_min * 60000).toISOString(),
-        status: 'confirmed', customer_name: body.name, email: body.email ?? '', phone: body.phone ?? '', note: null, currency_code: 'ngn', price: svc.price, deposit: 0, paid: body.paid, owed: svc.price - body.paid, tips: 0, refund_due: 0, refunded_at: null, cancelled_by: null,
+        id: 'd' + Date.now(), service_id: svc.id, service_name: [svc.name, ...chosen.map(a => a.name)].join(' + '), duration_min: duration, starts_at: starts, ends_at: new Date(new Date(starts).getTime() + duration * 60000).toISOString(),
+        status: 'confirmed', customer_name: body.name, email: body.email ?? '', phone: body.phone ?? '', note: null, currency_code: 'ngn', price, deposit: 0, paid: body.paid, owed: price - body.paid, tips: 0, refund_due: 0, refunded_at: null, cancelled_by: null,
       } as SellerBooking;
       flash('Booking added');
       onAdded(b);
@@ -186,9 +192,20 @@ function AddBooking({ day, onClose, onAdded }: { day: string; onClose: () => voi
         <div className="vf-head"><h2>Add a booking</h2><button type="button" className="vf-x" aria-label="Close" onClick={onClose}>×</button></div>
         <p className="bk-sub">For walk-ins and bookings made by phone or WhatsApp.</p>
         <label className="biz-field"><span>Service</span>
-          <select className="field" value={svc?.id ?? ''} onChange={e => setF({ ...f, service_id: e.target.value })}>
-            {(services ?? []).map(x => <option key={x.id} value={x.id}>{x.name} · {fmt(x.price)}</option>)}
+          <select className="field" value={svc?.id ?? ''} onChange={e => { setF({ ...f, service_id: e.target.value, price: '' }); setExtras([]); }}>
+            {(services ?? []).map(x => <option key={x.id} value={x.id}>{x.name}{x.price ? ` · ${fmt(x.price)}` : ''}</option>)}
           </select>
+        </label>
+        {(svc?.addons ?? []).length > 0 && (
+          <div className="bk-addons" role="group" aria-label="Add-ons">
+            {(svc?.addons ?? []).map(a => (
+              <label key={a.id} className="bk-addon"><input type="checkbox" checked={extras.includes(a.id)} onChange={e => setExtras(e.target.checked ? [...extras, a.id] : extras.filter(x => x !== a.id))} />
+                <span>{a.name}</span><small>+{fmt(a.price)}{a.duration_min ? ` · +${a.duration_min} min` : ''}</small></label>
+            ))}
+          </div>
+        )}
+        <label className="biz-field"><span>Price agreed{svc?.payment === 'contact' ? '' : ' (if different)'}</span>
+          <input className="field" inputMode="numeric" placeholder={listPrice ? String(listPrice) : 'e.g. 350000'} value={f.price} onChange={e => setF({ ...f, price: e.target.value.replace(/[^0-9]/g, '') })} />
         </label>
         <div className="biz-two">
           <label className="biz-field"><span>Day</span><input type="date" className="field" value={f.date} onChange={e => setF({ ...f, date: e.target.value })} /></label>

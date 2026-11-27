@@ -11,6 +11,8 @@ const Booking = model.define("booking", {
   seller_id: model.text().index(),
   service_id: model.text().index(),
   service_name: model.text(),
+  // Add-ons chosen: [{ name, price, duration_min }] (already in service_name, price and duration).
+  addons: model.json().nullable(),
   duration_min: model.number(),
   starts_at: model.dateTime().index(),
   ends_at: model.dateTime(),

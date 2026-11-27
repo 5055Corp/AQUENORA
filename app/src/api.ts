@@ -106,6 +106,9 @@ export interface BookingSettings {
   min_notice_min: number;
   days_ahead: number;
   cancel_hours: number;
+  /** Shown for "Contact to book" services. */
+  phone?: string;
+  contact_email?: string;
   calendar_key?: string;
 }
 export interface BookingEmail { subject: string; message: string }
@@ -115,14 +118,18 @@ export interface Service {
   description: string | null;
   duration_min: number;
   price: number;
-  payment: 'deposit' | 'full' | 'none';
+  /** 'contact': listed, but customers get in touch to book (e.g. bridal). */
+  payment: 'deposit' | 'full' | 'none' | 'contact';
   deposit_type: 'fixed' | 'percent';
   deposit_value: number;
   deposit: number;
+  /** Extras the customer can add (more money and time), e.g. Hollywood waves. */
+  addons?: Addon[];
   active: boolean;
   sort: number;
 }
-export type ServiceInput = Partial<Pick<Service, 'name' | 'description' | 'duration_min' | 'price' | 'payment' | 'deposit_type' | 'deposit_value' | 'active'>>;
+export interface Addon { id: string; name: string; price: number; duration_min: number }
+export type ServiceInput = Partial<Pick<Service, 'name' | 'description' | 'duration_min' | 'price' | 'payment' | 'deposit_type' | 'deposit_value' | 'active'>> & { addons?: (Omit<Addon, 'id'> & { id?: string })[] };
 export interface SellerBooking {
   id: string;
   service_id: string;
@@ -478,7 +485,7 @@ export const reportProduct = (productId: string, body: { reason: 'counterfeit' |
 // ---- bookings: the customer side (store page) ----
 export type PayChoice = 'deposit' | 'full' | 'later';
 export interface BookingPage {
-  shop: { name: string; handle: string; address: string; timezone: string; cancel_hours: number; days_ahead: number; currency_code: string };
+  shop: { name: string; handle: string; address: string; timezone: string; cancel_hours: number; days_ahead: number; currency_code: string; phone?: string | null; email?: string | null };
   fee_percent: number;
   services: (Service & { pay_choices: PayChoice[] })[];
 }
@@ -501,9 +508,9 @@ async function storeGet<T>(path: string): Promise<T> {
 }
 export const bookingApi = {
   page: (handle: string) => storeGet<BookingPage>(`/store/sellers/${encodeURIComponent(handle)}/booking`),
-  slots: (handle: string, serviceId: string, date: string) =>
-    storeGet<{ slots: string[] }>(`/store/sellers/${encodeURIComponent(handle)}/booking/slots?service_id=${encodeURIComponent(serviceId)}&date=${date}`),
-  book: (handle: string, body: { service_id: string; starts_at: string; name: string; email: string; phone: string; note?: string; pay: PayChoice; return_url: string; marketing_opt_in?: boolean }) =>
+  slots: (handle: string, serviceId: string, date: string, addons: string[] = []) =>
+    storeGet<{ slots: string[] }>(`/store/sellers/${encodeURIComponent(handle)}/booking/slots?service_id=${encodeURIComponent(serviceId)}&date=${date}${addons.length ? `&addons=${addons.map(encodeURIComponent).join(',')}` : ''}`),
+  book: (handle: string, body: { service_id: string; starts_at: string; name: string; email: string; phone: string; note?: string; pay: PayChoice; return_url: string; marketing_opt_in?: boolean; addon_ids?: string[] }) =>
     storeSend<{ booking: CustomerBooking; token: string; payment_url: string | null }>(`/store/sellers/${encodeURIComponent(handle)}/booking`, 'POST', body),
   verify: (reference: string) => storeSend<{ status: 'paid' | 'pending' | 'failed'; kind: string; booking: CustomerBooking; token: string }>('/store/booking-payments/verify', 'POST', { reference }),
   get: (token: string) => storeGet<{ booking: CustomerBooking; online: boolean; fee_percent: number }>(`/store/bookings/${encodeURIComponent(token)}`),
@@ -702,7 +709,7 @@ export const api = {
       `/sellers/me/bookings${from ? `?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to ?? '')}` : ''}`, { token }),
   bookingAction: (token: string, id: string, body: { action: 'complete' | 'no_show' | 'refunded' | 'cancel'; reason?: string }) =>
     request<{ booking: SellerBooking }>(`/sellers/me/bookings/${encodeURIComponent(id)}`, { token, body }),
-  addBooking: (token: string, body: { service_id: string; starts_at: string; name: string; phone?: string; email?: string; note?: string; paid?: number }) =>
+  addBooking: (token: string, body: { service_id: string; starts_at: string; name: string; phone?: string; email?: string; note?: string; paid?: number; addon_ids?: string[]; price?: number }) =>
     request<{ booking: SellerBooking }>('/sellers/me/bookings', { token, body }),
   calendarLink: (token: string, renew = false) => request<{ url: string; webcal: string }>('/sellers/me/booking-calendar', { token, body: { renew } }),
   // ---- email blasts ----

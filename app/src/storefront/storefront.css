@@ -273,3 +273,14 @@
 .bf-tick { width: 72px; height: 72px; border-radius: 50%; background: #e6f4ea; color: #1e6b34; font-size: 36px; display: grid; place-items: center; margin: 8px auto 4px; }
 .bf-done .bf-sum { text-align: left; }
 .bf-resched { display: grid; gap: 10px; margin-top: 6px; }
+/* Bookings: descriptions, add-ons, contact to book */
+.bf-opt .bf-desc { opacity: .8; font-size: 13px; line-height: 1.35; }
+.bf-price { display: grid; justify-items: end; white-space: nowrap; }
+.bf-price small { font-weight: 500; opacity: .65; font-size: 12px; }
+.bf-opt-note { text-transform: none; letter-spacing: 0; font-weight: 500; opacity: .7; }
+.bf-addon { justify-content: flex-start; }
+.bf-addon .bf-grow { flex: 1; }
+.bf-box { background: transparent; width: 22px; height: 22px; flex: none; border: 2px solid rgba(0,0,0,.2); border-radius: 6px; display: grid; place-items: center; font-size: 13px; font-weight: 800; }
+.bf-total { margin: 2px 2px 0; font-size: 14px; opacity: .85; }
+.bf-contact p { font-size: 14px; line-height: 1.45; margin: 6px 0 14px; opacity: .85; }
+.bf-contact a.bf-go { display: block; box-sizing: border-box; width: 100%; text-align: center; text-decoration: none; }

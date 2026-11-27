@@ -7,6 +7,7 @@
 // Times: stored in UTC; opening hours are wall-clock times in the provider's time zone.
 
 import { createHmac, timingSafeEqual } from "node:crypto"
+import { MedusaError } from "@medusajs/framework/utils"
 import { z } from "@medusajs/framework/zod"
 import { publicApiUrl, shopUrl } from "./campaign-email"
 import { money } from "./order-email"
@@ -40,6 +41,9 @@ export const BookingSettingsSchema = z
     days_ahead: z.number().int().min(1).max(365),
     /** Free changes and refunds up to this many hours before. */
     cancel_hours: z.number().int().min(0).max(168),
+    /** Shown for "Contact to book" services: a phone/WhatsApp number and an email. */
+    phone: z.string().trim().max(30).optional(),
+    contact_email: z.union([z.string().trim().email("Enter a valid email address").max(200), z.literal("")]).optional(),
   })
   .strict()
 export type BookingSettings = z.infer<typeof BookingSettingsSchema> & { calendar_key?: string }
@@ -149,7 +153,9 @@ export type ServiceRow = {
   description: string | null
   duration_min: number
   price: unknown
-  payment: "deposit" | "full" | "none"
+  /** "contact": no online booking; customers get in touch (e.g. bridal hair & makeup). */
+  payment: "deposit" | "full" | "none" | "contact"
+  addons?: Addon[] | null
   deposit_type: "fixed" | "percent"
   deposit_value: number
   active: boolean
@@ -158,10 +164,30 @@ export type ServiceRow = {
 
 const round2 = (n: number) => Math.round(n * 100) / 100
 
+/** An extra the customer can add to a service (e.g. Hollywood waves): more money and more time. */
+export type Addon = { id: string; name: string; price: number; duration_min: number }
+
+/** The service with the customer's add-ons: one name, total price and total time. */
+export function withAddons(s: ServiceRow, ids: string[] = []) {
+  const all = s.addons ?? []
+  const chosen = [...new Set(ids)].map((id) => {
+    const a = all.find((x) => x.id === id)
+    if (!a) throw new MedusaError(MedusaError.Types.INVALID_DATA, "That add-on isn't available any more. Please choose again.")
+    return a
+  })
+  return {
+    ...s,
+    name: [s.name, ...chosen.map((a) => a.name)].join(" + "),
+    price: round2(Number(s.price) + chosen.reduce((t, a) => t + Number(a.price), 0)),
+    duration_min: s.duration_min + chosen.reduce((t, a) => t + a.duration_min, 0),
+    chosen: chosen.map(({ name, price, duration_min }) => ({ name, price: Number(price), duration_min })),
+  }
+}
+
 export function depositFor(s: Pick<ServiceRow, "price" | "payment" | "deposit_type" | "deposit_value">): number {
   const price = Number(s.price)
   if (s.payment === "full") return price
-  if (s.payment === "none") return 0
+  if (s.payment === "none" || s.payment === "contact") return 0
   const d = s.deposit_type === "percent" ? (price * Number(s.deposit_value)) / 100 : Number(s.deposit_value)
   return round2(Math.min(price, Math.max(0, d)))
 }
@@ -170,6 +196,7 @@ export type PayChoice = "deposit" | "full" | "later"
 
 /** Which ways a customer can pay for a service when booking. */
 export function payChoices(s: ServiceRow, online: boolean): PayChoice[] {
+  if (s.payment === "contact") return []
   if (!online) return s.payment === "none" ? ["later"] : []
   if (s.payment === "full") return ["full"]
   if (s.payment === "deposit") return depositFor(s) > 0 && depositFor(s) < Number(s.price) ? ["deposit", "full"] : ["full"]
@@ -295,6 +322,7 @@ export function serviceView(s: ServiceRow) {
     deposit_type: s.deposit_type,
     deposit_value: Number(s.deposit_value),
     deposit: depositFor(s),
+    addons: (s.addons ?? []).map((a) => ({ id: a.id, name: a.name, price: Number(a.price), duration_min: a.duration_min })),
     active: s.active,
     sort: s.sort,
   }

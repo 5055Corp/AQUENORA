@@ -13,14 +13,23 @@ const mins = (m: number) => (m < 60 ? `${m} min` : m % 60 ? `${Math.floor(m / 60
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
 const DEMO_PAGE = (name: string, handle: string): BookingPage => ({
-  shop: { name, handle, address: '14 Admiralty Way, Lekki, Lagos', timezone: 'Africa/Lagos', cancel_hours: 24, days_ahead: 60, currency_code: 'ngn' },
+  shop: { name, handle, address: '14 Admiralty Way, Lekki, Lagos', timezone: 'Africa/Lagos', cancel_hours: 24, days_ahead: 60, currency_code: 'ngn', phone: '+234 801 234 5678', email: 'hello@example.com' },
   fee_percent: 3,
   services: [
-    { id: 'd1', name: 'Bridal trial makeup', description: 'Soft glam, lashes included', duration_min: 60, price: 45000, payment: 'deposit', deposit_type: 'fixed', deposit_value: 10000, deposit: 10000, active: true, sort: 0, pay_choices: ['deposit', 'full'] },
-    { id: 'd2', name: 'Knotless braids', description: 'Mid-back length', duration_min: 180, price: 30000, payment: 'deposit', deposit_type: 'percent', deposit_value: 30, deposit: 9000, active: true, sort: 1, pay_choices: ['deposit', 'full'] },
-    { id: 'd3', name: 'Lash refill', description: null, duration_min: 30, price: 8000, payment: 'none', deposit_type: 'fixed', deposit_value: 0, deposit: 0, active: true, sort: 2, pay_choices: ['later', 'full'] },
+    { id: 'd1', name: 'Silk press', description: 'Wash, blow-dry and silk press. Bring your hair clean.', duration_min: 75, price: 20000, payment: 'deposit', deposit_type: 'fixed', deposit_value: 5000, deposit: 5000, active: true, sort: 0, pay_choices: ['deposit', 'full'],
+      addons: [{ id: 'a1', name: 'Hollywood waves', price: 10000, duration_min: 45 }, { id: 'a2', name: 'Trim', price: 3000, duration_min: 15 }, { id: 'a3', name: 'Deep conditioning', price: 5000, duration_min: 20 }] },
+    { id: 'd2', name: 'Knotless braids', description: 'Mid-back length, hair included', duration_min: 180, price: 30000, payment: 'deposit', deposit_type: 'percent', deposit_value: 30, deposit: 9000, active: true, sort: 1, pay_choices: ['deposit', 'full'], addons: [{ id: 'a4', name: 'Waist length', price: 8000, duration_min: 60 }] },
+    { id: 'd3', name: 'Bridal hair & makeup', description: 'Trial, wedding-morning glam and touch-ups for you and your bridal party.', duration_min: 240, price: 250000, payment: 'contact', deposit_type: 'fixed', deposit_value: 0, deposit: 0, active: true, sort: 2, pay_choices: [], addons: [] },
   ],
 });
+/** A WhatsApp link: local numbers (0…) get the country code from the shop's time zone. */
+const CALLING: Record<string, string> = { 'Africa/Lagos': '234', 'Africa/Accra': '233', 'Africa/Johannesburg': '27', 'Africa/Abidjan': '225', 'Africa/Dakar': '221', 'Europe/London': '44' };
+const waLink = (phone: string, tz: string, text: string) => {
+  let d = phone.replace(/[^0-9]/g, '');
+  if (!phone.trim().startsWith('+') && d.startsWith('0')) d = (CALLING[tz] ?? '') + d.slice(1);
+  return `https://wa.me/${d}?text=${encodeURIComponent(text)}`;
+};
+
 const demoSlots = (date: string) => ['09:00', '10:30', '11:30', '13:00', '14:30', '16:00'].filter((_, i) => (date.charCodeAt(9) + i) % 3 !== 0).map(t => new Date(`${date}T${t}:00`).toISOString());
 
 /** A faint wash of the store's brand colour, for selected cards. */
@@ -44,25 +53,36 @@ export function BookingFlow({ handle, shopName, design, fmt, onBack }: Props) {
   const [who, setWho] = useState({ name: '', email: '', phone: '', note: '', news: true });
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<CustomerBooking | null>(null);
+  const [extras, setExtras] = useState<string[]>([]);
 
   useEffect(() => {
     if (LIVE) bookingApi.page(handle).then(setPage).catch(e => setError(e instanceof Error ? e.message : 'Could not load.'));
   }, [handle]);
   const svc = page?.services.find(s => s.id === svcId) ?? page?.services[0];
-  useEffect(() => { if (svc && !svc.pay_choices.includes(pay)) setPay(svc.pay_choices[0]); }, [svc, pay]);
+  const contact = svc?.payment === 'contact';
+  useEffect(() => { if (svc && svc.pay_choices.length && !svc.pay_choices.includes(pay)) setPay(svc.pay_choices[0]); }, [svc, pay]);
+  useEffect(() => { setExtras([]); }, [svc?.id]);
+  const extrasKey = extras.join(',');
   useEffect(() => {
-    if (!svc) return;
+    if (!svc || svc.payment === 'contact') return;
     setSlots(null);
     setSlot('');
     if (!LIVE) { setSlots(demoSlots(date)); return; }
-    bookingApi.slots(handle, svc.id, date).then(r => setSlots(r.slots)).catch(() => setSlots([]));
-  }, [handle, svc, date]);
+    bookingApi.slots(handle, svc.id, date, extrasKey ? extrasKey.split(',') : []).then(r => setSlots(r.slots)).catch(() => setSlots([]));
+  }, [handle, svc, date, extrasKey]);
 
   if (error) return <Shell c={c} title={shopName} onBack={onBack}><p className="bf-empty">{error}</p></Shell>;
   if (!page || !svc) return <Shell c={c} title={shopName} onBack={onBack}><p className="bf-empty">{page ? 'No services to book yet.' : 'Loading…'}</p></Shell>;
   if (done) return <Shell c={c} title={shopName} onBack={onBack}><Confirmed b={done} fmt={fmt} c={c} /></Shell>;
 
-  const payNow = pay === 'full' ? svc.price : pay === 'deposit' ? svc.deposit : 0;
+  // Add-ons: more money and more time.
+  const chosen = (svc.addons ?? []).filter(a => extras.includes(a.id));
+  const total = round2(svc.price + chosen.reduce((t, a) => t + a.price, 0));
+  const duration = svc.duration_min + chosen.reduce((t, a) => t + a.duration_min, 0);
+  const deposit = svc.payment === 'full' ? total : svc.payment === 'deposit' ? round2(Math.min(total, svc.deposit_type === 'percent' ? total * svc.deposit_value / 100 : svc.deposit_value)) : 0;
+  const fullName = [svc.name, ...chosen.map(a => a.name)].join(' + ');
+  const payNow = pay === 'full' ? total : pay === 'deposit' ? deposit : 0;
+  const n = (k: number) => k + ((svc.addons ?? []).length ? 1 : 0);
   const fee = round2(payNow * page.fee_percent / 100);
   const tz = page.shop.timezone;
 
@@ -75,10 +95,10 @@ export function BookingFlow({ handle, shopName, design, fmt, onBack }: Props) {
     try {
       if (!LIVE) {
         const paid = payNow;
-        setDone({ id: 'demo', service_name: svc.name, duration_min: svc.duration_min, starts_at: slot, ends_at: new Date(new Date(slot).getTime() + svc.duration_min * 60000).toISOString(), status: 'confirmed', customer_name: who.name, currency_code: 'ngn', price: svc.price, paid, owed: svc.price - paid, tips: 0, refund_due: 0, refunded: false, can_change: true, cancel_hours: page.shop.cancel_hours, timezone: tz, shop: { name: shopName, handle, address: page.shop.address } });
+        setDone({ id: 'demo', service_name: fullName, duration_min: duration, starts_at: slot, ends_at: new Date(new Date(slot).getTime() + duration * 60000).toISOString(), status: 'confirmed', customer_name: who.name, currency_code: 'ngn', price: total, paid, owed: total - paid, tips: 0, refund_due: 0, refunded: false, can_change: true, cancel_hours: page.shop.cancel_hours, timezone: tz, shop: { name: shopName, handle, address: page.shop.address } });
         return;
       }
-      const r = await bookingApi.book(handle, { service_id: svc.id, starts_at: slot, name: who.name.trim(), email: who.email.trim(), phone: who.phone.trim(), note: who.note.trim() || undefined, pay, return_url: window.location.href.split('?')[0], marketing_opt_in: who.news });
+      const r = await bookingApi.book(handle, { service_id: svc.id, starts_at: slot, name: who.name.trim(), email: who.email.trim(), phone: who.phone.trim(), note: who.note.trim() || undefined, pay, return_url: window.location.href.split('?')[0], marketing_opt_in: who.news, ...(extras.length ? { addon_ids: extras } : {}) });
       if (r.payment_url) window.location.href = r.payment_url;
       else setDone(r.booking);
     } catch (e) {
@@ -94,11 +114,33 @@ export function BookingFlow({ handle, shopName, design, fmt, onBack }: Props) {
           <div className="bf-step">1 · Choose a service</div>
           {page.services.map(s => (
             <button type="button" key={s.id} className={'bf-opt' + (s.id === svc.id ? ' on' : '')} style={s.id === svc.id ? { borderColor: c.accent, background: tint(c.accent) } : undefined} onClick={() => setSvcId(s.id)}>
-              <span><b>{s.name}</b><small>{mins(s.duration_min)}{s.description ? ` · ${s.description}` : ''}</small></span>
-              <b>{s.payment === 'deposit' && s.deposit < s.price ? '' : ''}{fmt(s.price)}</b>
+              <span><b>{s.name}</b>
+                {s.description && <small className="bf-desc">{s.description}</small>}
+                <small>{s.payment === 'contact' ? 'Contact to book' : mins(s.duration_min)}</small></span>
+              <b className="bf-price">{s.payment === 'contact' ? (s.price > 0 ? <><small>from</small>{fmt(s.price)}</> : <small>Ask for a price</small>) : fmt(s.price)}</b>
             </button>
           ))}
-          <div className="bf-step">2 · Pick a day</div>
+          {contact ? (
+            <ContactToBook c={c} shop={page.shop} service={svc.name} />
+          ) : (<>
+          {(svc.addons ?? []).length > 0 && (
+            <>
+              <div className="bf-step">2 · Add extras <span className="bf-opt-note">(optional)</span></div>
+              {(svc.addons ?? []).map(a => {
+                const on = extras.includes(a.id);
+                return (
+                  <button type="button" key={a.id} role="checkbox" aria-checked={on} className={'bf-opt bf-addon' + (on ? ' on' : '')} style={on ? { borderColor: c.accent, background: tint(c.accent) } : undefined}
+                    onClick={() => setExtras(on ? extras.filter(x => x !== a.id) : [...extras, a.id])}>
+                    <span className="bf-box" style={on ? { background: c.accent, borderColor: c.accent, color: c.onAccent } : undefined} aria-hidden="true">{on ? '✓' : ''}</span>
+                    <span className="bf-grow"><b>{a.name}</b>{a.duration_min > 0 && <small>+{mins(a.duration_min)}</small>}</span>
+                    <b>+{fmt(a.price)}</b>
+                  </button>
+                );
+              })}
+              <p className="bf-total">Total <b>{fmt(total)}</b> · {mins(duration)}</p>
+            </>
+          )}
+          <div className="bf-step">{n(2)} · Pick a day</div>
           <div className="bf-days">
             {days.map(d => {
               const k = ymd(d);
@@ -109,7 +151,7 @@ export function BookingFlow({ handle, shopName, design, fmt, onBack }: Props) {
               );
             })}
           </div>
-          <div className="bf-step">3 · Pick a time</div>
+          <div className="bf-step">{n(3)} · Pick a time</div>
           {slots === null ? <p className="bf-empty">Finding free times…</p> : slots.length === 0 ? <p className="bf-empty">No free times on this day. Try another day.</p> : (
             <div className="bf-slots">
               {slots.map(t => (
@@ -120,12 +162,15 @@ export function BookingFlow({ handle, shopName, design, fmt, onBack }: Props) {
           <button type="button" className="bf-go" disabled={!slot} style={{ background: c.accent, color: c.onAccent }} onClick={() => setStep('details')}>
             {slot ? `Continue · ${longDate(slot, tz)}, ${hm(slot, tz)}` : 'Pick a time'}
           </button>
+          </>)}
         </>
       ) : (
         <>
           <div className="bf-sum">
             <div><span>{svc.name}</span><b>{fmt(svc.price)}</b></div>
-            <div className="mute"><span>{longDate(slot, tz)}, {hm(slot, tz)} · {mins(svc.duration_min)}</span></div>
+            {chosen.map(a => <div key={a.id}><span>+ {a.name}</span><span>{fmt(a.price)}</span></div>)}
+            {chosen.length > 0 && <div className="tot"><span>Total</span><b>{fmt(total)}</b></div>}
+            <div className="mute"><span>{longDate(slot, tz)}, {hm(slot, tz)} · {mins(duration)}</span></div>
             {page.shop.address && <div className="mute"><span>{page.shop.address}</span></div>}
           </div>
           {svc.pay_choices.length > 1 && (
@@ -133,8 +178,8 @@ export function BookingFlow({ handle, shopName, design, fmt, onBack }: Props) {
               <div className="bf-step">How would you like to pay?</div>
               {svc.pay_choices.map(p => (
                 <button type="button" key={p} className={'bf-opt' + (p === pay ? ' on' : '')} style={p === pay ? { borderColor: c.accent, background: tint(c.accent) } : undefined} onClick={() => setPay(p)}>
-                  <span><b>{p === 'deposit' ? `Pay the deposit now (${fmt(svc.deposit)})` : p === 'full' ? 'Pay in full now' : 'Pay at the appointment'}</b>
-                    <small>{p === 'deposit' ? `${fmt(svc.price - svc.deposit)} at the appointment` : p === 'full' ? 'Nothing to pay on the day' : 'Nothing to pay now'}</small></span>
+                  <span><b>{p === 'deposit' ? `Pay the deposit now (${fmt(deposit)})` : p === 'full' ? 'Pay in full now' : 'Pay at the appointment'}</b>
+                    <small>{p === 'deposit' ? `${fmt(total - deposit)} at the appointment` : p === 'full' ? 'Nothing to pay on the day' : 'Nothing to pay now'}</small></span>
                 </button>
               ))}
             </>
@@ -152,7 +197,7 @@ export function BookingFlow({ handle, shopName, design, fmt, onBack }: Props) {
                 <div className="mute"><span>Service fee ({page.fee_percent}%)</span><span>{fmt(fee)}</span></div>
                 <div className="tot"><span>Pay now</span><b>{fmt(payNow + fee)}</b></div>
               </>
-            ) : <div className="tot"><span>Pay at the appointment</span><b>{fmt(svc.price)}</b></div>}
+            ) : <div className="tot"><span>Pay at the appointment</span><b>{fmt(total)}</b></div>}
           </div>
           {error && <p className="bf-err" role="alert">{error}</p>}
           <button type="button" className="bf-go" disabled={busy} style={{ background: c.accent, color: c.onAccent }} onClick={book}>
@@ -166,6 +211,24 @@ export function BookingFlow({ handle, shopName, design, fmt, onBack }: Props) {
 }
 
 type Colours = ReturnType<typeof useColours>;
+
+/** "Contact to book" services (e.g. bridal): chat first, then the provider books it in. */
+function ContactToBook({ c, shop, service }: { c: Colours; shop: BookingPage['shop']; service: string }) {
+  const text = `Hi ${shop.name}, I'd like to ask about ${service}.`;
+  const ghost = { color: c.cardInk, borderColor: c.cardInk + '33' };
+  return (
+    <div className="bf-contact">
+      <div className="bf-step">2 · Get in touch to book</div>
+      <p>{shop.name} plans {service} with you first: dates, how many people and the price. Send them a message and they'll book you in.</p>
+      {shop.phone && <a className="bf-go" style={{ background: c.accent, color: c.onAccent }} href={waLink(shop.phone, shop.timezone, text)} target="_blank" rel="noreferrer">Message on WhatsApp</a>}
+      <div className="bf-row">
+        {shop.phone && <a className="bf-ghost" style={ghost} href={`tel:${shop.phone.replace(/[^0-9+]/g, '')}`}>Call</a>}
+        {shop.email && <a className="bf-ghost" style={ghost} href={`mailto:${shop.email}?subject=${encodeURIComponent(service)}&body=${encodeURIComponent(text)}`}>Email</a>}
+      </div>
+      {!shop.phone && !shop.email && <p className="bf-empty">Contact details coming soon.</p>}
+    </div>
+  );
+}
 
 function Shell({ c, title, onBack, backLabel, children }: { c: Colours; title: string; onBack: () => void; backLabel?: string; children: React.ReactNode }) {
   useEffect(() => { window.scrollTo(0, 0); }, []);

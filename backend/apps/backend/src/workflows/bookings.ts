@@ -17,7 +17,8 @@ export type ServiceInput = {
   description?: string | null
   duration_min: number
   price: number
-  payment: "deposit" | "full" | "none"
+  payment: "deposit" | "full" | "none" | "contact"
+  addons?: { id?: string; name: string; price: number; duration_min: number }[]
   deposit_type?: "fixed" | "percent"
   deposit_value?: number
   active?: boolean
@@ -26,6 +27,10 @@ export type ServiceInput = {
 
 const saveBookingServiceStep = createStep("save-booking-service", async (input: { seller_id: string; id?: string; data: Partial<ServiceInput> }, { container }) => {
   const sellers: SellerModuleService = container.resolve(SELLER_MODULE)
+  if (input.data.addons) {
+    // Each add-on keeps its id when edited, so a customer's half-made booking still finds it.
+    input = { ...input, data: { ...input.data, addons: input.data.addons.map((x) => ({ ...x, id: x.id || `add_${randomBytes(6).toString("hex")}` })) } }
+  }
   if (input.id) {
     const [before] = (await sellers.listBookingServices({ id: input.id, seller_id: input.seller_id }, { take: 1 })) as unknown as ServiceRow[]
     if (!before) throw new MedusaError(MedusaError.Types.NOT_FOUND, "Service not found.")

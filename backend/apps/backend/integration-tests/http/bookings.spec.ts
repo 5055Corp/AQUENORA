@@ -239,5 +239,41 @@ medusaIntegrationTestRunner({
       await api.post("/sellers/me", { booking_settings: { ...settings, enabled: false } }, { headers })
       expect(await flag()).toBe(false)
     })
+    it("add-ons add money and time; 'contact to book' services can't be booked online", async () => {
+      const { headers, store } = await setup()
+      await api.post("/sellers/me", { booking_settings: { ...settings, phone: "+234 801 000 0000", contact_email: "hello@glow.test" } }, { headers })
+      const silk = (await api.post("/sellers/me/services", {
+        name: "Silk press", description: "Wash, blow-dry and press", duration_min: 75, price: 20000, payment: "none",
+        addons: [{ name: "Hollywood waves", price: 10000, duration_min: 45 }, { name: "Trim", price: 3000, duration_min: 0 }],
+      }, { headers })).data.service
+      expect(silk.duration_min).toBe(75) // any length, not just a fixed list
+      expect(silk.addons).toHaveLength(2)
+      const waves = silk.addons[0]
+      expect(waves).toMatchObject({ name: "Hollywood waves", price: 10000, duration_min: 45 })
+      expect(waves.id).toMatch(/^add_/)
+
+      const bridal = (await api.post("/sellers/me/services", { name: "Bridal hair & makeup", description: "Trial, wedding morning and touch-ups", duration_min: 240, price: 0, payment: "contact" }, { headers })).data.service
+      const page = (await api.get("/store/sellers/glowbyada/booking", store)).data
+      expect(page.shop).toMatchObject({ phone: "+234 801 000 0000", email: "hello@glow.test" })
+      expect(page.services.find((x: { id: string }) => x.id === bridal.id)).toMatchObject({ payment: "contact", pay_choices: [] })
+      expect((await err(api.get(`/store/sellers/glowbyada/booking/slots?service_id=${bridal.id}&date=${inDays(3)}`, store))).data.message).toContain("contact the shop")
+
+      // With waves the slot is 2 hours, so the last start is 16:00 (shop closes 18:00), not 16:45.
+      const date = inDays(3)
+      const plain: string[] = (await api.get(`/store/sellers/glowbyada/booking/slots?service_id=${silk.id}&date=${date}`, store)).data.slots
+      const longer: string[] = (await api.get(`/store/sellers/glowbyada/booking/slots?service_id=${silk.id}&date=${date}&addons=${waves.id}`, store)).data.slots
+      expect(longer.length).toBeLessThan(plain.length)
+      expect(longer.at(-1)).toBe(`${date}T15:00:00.000Z`) // 16:00 in Lagos
+
+      const booked = (await api.post("/store/sellers/glowbyada/booking", { ...customer(silk.id, longer[0], "later"), addon_ids: [waves.id] }, store)).data
+      expect(booked.booking).toMatchObject({ service_name: "Silk press + Hollywood waves", duration_min: 120, price: 30000, owed: 30000 })
+      expect((await err(api.post("/store/sellers/glowbyada/booking", { ...customer(silk.id, longer[2], "later"), addon_ids: ["add_nope"] }, store))).status).toBe(400)
+      expect((await err(api.post("/store/sellers/glowbyada/booking", customer(bridal.id, longer[3], "later"), store))).status).toBe(400)
+
+      // After the chat, the provider puts the bridal booking in the diary at the agreed price.
+      const day = inDays(5)
+      const manual = (await api.post("/sellers/me/bookings", { service_id: bridal.id, starts_at: `${day}T06:00:00.000Z`, name: "Amaka", phone: "0803", price: 350000, paid: 100000 }, { headers })).data.booking
+      expect(manual).toMatchObject({ service_name: "Bridal hair & makeup", price: 350000, owed: 250000 })
+    })
   },
 })
