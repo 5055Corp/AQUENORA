@@ -233,7 +233,10 @@ function EmailBlasts({ allowance }: { allowance: EmailAllowance | null }) {
           <b>This month's emails</b>
           <span className="biz-meter big"><i style={{ width: `${Math.min(100, (allowance.used_this_month / Math.max(1, allowance.free_per_month)) * 100)}%` }} /></span>
           <div className="biz-mrow"><span><b>{allowance.used_this_month} of {allowance.free_per_month}</b> free emails used</span><span>Resets {new Date(allowance.resets_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</span></div>
-          <p className="biz-note">After {allowance.free_per_month}, each extra email is <b>{fmt(allowance.price_per_email)}</b>.{allowance.credits > 0 ? ` You have ${allowance.credits} bought emails.` : ''}</p>
+          {/* iPhone: no prices for things bought outside the app (App Store rule 3.1.1). */}
+          {SELL_PRO_HERE
+            ? <p className="biz-note">After {allowance.free_per_month}, each extra email is <b>{fmt(allowance.price_per_email)}</b>.{allowance.credits > 0 ? ` You have ${allowance.credits} bought emails.` : ''}</p>
+            : <p className="biz-note">Your free emails reset on the 1st of each month.{allowance.credits > 0 ? ` You also have ${allowance.credits} extra emails.` : ''}</p>}
         </div>
       )}
 
@@ -264,7 +267,7 @@ function EmailBlasts({ allowance }: { allowance: EmailAllowance | null }) {
           ))}
         </div>
         {reach > 0 && allowance && (
-          <p className="biz-cost">{reach} emails: <b>{free} free</b>{paid > 0 ? <> + {paid} × {fmt(allowance.price_per_email)} = <b>{fmt(cost)}</b></> : ''}</p>
+          <p className="biz-cost">{reach} emails: <b>{free} free</b>{paid > 0 ? (SELL_PRO_HERE ? <> + {paid} × {fmt(allowance.price_per_email)} = <b>{fmt(cost)}</b></> : <> + {paid} extra</>) : ''}</p>
         )}
         {short > 0 && repeat === 'now' ? (
           SELL_PRO_HERE
