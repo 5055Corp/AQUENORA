@@ -49,8 +49,8 @@ backend's `STORE_CORS`, `AUTH_CORS` and `SELLER_CORS` must each include `capacit
 Sellers get a notification for a new order, a problem reported on an order, a buyer's reply,
 and their verification result. Tapping it opens the right tab.
 
-1. **Xcode, once:** open `ios/App/App.xcodeproj`, click **App** (blue icon) → **Signing & Capabilities** →
-   **+ Capability** → **Push Notifications**.
+1. **Xcode:** already switched on in the project (`ios/App/App/App.entitlements`). In **Signing & Capabilities**
+   you should see **Push Notifications** listed; with automatic signing Xcode sets up the rest.
 2. **Apple key, once:** [developer.apple.com](https://developer.apple.com/account/resources/authkeys/list) →
    Keys → **+** → name it "AQUENORA push", tick **Apple Push Notifications service (APNs)** → Continue →
    Register → **Download** the `.p8` file (you can only download it once). Note the **Key ID** and your
